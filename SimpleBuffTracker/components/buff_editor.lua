@@ -32,7 +32,7 @@ ns.Components.BuffEditor = BuffEditor
 
 local TARGET_AURA = "aura"
 local SOURCE_NONE = "none"
-local ANY_ENCHANT = 0      -- the enchant select: any temporary enchant on the slot
+local ANY_ENCHANT = ""     -- the enchant select: any temporary enchant on the slot
 
 local PADDING = 18
 local PREVIEW_SIZE = 28
@@ -270,12 +270,12 @@ function BuffEditor.Create(parent, options)
     -- a weapon buff: which temporary enchant -- any, or one seen on the weapons before
     local enchantSelect = AddSelect("settings.enchant", function()
         local choices = { { value = ANY_ENCHANT, text = Text("settings.enchant_any") } }
-        for _, enchant in ipairs(WeaponEnchant.Seen()) do
-            table.insert(choices, { value = enchant.enchantId, text = enchant.name })
+        for _, name in ipairs(WeaponEnchant.SeenNames()) do
+            table.insert(choices, { value = name, text = name })
         end
         return choices
     end, function()
-        return buff and (buff.target.enchantId or ANY_ENCHANT)
+        return buff and (WeaponEnchant.TargetName(buff.target) or ANY_ENCHANT)
     end, function(value)
         if value == ANY_ENCHANT then
             BuffService.SetEnchant(buff, nil)

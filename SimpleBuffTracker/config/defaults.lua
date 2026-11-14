@@ -24,6 +24,8 @@ ns.Config.defaults = {
     seenAuras = {},
     -- [enchant id] = name: every temporary enchant seen on the weapons
     seenEnchants = {},
+    -- [name] = true: every temporary enchant name seen in the weapon tooltips
+    seenEnchantNames = {},
 }
 
 ns.Config.TICK_SECONDS = 1             -- how often timers and the "missing" list are checked

@@ -180,6 +180,10 @@ function GetInventoryItemTexture() return 135000 end
 weaponTooltips = {}
 ITEM_SPELL_TRIGGER_ONUSE = "Use:"
 ITEM_SPELL_TRIGGER_ONEQUIP = "Equip:"
+-- the client formats of the enchant lines (GlobalStrings)
+ITEM_ENCHANT_TIME_LEFT_HOURS = "%s (%d |4hour:hrs;)"
+ITEM_ENCHANT_TIME_LEFT_MIN = "%s (%d min)"
+ITEM_ENCHANT_TIME_LEFT_SEC = "%s (%d sec)"
 local function Color(r, g, b) return { GetRGB = function() return r, g, b end } end
 C_TooltipInfo = { GetInventoryItem = function(unit, slot)
     local lines = {}
@@ -721,9 +725,9 @@ def test_debug():
         Slash('debug')
     """)
     text = "\n".join(lua.eval("chat")[i] for i in range(1, int(lua.eval("#chat")) + 1))
-    check("debug shows every green line of the weapon tooltip",
-          "mainhand tooltip line 2: Flametongue 3 (5 min) <- enchant" in text
-          and "mainhand tooltip line 3: Brilliant Wizard Oil (30 min) <- enchant" in text)
+    check("debug shows every enchant line of the weapon tooltip",
+          "mainhand tooltip enchant: Flametongue 3 300s" in text
+          and "mainhand tooltip enchant: Brilliant Wizard Oil 1800s" in text)
     check("debug shows the remembered enchants", "seen enchant 2628 = " in text)
 
 
@@ -940,8 +944,7 @@ def test_grow_direction():
 def test_weapon_enchants():
     lua = new_runtime()
     lua.execute("""
-        -- oil on the main hand: its tooltip has the green line with the time,
-        -- and the green "Use:" line of the weapon itself
+        -- oil on the main hand: the enchant line of its tooltip, among the weapon's own lines
         weaponTooltips[16] = { { 'Arcanite Reaper', 1, 1, 1 },
                                { 'Use: Something (5 Min Cooldown)', 0, 1, 0 },
                                { 'Brilliant Wizard Oil (30 min)', 0, 1, 0 } }
@@ -951,52 +954,42 @@ def test_weapon_enchants():
         RunTickers()
     """)
     check("the enchant's name is read from the weapon tooltip",
-          lua.eval("SimpleBuffTrackerDB.seenEnchants[2628]") == "Brilliant Wizard Oil")
+          lua.eval("SimpleBuffTrackerDB.seenEnchants[2628]") == "Brilliant Wizard Oil"
+          and lua.eval("SimpleBuffTrackerDB.seenEnchantNames['Brilliant Wizard Oil']") is True)
     check("with no enchant chosen any enchant counts", lua.eval("secureButtons[1].state.isActive") is True
           and lua.eval("secureButtons[2].state.isActive") is True)
 
     lua.execute("""
-        weaponTooltips[16] = { { 'Arcanite Reaper', 1, 1, 1 }, { 'Flametongue 3 (5 min)', 0, 1, 0 } }
+        weaponTooltips[16] = { { 'Flametongue 3 (5 min)', 0, 1, 0 } }
         weaponEnchant = { true, 300000, 0, 5, false, 0, 0, 0 }
         RunTickers()
-    """)
-    check("a second enchant is remembered too", lua.eval("SimpleBuffTrackerDB.seenEnchants[5]") == "Flametongue 3")
-
-    lua.execute("""
-        ns.Services.Buff.SetEnchant(SimpleBuffTrackerDB.buffs[1], 2628)
-        ns.Services.Buff.SetEnchant(SimpleBuffTrackerDB.buffs[2], 5)
+        ns.Services.Buff.SetEnchant(SimpleBuffTrackerDB.buffs[1], 'Brilliant Wizard Oil')
+        ns.Services.Buff.SetEnchant(SimpleBuffTrackerDB.buffs[2], 'Flametongue 3')
         RunTickers()
     """)
-    check("Flametongue on: the Flametongue buff is on", lua.eval("secureButtons[2].state.isActive") is True)
-    check("Flametongue on: the oil buff is missing", lua.eval("secureButtons[1].state.isActive") is False)
+    check("Flametongue on: the Flametongue buff is on, the oil buff missing",
+          lua.eval("secureButtons[2].state.isActive") is True and lua.eval("secureButtons[1].state.isActive") is False)
     check("the buff is named after its enchant",
           lua.eval("ns.Models.Buff.TargetLabel(SimpleBuffTrackerDB.buffs[2])") == "Main hand enchant: Flametongue 3")
 
     lua.execute("""
-        weaponTooltips[16] = { { 'Brilliant Wizard Oil (30 min)', 0, 1, 0 } }
-        weaponEnchant = { true, 1800000, 0, 2628, false, 0, 0, 0 }
+        weaponTooltips[16] = { { 'Sharpened (2 hrs)', 0, 1, 0 } }
+        weaponEnchant = { true, 7200000, 0, 777, false, 0, 0, 0 }
         RunTickers()
     """)
-    check("oil on again: the oil buff is on, Flametongue missing",
-          lua.eval("secureButtons[1].state.isActive") is True and lua.eval("secureButtons[2].state.isActive") is False)
-
-    lua.execute("""
-        weaponTooltips[16] = { { 'Brilliant Wizard Oil (29 min)', 0, 1, 0 } }
-        weaponEnchant = { true, 1700000, 0, 9999, false, 0, 0, 0 }
-        RunTickers()
-    """)
-    check("the same oil under another id counts by its name", lua.eval("secureButtons[1].state.isActive") is True)
+    check("hours are read with the client's grammar token",
+          lua.eval("SimpleBuffTrackerDB.seenEnchants[777]") == "Sharpened")
 
     lua.execute("""
         inCombat = true
-        weaponTooltips[16] = { { 'Sharpened (30 min)', 0, 1, 0 } }
-        weaponEnchant = { true, 1800000, 0, 777, false, 0, 0, 0 }
+        weaponTooltips[16] = { { 'Something Else (30 min)', 0, 1, 0 } }
+        weaponEnchant = { true, 1800000, 0, 888, false, 0, 0, 0 }
         RunTickers()
         inCombat = false
     """)
-    check("in combat the tooltip is not read", lua.eval("SimpleBuffTrackerDB.seenEnchants[777]") is None)
+    check("in combat the tooltip is not read", lua.eval("SimpleBuffTrackerDB.seenEnchants[888]") is None)
 
-    # the editor: the enchant select for weapon buffs only
+    # the editor: the enchant select for weapon buffs only, by name
     lua.execute("Slash('buffs')")
     lua.execute("""
         for _, frame in ipairs(allFrames) do
@@ -1006,42 +999,59 @@ def test_weapon_enchants():
         end
     """)
     check("a weapon buff shows the enchant select", lua.eval("enchantSelect.shown") is True)
+    check("the select offers the names seen",
+          lua.eval("ns.Dataflows.WeaponEnchant.SeenNames()[1]") == "Brilliant Wizard Oil")
     lua.execute("Slash('add Arcane Intellect'); Rows()[3].scripts.OnClick(Rows()[3])")
     check("an aura hides it", lua.eval("enchantSelect.shown") is False)
 
 
-def test_oil_after_flametongue():
+def test_oil_with_flametongue():
+    # what the game showed: oil and Flametongue on one weapon at once, the API gives only Flametongue
     lua = new_runtime()
     lua.execute("""
-        -- both enchants were seen before and chosen in two buffs
-        SimpleBuffTrackerDB.seenEnchants[5] = 'Flametongue 3'
-        SimpleBuffTrackerDB.seenEnchants[2628] = 'Brilliant Wizard Oil'
+        -- remembered wrong by the older version: Flametongue's id under the oil's name
+        SimpleBuffTrackerDB.seenEnchants[1665] = 'Lesser Wizard Oil'
+        SimpleBuffTrackerDB.seenEnchants[2626] = 'Lesser Wizard Oil'
         Slash('add mainhand = spell Flametongue Weapon')
-        Slash('add mainhand = item 20749')
-        ns.Services.Buff.SetEnchant(SimpleBuffTrackerDB.buffs[1], 5)
-        ns.Services.Buff.SetEnchant(SimpleBuffTrackerDB.buffs[2], 2628)
+        Slash('add mainhand = item 20746')
+        -- buffs chosen by id by the older version
+        SimpleBuffTrackerDB.buffs[1].target.enchantId = 1665
+        SimpleBuffTrackerDB.buffs[1].target.enchantName = 'Lesser Wizard Oil'
+        SimpleBuffTrackerDB.buffs[2].target.enchantId = 2626
+        SimpleBuffTrackerDB.buffs[2].target.enchantName = 'Lesser Wizard Oil'
 
-        -- Flametongue on
-        weaponTooltips[16] = { { 'Flametongue 3 (5 min)', 0, 1, 0 } }
-        weaponEnchant = { true, 300000, 0, 5, false, 0, 0, 0 }
-        RunTickers()
-
-        -- oil over it: the client gives the oil's id at once, the tooltip still shows Flametongue
-        weaponEnchant = { true, 1800000, 0, 2628, false, 0, 0, 0 }
+        weaponTooltips[16] = { { 'Enchanted: Revelation', 0, 1, 0 },
+                               { 'Lesser Wizard Oil (30 min)', 0, 1, 0 },
+                               { 'Flametongue 5 (60 min)', 0, 1, 0 } }
+        weaponEnchant = { true, 3569000, 0, 1665, false, 0, 0, 0 }
         RunTickers()
     """)
-    check("the tooltip lags: the oil's name is read wrong for a moment",
-          lua.eval("SimpleBuffTrackerDB.seenEnchants[2628]") == "Flametongue 3")
+    check("the API's id goes to the line with the same time: 1665 is Flametongue",
+          lua.eval("SimpleBuffTrackerDB.seenEnchants[1665]") == "Flametongue 5")
+    check("both on: the Flametongue buff is on", lua.eval("secureButtons[1].state.isActive") is True)
+    check("both on: the oil buff is on too, though the API gives only Flametongue",
+          lua.eval("secureButtons[2].state.isActive") is True)
+    check("the old buff is named right now",
+          lua.eval("ns.Models.Buff.TargetLabel(SimpleBuffTrackerDB.buffs[1])") == "Main hand enchant: Flametongue 5")
+
     lua.execute("""
-        weaponTooltips[16] = { { 'Brilliant Wizard Oil (30 min)', 0, 1, 0 } }
+        -- Flametongue cancelled: only the oil, the API gives the oil now
+        weaponTooltips[16] = { { 'Enchanted: Revelation', 0, 1, 0 },
+                               { 'Lesser Wizard Oil (29 min)', 0, 1, 0 } }
+        weaponEnchant = { true, 1731000, 0, 2626, false, 0, 0, 0 }
         RunTickers()
     """)
-    check("the next reading puts the right name back",
-          lua.eval("SimpleBuffTrackerDB.seenEnchants[2628]") == "Brilliant Wizard Oil")
-    check("the oil buff is on", lua.eval("secureButtons[2].state.isActive") is True)
-    check("the Flametongue buff is missing", lua.eval("secureButtons[1].state.isActive") is False)
-    check("the oil buff keeps its name",
-          lua.eval("ns.Models.Buff.TargetLabel(SimpleBuffTrackerDB.buffs[2])") == "Main hand enchant: Brilliant Wizard Oil")
+    check("Flametongue cancelled: its buff is missing", lua.eval("secureButtons[1].state.isActive") is False)
+    check("the oil buff stays on", lua.eval("secureButtons[2].state.isActive") is True)
+
+    lua.execute("""
+        -- in combat the tooltip is not read: the last lines run out by the clock
+        inCombat = true
+        aurasHidden = true
+        weaponTooltips[16] = {}
+        RunTickers()
+    """)
+    check("in combat the oil still counts from the last reading", lua.eval("secureButtons[2].state.isActive") is True)
 
 
 def test_drag_order():
@@ -1139,7 +1149,7 @@ def main():
     test_drag_and_previews()
     test_grow_direction()
     test_weapon_enchants()
-    test_oil_after_flametongue()
+    test_oil_with_flametongue()
     test_drag_order()
     test_fields_stack()
     test_editor_fits()

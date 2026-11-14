@@ -16,10 +16,12 @@ ns.Commands.Add("debug", {
         end
         local now = GetTime()
         local weapons = WeaponEnchant.Read(now)
-        for slot, enchant in pairs(weapons) do
-            Print("weapon " .. slot .. ": enchantId=" .. tostring(enchant.enchantId)
-                .. " name=" .. tostring(enchant.name)
-                .. " left=" .. math.floor(enchant.expirationTime - now))
+        for slot, enchants in pairs(weapons) do
+            for _, enchant in ipairs(enchants) do
+                Print("weapon " .. slot .. ": name=" .. tostring(enchant.name)
+                    .. " enchantId=" .. tostring(enchant.enchantId)
+                    .. " left=" .. math.floor(enchant.expirationTime - now))
+            end
         end
         for _, line in ipairs(WeaponEnchant.DebugLines()) do
             Print(line)
@@ -31,8 +33,8 @@ ns.Commands.Add("debug", {
             local target = buff.target
             local found = nil
             if target.weapon then
-                local enchant = weapons[target.weapon]
-                found = WeaponEnchant.Matches(target, enchant) and enchant.name
+                local enchant = WeaponEnchant.Find(target, weapons[target.weapon])
+                found = enchant and (enchant.name or enchant.enchantId)
             else
                 local aura = AuraScan.Find(target, now)
                 found = aura and aura.name
@@ -40,7 +42,7 @@ ns.Commands.Add("debug", {
             Print("buff " .. index .. ": name=" .. tostring(target.name)
                 .. " spellId=" .. tostring(target.spellId)
                 .. " weapon=" .. tostring(target.weapon)
-                .. " enchantId=" .. tostring(target.enchantId)
+                .. " enchant=" .. tostring(WeaponEnchant.TargetName(target))
                 .. " icon=" .. tostring(target.icon)
                 .. " found=" .. tostring(found))
         end

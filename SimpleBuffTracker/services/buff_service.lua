@@ -74,17 +74,15 @@ function BuffService.SetTargetKind(buff, kind)
     buff.target = { weapon = kind }
 end
 
--- which temporary enchant a weapon buff tracks: an id from WeaponEnchant.Seen;
--- nil -- any enchant on the slot
-function BuffService.SetEnchant(buff, enchantId)
+-- which temporary enchant a weapon buff tracks: a name from WeaponEnchant.SeenNames;
+-- nil -- any enchant on the slot. Chosen by name: a weapon may carry two
+-- enchants, and the client gives the id of only one of them.
+function BuffService.SetEnchant(buff, enchantName)
     if not buff.target.weapon then
         return
     end
-    buff.target.enchantId = enchantId
-    buff.target.enchantName = nil
-    if enchantId then
-        buff.target.enchantName = ns.db.seenEnchants[enchantId]
-    end
+    buff.target.enchantId = nil
+    buff.target.enchantName = enchantName
 end
 
 -- the aura: a name, a spell id or a spell link; empty -- none yet
@@ -214,11 +212,8 @@ end
 local function Evaluate(buff, index, now, weapons, warnSeconds)
     local found = nil
     if buff.target.weapon then
-        found = weapons[buff.target.weapon]
-        -- a chosen enchant: another one on the weapon does not count
-        if not WeaponEnchant.Matches(buff.target, found) then
-            found = nil
-        end
+        -- a chosen enchant: only that one on the weapon counts, any other does not
+        found = WeaponEnchant.Find(buff.target, weapons[buff.target.weapon])
     else
         found = AuraScan.Find(buff.target, now)
         if found then

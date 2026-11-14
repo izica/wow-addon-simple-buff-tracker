@@ -11,7 +11,7 @@
 | исходник | `SimpleBuffTracker/` — **правим здесь** |
 | игра видит | `B:\World of Warcraft\_forever_\Interface\AddOns\SimpleBuffTracker` — junction на `SimpleBuffTracker/` |
 | клиент | WoW Forever, `_forever_`, `## Interface: 16001` |
-| база | `SimpleBuffTrackerDB` (**на персонажа**): `settings`, `buffs`, `seenAuras` (все бафы, виденные на персонаже), `seenEnchants` |
+| база | `SimpleBuffTrackerDB` (**на персонажа**): `settings`, `buffs`, `seenAuras` (все бафы, виденные на персонаже), `seenEnchants`, `seenEnchantNames` |
 
 Команда — `/sbt` (и `/simplebufftracker`), клавиши `SIMPLEBUFFTRACKER_*`, глобал для
 Bindings.xml — `SimpleBuffTracker_RunCommand`. Новый файл в `.toc` — только перезапуск клиента.
@@ -105,12 +105,14 @@ buff = { target = { spellId, name } | { weapon = "mainhand"|"offhand" },
 * Аура ищется по `spellId` или по имени (имя покрывает все ранги).
 * Чары на оружии — не аура: `GetWeaponEnchantInfo` (`dataflows/weapon_enchant.lua`),
   длительность = самый большой остаток, виденный для того же enchantId.
-* **Какие именно чары** (масло или Flametongue на одной руке): `target.enchantId` + `enchantName`, nil — любые.
-  Имя чар — только в тултипе оружия (`C_TooltipInfo.GetInventoryItem`): зелёная строка «Имя (время)», не
-  «Use:/Equip:/Chance on hit:» (своего типа строки у временных чар нет); **читается на каждом чтении вне
-  боя**, не раз на id: сразу после масла поверх Flametongue клиент уже даёт новый id, а тултип ещё старую
-  строку — имя, прочитанное раз, навсегда записывало масло как Flametongue. Копится в `seenEnchants[id] = имя`,
-  сверка и подпись бафа берут текущее имя по id (`WeaponEnchant.Name`). Совпадение — тот же id или то же имя (`WeaponEnchant.Matches`).
+* **Какие именно чары** (масло и Flametongue): **в Forever на одной руке висят оба сразу**, а
+  `GetWeaponEnchantInfo` отдаёт одни (проверено в игре: масло 30 мин + Flametongue 5 60 мин -> только id 1665 и
+  3569 с). Поэтому список чар руки — из тултипа (`C_TooltipInfo.GetInventoryItem`), строки по форматам клиента
+  `ITEM_ENCHANT_TIME_LEFT_HOURS/_MIN/_SEC` (переведены клиентом; `|4hour:hrs;` раскрывается в два точных
+  слова), у каждой имя и остаток. Id из API привязывается к строке с ближайшим остатком (±90 с) ->
+  `seenEnchants[id] = имя`; все имена — `seenEnchantNames`. Тултип читается вне боя, в бою строки тикают по часам.
+  Баф выбирает чары **по имени** (`target.enchantName`, `BuffService.SetEnchant`); старые бафы по id берут
+  имя по id (`WeaponEnchant.TargetName`). `WeaponEnchant.Find` — чары руки для бафа.
   В редакторе — селект «Какие чары» вместо поля «Баф».
 * Клик (`Buff.Action`): spell -> `type=spell`, item -> `type=item`, item на оружие ->
   `type=macro`, `/use item:ID` + `/use 16|17`.
