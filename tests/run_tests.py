@@ -554,6 +554,59 @@ def test_icons():
           lua.eval("Options('SimpleBuffTracker_Buffs').args.buff2.icon") == 137000)
 
 
+def test_learned_icon_redraws_window():
+    lua = new_runtime()
+    lua.execute("Slash('add Well Fed'); notified = 0")
+    lua.execute("""
+        auras = { { spellId = 19705, name = 'Well Fed', icon = 136000, expirationTime = clock + 900, duration = 900 } }
+        Fire('UNIT_AURA', 'player')
+    """)
+    check("a learned picture redraws the buff window", lua.eval("notified") >= 1)
+    lua.execute("notified = 0; RunTickers()")
+    check("nothing new: no redraw every tick", lua.eval("notified") == 0)
+
+
+def test_debug():
+    lua = new_runtime()
+    lua.execute("""
+        Slash('add Well Fed')
+        auras = { { spellId = 19705, name = 'Well Fed', icon = 136000, expirationTime = clock + 900, duration = 900 },
+                  { spellId = SECRET, name = SECRET, icon = 1, expirationTime = 0, duration = 0 } }
+        chat = {}
+        Slash('debug')
+    """)
+    text = "\n".join(lua.eval("chat")[i] for i in range(1, int(lua.eval("#chat")) + 1))
+    check("debug lists the auras", "name=Well Fed spellId=19705" in text)
+    check("debug marks secret values", "name=<secret>" in text)
+    check("debug shows the match of each buff", "found=Well Fed" in text)
+
+
+def test_icon_field():
+    lua = new_runtime()
+    lua.execute("Slash('add Well Fed = item 2683'); Slash('buffs')")
+    check("no picked icon: the food's picture", lua.eval("Options('SimpleBuffTracker_Buffs').args.buff1.icon") == 133000 + 2683)
+    lua.execute("Options('SimpleBuffTracker_Buffs').args.buff1.args.icon.set(nil, '1459')")
+    check("a spell id sets the picture", lua.eval("Options('SimpleBuffTracker_Buffs').args.buff1.icon") == 135932)
+    check("an unknown spell is refused",
+          lua.eval("Options('SimpleBuffTracker_Buffs').args.buff1.args.icon.validate(nil, 'Nothing at all')") != True)
+    lua.execute("FocusField('buff1', 'icon'); ChatFrameUtil.InsertLink(...)", OIL_LINK)
+    check("a shift-clicked item sets the picture", lua.eval("SimpleBuffTrackerDB.buffs[1].icon") == 133000 + 20749)
+    lua.execute("""
+        aurasByInstance[7] = { spellId = 1459, name = 'Arcane Intellect' }
+        FocusField('buff1', 'icon')
+        ShiftClickBuff(7)
+    """)
+    check("a shift-clicked buff sets the picture by its id",
+          lua.eval("SimpleBuffTrackerDB.buffs[1].iconText") == "1459")
+    lua.execute("""
+        auras = { { spellId = 19705, name = 'Well Fed', icon = 136000, expirationTime = clock + 900, duration = 900 } }
+        Fire('UNIT_AURA', 'player')
+    """)
+    check("a picked icon wins over the aura's", lua.eval("secureButtons[1].state.icon") == 135932)
+    lua.execute("Options('SimpleBuffTracker_Buffs').args.buff1.args.icon.set(nil, '')")
+    check("empty: automatic again", lua.eval("secureButtons[1].state.icon") == 136000)
+
+
 def test_russian():
     lua = new_runtime("ruRU")
     lua.execute("Slash('list')")
@@ -567,6 +620,9 @@ def main():
     test_shift_click()
     test_item_link()
     test_icons()
+    test_learned_icon_redraws_window()
+    test_debug()
+    test_icon_field()
     test_russian()
     if failures:
         print("\n%d failed" % len(failures))

@@ -52,7 +52,10 @@ python tests/run_tests.py
   вставил её в поле сам) откатывает.
 * Иконка бафа: `target.icon` — запоминается, когда баф впервые виден на игроке (`RememberAura`
   в `services/buff_service.lua`, там же дописывается `spellId`); название, введённое текстом,
-  сверяется с текущими бафами (`BuffParser.ParseSpell`).
+  сверяется с текущими бафами (`BuffParser.ParseSpell`). Выученная иконка перерисовывает окно бафов
+  (`BuffService.TakeLearnedIcons` в `ns.Core.Refresh`). Поле «Иконка» (`buff.icon` + `buff.iconText`,
+  `BuffParser.ParseIcon`: spell id, ссылка на заклинание/предмет, имя своего заклинания) важнее всего.
+* `/sbt debug` — что клиент отдаёт по каждой ауре (секретное помечено) и что нашлось для каждого бафа.
 * Регистрация — один раз на `PLAYER_LOGIN`.
 
 ## Миникарта

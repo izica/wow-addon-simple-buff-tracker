@@ -40,7 +40,7 @@ local BUFF_KEY_PREFIX = "buff"                   -- buff pages: buff1, buff2, ..
 local BUFF_WINDOW_WIDTH = 640
 local BUFF_WINDOW_HEIGHT = 420
 -- the fields of a buff page that take a shift-clicked buff, spell or item
-local LINK_FIELDS = { aura = true, sourceValue = true }
+local LINK_FIELDS = { aura = true, sourceValue = true, icon = true }
 
 local TARGET_AURA = "aura"                       -- the target select: an aura or a weapon slot
 local SOURCE_NONE = "none"                       -- the source select: only tracked
@@ -336,6 +336,34 @@ local function BuffPage(buff, index, count)
                 width = "double",
                 order = 4,
             },
+            icon = {
+                type = "input",
+                name = Text("settings.icon"),
+                desc = Text("settings.icon_hint"),
+                get = function()
+                    return buff.iconText or ""
+                end,
+                validate = function(_, value)
+                    value = Trim(value)
+                    if value ~= "" and not BuffParser.ParseIcon(value) then
+                        return Text("messages.unknown_icon")
+                    end
+                    return true
+                end,
+                set = function(_, value)
+                    value = Trim(value)
+                    if value == "" then
+                        buff.icon = nil
+                        buff.iconText = nil
+                    else
+                        buff.icon = BuffParser.ParseIcon(value)
+                        buff.iconText = value
+                    end
+                    Changed()
+                end,
+                width = "double",
+                order = 4.5,
+            },
             dragHint = {
                 type = "description",
                 name = "\n" .. Text("settings.drag_hint") .. "\n",
@@ -485,14 +513,20 @@ function SettingsWindow.PickLink(link)
     end
     local isItemLink = link:find("|Hitem:") ~= nil
     local isSpellLink = link:find("|Hspell:") ~= nil
+    local isIconField = optionKey == "icon"
     local isItemField = optionKey == "sourceValue" and buff.source and buff.source.kind == SOURCE_KIND.ITEM
-    local isTaken = (isItemField and isItemLink) or (not isItemField and isSpellLink)
+    local isSpellField = not isIconField and not isItemField
+    local isTaken = (isIconField and (isItemLink or isSpellLink))
+        or (isItemField and isItemLink)
+        or (isSpellField and isSpellLink)
     if isTaken then
         Confirm(widget, link)
         return
     end
     if optionKey == "aura" then
         widget:SetText(AuraText(buff))
+    elseif isIconField then
+        widget:SetText(buff.iconText or "")
     else
         widget:SetText(SourceText(buff))
     end
@@ -503,9 +537,14 @@ end
 -- no such field but the buff window open -- a new buff with this aura.
 -- Returns whether the click was used.
 function SettingsWindow.PickAura(spellId, name)
-    local widget = FocusedBuffField()
+    local widget, optionKey = FocusedBuffField()
     if widget then
-        Confirm(widget, name or tostring(spellId))
+        -- the icon field wants the exact spell: its id; the others -- the name (every rank)
+        if optionKey == "icon" and spellId then
+            Confirm(widget, tostring(spellId))
+        else
+            Confirm(widget, name or tostring(spellId))
+        end
         return true
     end
     if not SettingsWindow.IsBuffWindowOpen() then

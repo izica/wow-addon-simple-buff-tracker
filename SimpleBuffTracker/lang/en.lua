@@ -45,7 +45,8 @@ ns.Localization.Add("en", [==[
         "warn_usage": "/sbt warn <%d-%d seconds>",
         "warn_set": "a buff with %d seconds left or less counts as missing",
         "minimap_hidden": "the minimap button is hidden, /sbt minimap brings it back",
-        "minimap_shown": "the minimap button is shown"
+        "minimap_shown": "the minimap button is shown",
+        "unknown_icon": "no picture found: give a spell id, or shift-click a spell, an item or a buff"
     },
     "commands": {
         "add": {
@@ -90,6 +91,9 @@ ns.Localization.Add("en", [==[
         "buffs": {
             "help": "open / close the buff window",
             "binding": "Open the buff window"
+        },
+        "debug": {
+            "help": "what the addon sees on you now (to send a screenshot)"
         }
     },
     "minimap": {
@@ -131,7 +135,9 @@ ns.Localization.Add("en", [==[
         "remove": "Delete",
         "remove_confirm": "Stop tracking %s?",
         "open_buffs": "Set up buffs...",
-        "buffs_window": "%s: buffs"
+        "buffs_window": "%s: buffs",
+        "icon": "Icon (empty -- automatic)",
+        "icon_hint": "A spell id, a spell or item link (shift-click) or the name of your spell. While typing here, shift-click a buff of yours to take its picture."
     }
 }
 ]==])

@@ -5,6 +5,6 @@ local ADDON, ns = ...
 
 ns.Events.On("PLAYER_LOGIN", function()
     C_Timer.NewTicker(ns.Config.TICK_SECONDS, function()
-        ns.Components.BuffPanel.Refresh()
+        ns.Core.Refresh()
     end)
 end)

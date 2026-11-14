@@ -6,6 +6,8 @@
 --                        the name (the name covers every rank of the spell);
 --                        icon -- its picture, kept once seen on the player;
 --     { weapon }         a temporary enchant on a weapon slot (ns.Constants.WEAPON_SLOT);
+--   icon, iconText -- a picture picked in the buff window (texture id) and what
+--             was typed for it (spell id, spell or item link); nil -- automatic;
 --   source -- how a click puts it back, or nil -- only tracked:
 --     { kind = "spell", spellId, name }
 --     { kind = "item", itemId }

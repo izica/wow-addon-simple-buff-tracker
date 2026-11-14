@@ -3,7 +3,7 @@
 local ADDON, ns = ...
 
 local function Refresh()
-    ns.Components.BuffPanel.Refresh()
+    ns.Core.Refresh()
 end
 
 ns.Events.On("UNIT_AURA", function(unit)

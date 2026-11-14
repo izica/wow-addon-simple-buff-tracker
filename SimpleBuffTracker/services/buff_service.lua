@@ -57,19 +57,30 @@ end
 
 -- A buff typed by name ("Well Fed") has no spell the client knows by that name:
 -- the first time it is seen on the player its spell id and picture are kept.
+local hasLearnedIcons = false   -- a picture was kept since the last TakeLearnedIcons
+
 local function RememberAura(target, aura)
     if aura.icon and target.icon ~= aura.icon then
         target.icon = aura.icon
+        hasLearnedIcons = true
     end
     if aura.spellId and not target.spellId then
         target.spellId = aura.spellId
     end
 end
 
+-- whether a buff got its picture since the last call: the buff window shows
+-- pictures and redraws only when told
+function BuffService.TakeLearnedIcons()
+    local result = hasLearnedIcons
+    hasLearnedIcons = false
+    return result
+end
+
 -- the picture of a buff that is not on the player: of its spell, of the
 -- weapon, of its source, or a question mark
 function BuffService.Icon(buff)
-    return TargetIcon(buff) or Buff.SourceIcon(buff) or QUESTION_MARK_ICON
+    return buff.icon or TargetIcon(buff) or Buff.SourceIcon(buff) or QUESTION_MARK_ICON
 end
 
 -- The state of one buff now:
@@ -104,7 +115,8 @@ local function Evaluate(buff, index, now, weapons, warnSeconds)
         state.isExpiring = hasTimer and isLongerThanWarning and secondsLeft <= warnSeconds
     end
 
-    state.icon = (found and found.icon) or BuffService.Icon(buff)
+    -- a picture picked in the buff window wins over the one of the aura
+    state.icon = buff.icon or (found and found.icon) or BuffService.Icon(buff)
     local isItemSource = Buff.HasCompleteSource(buff) and buff.source.kind == SOURCE_KIND.ITEM
     if isItemSource then
         state.itemCount = Item.Count(buff.source.itemId)

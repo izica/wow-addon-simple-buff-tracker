@@ -65,6 +65,8 @@ local function ReadAll()
     return result
 end
 
+local lastError = nil   -- why the last reading failed, for /sbt debug
+
 -- Reads the buffs again if the client shows them now; returns whether it did.
 function AuraScan.Update()
     if Secrets.AurasHidden() then
@@ -72,10 +74,50 @@ function AuraScan.Update()
     end
     local ok, result = pcall(ReadAll)
     if not ok then
+        lastError = tostring(result)
         return false
     end
+    lastError = nil
     current = result
     return true
+end
+
+local function DescribeValue(value)
+    if Secrets.IsSecret(value) then
+        return "<secret>"
+    end
+    return tostring(value)
+end
+
+-- For /sbt debug: what the client gives for every buff on the player right now
+-- (secret values marked), and what the last reading kept. Diagnostics, English.
+function AuraScan.DebugLines()
+    local lines = {}
+    table.insert(lines, "auras hidden now: " .. tostring(Secrets.AurasHidden())
+        .. ", last error: " .. tostring(lastError))
+    if Secrets.AurasHidden() then
+        return lines
+    end
+    for index = 1, MAX_AURAS do
+        local ok, data = pcall(ReadAura, index)
+        if not ok then
+            table.insert(lines, index .. ": error " .. tostring(data))
+            break
+        end
+        if not data then
+            break
+        end
+        table.insert(lines, index .. ": name=" .. DescribeValue(data.name)
+            .. " spellId=" .. DescribeValue(data.spellId)
+            .. " icon=" .. DescribeValue(data.icon)
+            .. " duration=" .. DescribeValue(data.duration))
+    end
+    local keptCount = 0
+    for _ in pairs(current.byName) do
+        keptCount = keptCount + 1
+    end
+    table.insert(lines, "kept by name: " .. keptCount)
+    return lines
 end
 
 -- The aura of a target ({ spellId, name }) from the last reading; nil -- not on

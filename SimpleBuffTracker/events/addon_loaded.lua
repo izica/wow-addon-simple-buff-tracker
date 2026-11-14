@@ -15,5 +15,5 @@ end)
 
 ns.Events.On("PLAYER_ENTERING_WORLD", function()
     ns.Dataflows.AuraScan.Update()
-    ns.Components.BuffPanel.Refresh()
+    ns.Core.Refresh()
 end)
