@@ -1,6 +1,6 @@
 <!--
 Summary (CurseForge "Summary" field, 20 words):
-Your buffs on one icon panel – with timers or only missing ones. One click recasts, eats food or applies oil.
+Shows your missing buffs on an icon panel. One click recasts spells, eats food for Well Fed, applies weapon oil.
 -->
 
 # Simple Buff Tracker
