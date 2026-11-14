@@ -1,0 +1,79 @@
+-- buff.lua -- a tracked buff: what to look for and how to put it back.
+--
+-- Stored in SavedVariables as a plain table (no metatable):
+--   target -- what is tracked, one of:
+--     { spellId, name }  an aura on the player; found by the spell id or by the
+--                        name (the name covers every rank of the spell);
+--     { weapon }         a temporary enchant on a weapon slot (ns.Constants.WEAPON_SLOT);
+--   source -- how a click puts it back, or nil -- only tracked:
+--     { kind = "spell", spellId, name }
+--     { kind = "item", itemId }
+
+local ADDON, ns = ...
+ns.Models = ns.Models or {}
+
+local SOURCE_KIND = ns.Constants.SOURCE_KIND
+local WEAPON_INVENTORY_SLOT = ns.Constants.WEAPON_INVENTORY_SLOT
+local Spell = ns.Utilities.Spell
+local Item = ns.Utilities.Item
+
+local Buff = {}
+ns.Models.Buff = Buff
+
+function Buff.New(target, source)
+    return { target = target, source = source }
+end
+
+-- the name of what is tracked, as players see it
+function Buff.TargetLabel(buff)
+    local Text = ns.Localization.Text
+    local target = buff.target
+    if target.weapon then
+        return Text("buff." .. target.weapon)
+    end
+    return target.name or (target.spellId and Spell.Name(target.spellId)) or "?"
+end
+
+-- the name of the spell or item that puts the buff back; nil -- no source
+function Buff.SourceLabel(buff)
+    local source = buff.source
+    if not source then
+        return nil
+    end
+    if source.kind == SOURCE_KIND.SPELL then
+        return source.name or Spell.Name(source.spellId) or "?"
+    end
+    return Item.Name(source.itemId) or ("item:" .. tostring(source.itemId))
+end
+
+function Buff.SourceIcon(buff)
+    local source = buff.source
+    if not source then
+        return nil
+    end
+    if source.kind == SOURCE_KIND.SPELL then
+        return Spell.Icon(source.spellId or source.name)
+    end
+    return Item.Icon(source.itemId)
+end
+
+-- The attributes of a secure action button that put the buff back with a
+-- click; nil -- no source. An item on a weapon buff is used and then put on
+-- the weapon slot by a macro: "/use 16" applies the pending item to the main hand.
+function Buff.Action(buff)
+    local source = buff.source
+    if not source then
+        return nil
+    end
+    if source.kind == SOURCE_KIND.SPELL then
+        return { type = "spell", spell = source.name or source.spellId }
+    end
+
+    local itemReference = "item:" .. source.itemId
+    local weaponSlot = buff.target.weapon
+    if weaponSlot then
+        local inventorySlot = WEAPON_INVENTORY_SLOT[weaponSlot]
+        return { type = "macro", macrotext = "/use " .. itemReference .. "\n/use " .. inventorySlot }
+    end
+    return { type = "item", item = itemReference }
+end

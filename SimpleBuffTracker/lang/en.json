@@ -1,0 +1,55 @@
+{
+    "buff": {
+        "mainhand": "Main hand enchant",
+        "offhand": "Off hand enchant"
+    },
+    "source": {
+        "spell": "spell",
+        "item": "item"
+    },
+    "modes": {
+        "all": "all buffs",
+        "missing": "only missing buffs"
+    },
+    "tooltip": {
+        "active": "Active",
+        "time_left": "%s left",
+        "missing": "Missing",
+        "no_source": "Tracking only",
+        "click": "Click: %s",
+        "item_count": "In bags: %d"
+    },
+    "messages": {
+        "buff_with_source": "%s <- %s %s",
+        "added": "added: %s",
+        "removed": "removed: %s",
+        "bad_index": "no buff with this number, see /sbt list",
+        "list_empty": "no buffs yet, add one with /sbt add",
+        "add_usage": "/sbt add <buff> [= spell|item <name, id or link>]; <buff> -- a spell name, id or link, or mainhand / offhand for a weapon enchant",
+        "unknown_target": "the buff is a spell (name, id or link) or mainhand / offhand, not an item",
+        "unknown_source_kind": "after = write spell or item, then a name, id or link",
+        "unknown_item": "unknown item: put it into the bags or give its id or link (shift-click)",
+        "in_combat": "not in combat: the panel can change only out of combat",
+        "mode_set": "the panel shows %s",
+        "unlocked": "the panel is unlocked: drag it, then /sbt lock",
+        "locked": "the panel is locked",
+        "size_usage": "/sbt size <%d-%d>",
+        "row_usage": "/sbt row <%d-%d>",
+        "warn_usage": "/sbt warn <%d-%d seconds>",
+        "warn_set": "a buff with %d seconds left or less counts as missing"
+    },
+    "commands": {
+        "add": { "help": "<buff> [= spell|item <source>] -- track a buff; with a source a click puts it back" },
+        "remove": { "help": "<number> -- stop tracking a buff (numbers from /sbt list)" },
+        "list": { "help": "the tracked buffs" },
+        "mode": {
+            "help": "[all|missing] -- all buffs with timers or only the missing ones",
+            "binding": "Switch the panel mode"
+        },
+        "unlock": { "help": "unlock the panel to drag it" },
+        "lock": { "help": "lock the panel" },
+        "size": { "help": "<pixels> -- icon size" },
+        "row": { "help": "<count> -- icons in a row" },
+        "warn": { "help": "<seconds> -- a buff running out this soon counts as missing" }
+    }
+}

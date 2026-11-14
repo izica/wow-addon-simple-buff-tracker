@@ -1,0 +1,3 @@
+package-as: SimpleBuffTracker
+move-folders:
+  SimpleBuffTracker/SimpleBuffTracker: SimpleBuffTracker

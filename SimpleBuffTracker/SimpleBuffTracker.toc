@@ -1,0 +1,36 @@
+## Interface: 16001
+## Title: Simple Buff Tracker
+## Notes: Your buffs as icons on one panel: all with timers or only the missing ones. Click an icon to put the buff back.
+## IconTexture: Interface\Icons\Spell_Holy_WordFortitude
+## Author: izica
+## Version: 0.1.0
+## SavedVariablesPerCharacter: SimpleBuffTrackerDB
+
+libs\LibStub\LibStub.lua
+libs\json\json.lua
+
+constants\addon.lua
+constants\buff.lua
+config\defaults.lua
+utilities\utilities.lua
+utilities\secrets.lua
+utilities\spell.lua
+utilities\item.lua
+utilities\localization.lua
+utilities\event_bus.lua
+utilities\command_router.lua
+lang\en.lua
+lang\ru.lua
+models\buff.lua
+dataflows\aura_scan.lua
+dataflows\weapon_enchant.lua
+dataflows\buff_parser.lua
+services\buff_service.lua
+ui\buff_button.lua
+components\buff_panel.lua
+core.lua
+commands\buffs.lua
+commands\panel.lua
+events\addon_loaded.lua
+events\auras.lua
+events\ticker.lua

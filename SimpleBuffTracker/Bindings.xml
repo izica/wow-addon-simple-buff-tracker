@@ -1,0 +1,5 @@
+<Bindings>
+    <Binding name="SIMPLEBUFFTRACKER_MODE" header="SIMPLEBUFFTRACKER" category="ADDONS">
+        SimpleBuffTracker_RunCommand("mode")
+    </Binding>
+</Bindings>
