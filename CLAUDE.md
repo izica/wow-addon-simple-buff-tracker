@@ -106,6 +106,12 @@ python tests/run_tests.py
 левый клик — `/sbt buffs`, shift + левый — `/sbt config`, правый — `/sbt mode`.
 В тестах `.xml` из `.toc` не грузятся, LibDBIcon подменяет `FAKE_LIBRARIES`.
 
+Картинка кнопки (и `## IconTexture` в списке аддонов) — своя: `SimpleBuffTracker/media/icon.tga`,
+64×64, несжатый 32-битный TGA, путь без расширения в `Constants.ADDON_ICON`. Её и иконку
+CurseForge (`media/curseforge_icon.png`, 400×400) рисует `python scripts/make_icon.py`
+(концепт `swipe`: арканная искра с затемнением таймера; `variants` — все концепты для сравнения).
+Новый файл картинки клиент видит только после перезапуска.
+
 ## Модель
 
 ```

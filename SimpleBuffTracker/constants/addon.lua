@@ -4,4 +4,5 @@ local ADDON, ns = ...
 ns.Constants = ns.Constants or {}
 
 ns.Constants.ADDON_TITLE = "Simple Buff Tracker"
-ns.Constants.ADDON_ICON = "Interface\\Icons\\Spell_Holy_WordFortitude"
+-- the addon's own picture (media/icon.tga, drawn by scripts/make_icon.py): the minimap button
+ns.Constants.ADDON_ICON = "Interface\\AddOns\\SimpleBuffTracker\\media\\icon"
