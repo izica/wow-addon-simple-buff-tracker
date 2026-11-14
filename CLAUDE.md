@@ -55,6 +55,9 @@ python tests/run_tests.py
   с предметом на курсоре (`GetCursorInfo`), шифт-клик — `MainWindow.PickLink`; оба через `editor:TakeLink`.
 * **Панель**: `components/panel_settings.lua` — режим, куда растут иконки, размер, ряд, отступ, порог, разблокировка,
   закрепить панель (галочка = закреплена), кнопка миникарты.
+  Закреплённую панель двигают Shift + перетаскивание: при зажатом Shift и мыши над панелью
+  поднимается тот же мувер, только без зелёного (`BuffPanel.UpdateMover`, `events/modifier.lua`;
+  не в бою, перед боем `StopDragging`). Shift-клик по иконкам поэтому ничего не кастует.
 * **Подсказки** во всех полях: `ui/suggestions.lua` (общий список под полем, страта TOOLTIP,
   ↑/↓ + Enter, клик) + `dataflows/icon_search.lua` (`SOURCES`: бафы на игроке, виденные раньше
   (`AuraScan.Seen`, `seenAuras` пишет `AuraScan.Update`), книга, сумки;

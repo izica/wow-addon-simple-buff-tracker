@@ -22,7 +22,8 @@ Left click on the minimap button or `/sbt buffs`:
   buff of yours (top right of the screen). With no field in focus a shift-clicked
   buff of yours is added as a new one.
 * **Panel** (shift + left click, or `/sbt config`) -- the mode, icon size, icons in a
-  row, spacing, the warning time, unlock, the minimap button.
+  row, spacing, the warning time, lock, the minimap button.
+- Shift + drag moves the panel even when it is locked (out of combat).
 
 The icons on the panel look like the buttons of the action bars.
 

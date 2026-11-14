@@ -7,7 +7,9 @@
 -- set of icons waits for the end of combat (Refresh from events/auras.lua).
 --
 -- Unlocked, a green mover covers the panel and drags it; the place is saved
--- in settings.position.
+-- in settings.position. Locked, the same mover (without the green) comes up
+-- while Shift is held with the mouse over the panel: Shift + drag moves it,
+-- and a Shift-click does not reach the icons. Out of combat only.
 
 local ADDON, ns = ...
 ns.Components = ns.Components or {}
@@ -32,6 +34,8 @@ local TOOLTIP_HINT_COLOR = { 0.8, 0.8, 0.8 }
 
 local panel = nil
 local mover = nil
+local moverTint = nil
+local isDragging = false
 local buttons = {}          -- every button made so far, reused
 local shownCount = 0        -- buttons[1..shownCount] are shown
 
@@ -66,6 +70,7 @@ local function ShowTooltip(button)
         GameTooltip:AddLine(Text("tooltip.item_count", state.itemCount),
             TOOLTIP_HINT_COLOR[1], TOOLTIP_HINT_COLOR[2], TOOLTIP_HINT_COLOR[3])
     end
+    GameTooltip:AddLine(Text("tooltip.shift_drag"), TOOLTIP_HINT_COLOR[1], TOOLTIP_HINT_COLOR[2], TOOLTIP_HINT_COLOR[3])
     GameTooltip:Show()
 end
 
@@ -132,23 +137,59 @@ local function IconPlace(index, perLine, step, direction)
     return "TOPLEFT", along * step, -across * step
 end
 
+-- The mover is up while unlocked, while dragging, or while Shift is held with
+-- the mouse over the panel (not in combat: the panel can not move then).
+function BuffPanel.UpdateMover()
+    if not mover then
+        return
+    end
+    local isLocked = ns.db.settings.locked
+    local isShiftDrag = not InCombatLockdown() and IsShiftKeyDown() and panel:IsMouseOver()
+    mover:SetShown(not isLocked or isDragging or isShiftDrag)
+    moverTint:SetShown(not isLocked)
+end
+
+-- combat is about to start: a drag still going is ended while the panel can move
+function BuffPanel.StopDragging()
+    if isDragging then
+        isDragging = false
+        panel:StopMovingOrSizing()
+        SavePosition()
+    end
+    BuffPanel.UpdateMover()
+end
+
+local function ShowButtonTooltip(button)
+    ShowTooltip(button)
+    BuffPanel.UpdateMover()
+end
+
 local function CreateMover()
     mover = CreateFrame("Frame", nil, panel)
     mover:SetAllPoints()
     mover:SetFrameLevel(panel:GetFrameLevel() + MOVER_FRAME_LEVEL_GAP)
     mover:EnableMouse(true)
     mover:RegisterForDrag("LeftButton")
-    local tint = mover:CreateTexture(nil, "OVERLAY")
-    tint:SetAllPoints()
-    tint:SetColorTexture(MOVER_COLOR[1], MOVER_COLOR[2], MOVER_COLOR[3], MOVER_COLOR[4])
+    moverTint = mover:CreateTexture(nil, "OVERLAY")
+    moverTint:SetAllPoints()
+    moverTint:SetColorTexture(MOVER_COLOR[1], MOVER_COLOR[2], MOVER_COLOR[3], MOVER_COLOR[4])
     mover:SetScript("OnDragStart", function()
         if not InCombatLockdown() then
+            isDragging = true
             panel:StartMoving()
         end
     end)
     mover:SetScript("OnDragStop", function()
+        if not isDragging then
+            return
+        end
+        isDragging = false
         panel:StopMovingOrSizing()
         SavePosition()
+        BuffPanel.UpdateMover()
+    end)
+    mover:SetScript("OnLeave", function()
+        BuffPanel.UpdateMover()
     end)
     mover:Hide()
 end
@@ -169,7 +210,7 @@ local function GetButton(index)
             name = BUTTON_NAME_PREFIX .. index,
             size = ns.db.settings.iconSize,
             template = ns.db.settings.iconTemplate,
-            onEnter = ShowTooltip,
+            onEnter = ShowButtonTooltip,
             onLeave = HideTooltip,
         })
         buttons[index] = button
@@ -249,7 +290,7 @@ local function Layout(states)
     local width = math.max(ns.Config.EMPTY_PANEL_SIZE, columns * step - spacing)
     local height = math.max(ns.Config.EMPTY_PANEL_SIZE, rows * step - spacing)
     panel:SetSize(width, height)
-    mover:SetShown(not settings.locked)
+    BuffPanel.UpdateMover()
 end
 
 function BuffPanel.Refresh()

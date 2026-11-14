@@ -25,7 +25,8 @@ ns.Localization.Add("en", [==[
         "missing": "Missing",
         "no_source": "Tracking only",
         "click": "Click: %s",
-        "item_count": "In bags: %d"
+        "item_count": "In bags: %d",
+        "shift_drag": "Shift + drag: move the panel"
     },
     "messages": {
         "buff_with_source": "%s <- %s %s",
@@ -114,7 +115,7 @@ ns.Localization.Add("en", [==[
         "icons_per_row": "Icons in a line (a row, or a column when growing down / up)",
         "icon_spacing": "Space between icons",
         "locked": "Lock the panel",
-        "locked_hint": "Unchecked: a green frame covers the panel, drag it with the left mouse button. Not in combat.",
+        "locked_hint": "Unchecked: a green frame covers the panel, drag it with the left mouse button. Checked: hold Shift and drag the panel. Not in combat.",
         "minimap": "Minimap button",
         "add": "Add buff",
         "no_buff_chosen": "Add a buff or pick one on the left",

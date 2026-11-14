@@ -1178,6 +1178,43 @@ def test_action_bar_look():
     check("the Panel tab has the icon look select", lua.eval("lookLabel ~= nil") is True)
 
 
+def test_shift_drag():
+    lua = new_runtime()
+    lua.execute("""
+        for _, frame in ipairs(allFrames) do
+            if rawget(frame, 'parent') == SimpleBuffTrackerPanel and rawget(frame.scripts, 'OnDragStart') then
+                mover = frame
+            end
+        end
+        SimpleBuffTrackerPanel.mouseOver = true
+        local panel = SimpleBuffTrackerPanel
+        function panel:GetLeft() return 300 end
+        function panel:GetRight() return 400 end
+        function panel:GetTop() return 600 end
+        function panel:GetBottom() return 560 end
+    """)
+    check("locked: no mover", lua.eval("SimpleBuffTrackerDB.settings.locked") is True
+          and lua.eval("mover.shown") is False)
+    lua.execute("shiftDown = true; Fire('MODIFIER_STATE_CHANGED', 'LSHIFT', 1)")
+    check("Shift over the panel brings the mover up", lua.eval("mover.shown") is True)
+    lua.execute("mover.scripts.OnDragStart(mover); shiftDown = false; Fire('MODIFIER_STATE_CHANGED', 'LSHIFT', 0)")
+    check("the mover stays while dragging", lua.eval("mover.shown") is True)
+    lua.execute("mover.scripts.OnDragStop(mover)")
+    check("after the drag it goes away and the place is saved", lua.eval("mover.shown") is False
+          and lua.eval("SimpleBuffTrackerDB.settings.position.x") == 300)
+    lua.execute("""
+        SimpleBuffTrackerPanel.mouseOver = false
+        shiftDown = true; Fire('MODIFIER_STATE_CHANGED', 'LSHIFT', 1)
+    """)
+    check("Shift with the mouse elsewhere does nothing", lua.eval("mover.shown") is False)
+    lua.execute("""
+        SimpleBuffTrackerPanel.mouseOver = true
+        inCombat = true; Fire('MODIFIER_STATE_CHANGED', 'LSHIFT', 1)
+        inCombat = false; shiftDown = false
+    """)
+    check("not in combat", lua.eval("mover.shown") is False)
+
+
 def test_russian():
     lua = new_runtime("ruRU")
     lua.execute("Slash('list')")
@@ -1205,6 +1242,7 @@ def main():
     test_fields_stack()
     test_editor_fits()
     test_action_bar_look()
+    test_shift_drag()
     test_russian()
     if failures:
         print("\n%d failed" % len(failures))
