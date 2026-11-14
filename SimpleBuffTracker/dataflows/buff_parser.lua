@@ -66,11 +66,16 @@ local function ParseTarget(text)
     return BuffParser.ParseSpell(text)
 end
 
--- A picture for the icon field: an item link -> the item's picture; a spell
--- link, a spell id or the name of a spell of the character -> the spell's
--- picture. nil -- nothing found.
+-- A picture for the icon field: "icon:<id>" -> that picture; an item link or
+-- "item:<id>" -> the item's picture; a spell link, a spell id or the name of a
+-- spell of the character -> the spell's picture. nil -- nothing found.
 function BuffParser.ParseIcon(text)
-    local itemId = tonumber(text:match("|Hitem:(%d+)"))
+    -- a picture id as it is (from the icon search: a buff without a plain spell id)
+    local pictureId = tonumber(text:match("^icon:(%d+)$"))
+    if pictureId then
+        return pictureId
+    end
+    local itemId = tonumber(text:match("|Hitem:(%d+)")) or tonumber(text:match("^item:(%d+)$"))
     if itemId then
         return Item.Icon(itemId)
     end

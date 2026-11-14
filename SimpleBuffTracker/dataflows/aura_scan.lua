@@ -67,6 +67,15 @@ end
 
 local lastError = nil   -- why the last reading failed, for /sbt debug
 
+-- every buff of the last reading that has a name: { spellId, name, icon, ... }
+function AuraScan.All()
+    local result = {}
+    for _, aura in pairs(current.byName) do
+        table.insert(result, aura)
+    end
+    return result
+end
+
 -- Reads the buffs again if the client shows them now; returns whether it did.
 function AuraScan.Update()
     if Secrets.AurasHidden() then

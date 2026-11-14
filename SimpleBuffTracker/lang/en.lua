@@ -137,7 +137,7 @@ ns.Localization.Add("en", [==[
         "open_buffs": "Set up buffs...",
         "buffs_window": "%s: buffs",
         "icon": "Icon (empty -- automatic)",
-        "icon_hint": "A spell id, a spell or item link (shift-click) or the name of your spell. While typing here, shift-click a buff of yours to take its picture."
+        "icon_hint": "Type a name to search the pictures of your buffs, spells and bag items. Or a spell id, a spell or item link (shift-click); while typing here, shift-click a buff of yours to take its picture."
     }
 }
 ]==])

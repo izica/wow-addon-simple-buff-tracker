@@ -55,6 +55,12 @@ python tests/run_tests.py
   сверяется с текущими бафами (`BuffParser.ParseSpell`). Выученная иконка перерисовывает окно бафов
   (`BuffService.TakeLearnedIcons` в `ns.Core.Refresh`). Поле «Иконка» (`buff.icon` + `buff.iconText`,
   `BuffParser.ParseIcon`: spell id, ссылка на заклинание/предмет, имя своего заклинания) важнее всего.
+* **Автокомплит иконки**: поле «Иконка» — `dialogControl = ns.UI.SUGGEST_EDIT_BOX`
+  (`ui/ace_suggest_edit_box.lua`: AceGUI EditBox + общий список под полем, страта TOOLTIP),
+  `arg` — функция поиска (AceConfigDialog отдаёт её в `SetCustomData`). Поиск —
+  `dataflows/icon_search.lua`: бафы на игроке, книга (`C_SpellBook`), сумки (`C_Container`);
+  у остальных картинок клиента имён нет. Текст подсказки: spell id, `item:<id>` или `icon:<id>`
+  (`BuffParser.ParseIcon`).
 * `/sbt debug` — что клиент отдаёт по каждой ауре (секретное помечено) и что нашлось для каждого бафа.
 * Регистрация — один раз на `PLAYER_LOGIN`.
 

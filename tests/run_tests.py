@@ -46,6 +46,13 @@ local PROTECTED = { Show = true, Hide = true, SetPoint = true, ClearAllPoints = 
     SetSize = true, SetAttribute = true, SetShown = true, SetAlpha = true, SetScale = true }
 local Frame = {}
 function Frame:SetScript(name, handler) self.scripts[name] = handler end
+function Frame:HookScript(name, handler)
+    local previous = self.scripts[name]
+    self.scripts[name] = function(...)
+        if previous then previous(...) end
+        handler(...)
+    end
+end
 function Frame:RegisterEvent(event) eventFrame = self end
 function Frame:Show() self.shown = true end
 function Frame:Hide() self.shown = false end
@@ -58,6 +65,7 @@ function Frame:GetPoint() return "TOPLEFT", nil, "TOPLEFT", 10, -20 end
 function Frame:GetFrameLevel() return 1 end
 function Frame:GetFont() return "Fonts\\FRIZQT__.TTF", 12, "OUTLINE" end
 function Frame:SetText(text) self.text = text end
+function Frame:SetFrameStrata(strata) self.strata = strata end
 function Frame:SetTexture(texture) self.texture = texture end
 function Frame:SetDesaturated(value) self.desaturated = value end
 function Frame:SetCooldown(start, duration) self.cooldown = { start, duration } end
@@ -89,9 +97,11 @@ end
 
 panelFrame = nil
 secureButtons = {}
+allFrames = {}
 function CreateFrame(frameType, name, parent, template)
     local frame = NewFrame()
     frame.parent = parent
+    table.insert(allFrames, frame)
     if template and template:find("SecureActionButtonTemplate") then
         frame.protected = true
         table.insert(secureButtons, frame)
@@ -205,6 +215,40 @@ Settings = { OpenToCategory = function(id) openedCategory = id end }
 
 local gui = LibStub:NewLibrary("AceGUI-3.0", 1)
 function gui:ClearFocus() keyboardFocus = nil end
+gui.WidgetRegistry = {}
+function gui:RegisterWidgetType(name, constructor) self.WidgetRegistry[name] = constructor end
+-- AceGUI's EditBox: a widget around an edit box frame; Fire("OnEnterPressed") is what AceConfigDialog hears
+gui.WidgetRegistry.EditBox = function()
+    local editbox = NewFrame()
+    editbox.value = ""
+    function editbox:GetText() return self.value end
+    function editbox:HasFocus() return self.focused end
+    function editbox:GetWidth() return 300 end
+    local widget = { editbox = editbox, type = "EditBox", fired = {} }
+    function widget:SetText(text) editbox.value = text end
+    function widget:Fire(event, text) table.insert(self.fired, text) end
+    function widget:OnRelease() end
+    return widget
+end
+function Type(editbox, text)
+    editbox.value = text
+    editbox.scripts.OnTextChanged(editbox, true)
+end
+
+-- the spellbook and the bags, for the icon search
+spellBook = { { name = 'Arcane Intellect', spellID = 1459, iconID = 135932 },
+              { name = 'Frost Armor', spellID = 168, iconID = 135843 } }
+Enum = { SpellBookSpellBank = { Player = 0 } }
+C_SpellBook = {
+    GetNumSpellBookSkillLines = function() return 1 end,
+    GetSpellBookSkillLineInfo = function() return { itemIndexOffset = 0, numSpellBookItems = #spellBook } end,
+    GetSpellBookItemInfo = function(index) return spellBook[index] end,
+}
+bagItems = { { itemID = 2683, itemName = 'Crab Cake', iconFileID = 133950 } }
+C_Container = {
+    GetContainerNumSlots = function(bag) if bag == 0 then return #bagItems end return 0 end,
+    GetContainerItemInfo = function(bag, slot) return bagItems[slot] end,
+}
 
 -- the client's buff frame: shift-click a buff -> EventRegistry "BuffButton.OnClick"
 shiftDown = false
@@ -607,6 +651,71 @@ def test_icon_field():
     check("empty: automatic again", lua.eval("secureButtons[1].state.icon") == 136000)
 
 
+def labels(lua, query):
+    found = lua.eval("ns.Dataflows.IconSearch.Search(...)", query)
+    return [found[i].label for i in range(1, len(found) + 1)]
+
+
+def test_icon_search():
+    lua = new_runtime()
+    lua.execute("""
+        auras = { { spellId = 19705, name = 'Well Fed', icon = 136000, expirationTime = 0, duration = 0 },
+                  { spellId = SECRET, name = 'Hidden Thing', icon = 136001, expirationTime = 0, duration = 0 } }
+        Fire('UNIT_AURA', 'player')
+    """)
+    check("a buff on you is found", labels(lua, "well") == ["Well Fed"])
+    check("a spellbook spell is found", labels(lua, "arcane") == ["Arcane Intellect"])
+    check("a bag item is found", labels(lua, "crab") == ["Crab Cake"])
+    check("names starting with the query come first", labels(lua, "ar")[0] == "Arcane Intellect"
+          and "Frost Armor" in labels(lua, "ar"))
+    check("one letter: no search", labels(lua, "a") == [])
+    check("a number is an id, not a search", labels(lua, "1459") == [])
+    lua.execute("C_Container.GetContainerNumSlots = function() error('broken bags') end")
+    check("a failing source does not stop the others", labels(lua, "arcane") == ["Arcane Intellect"])
+    found = lua.eval("ns.Dataflows.IconSearch.Search('hidden')")
+    check("a buff without a plain spell id gives its picture id", found[1].text == "icon:136001")
+    check("the picture id is read back", lua.eval("ns.Dataflows.BuffParser.ParseIcon('icon:136001')") == 136001
+          and lua.eval("ns.Dataflows.BuffParser.ParseIcon('item:2683')") == 133000 + 2683)
+
+
+def test_suggest_edit_box():
+    lua = new_runtime()
+    lua.execute("""
+        box = LibStub('AceGUI-3.0').WidgetRegistry[ns.UI.SUGGEST_EDIT_BOX]()
+        box:SetCustomData(ns.Dataflows.IconSearch.Search)
+        function ShownRows()
+            local rows = {}
+            for _, frame in ipairs(allFrames) do
+                local parent = rawget(frame, 'parent')
+                local isRow = parent and rawget(parent, 'strata') == 'TOOLTIP' and rawget(frame, 'label')
+                if isRow and frame.shown and frame.parent.shown then
+                    table.insert(rows, frame)
+                end
+            end
+            return rows
+        end
+    """)
+    check("the widget has its own type", lua.eval("box.type") == "SimpleBuffTrackerSuggestEditBox")
+    lua.execute("Slash('add Well Fed')")
+    check("the icon field uses it",
+          lua.eval("Options('SimpleBuffTracker_Buffs').args.buff1.args.icon.dialogControl")
+          == "SimpleBuffTrackerSuggestEditBox")
+
+    lua.execute("Type(box.editbox, 'arc')")
+    check("typing shows the list", lua.eval("#ShownRows()") == 1
+          and lua.eval("ShownRows()[1].label.text") == "Arcane Intellect")
+    lua.execute("ShownRows()[1].scripts.OnClick(ShownRows()[1])")
+    check("a click on a row saves its text like Enter",
+          lua.eval("box.fired[1]") == "1459" and lua.eval("box.editbox.value") == "1459")
+    check("and hides the list", lua.eval("#ShownRows()") == 0)
+
+    lua.execute("Type(box.editbox, 'zzz')")
+    check("nothing found: no list", lua.eval("#ShownRows()") == 0)
+    lua.execute("Type(box.editbox, 'crab'); box:OnRelease()")
+    check("release hides the list and forgets the search",
+          lua.eval("#ShownRows()") == 0 and lua.eval("box.search") is None)
+
+
 def test_russian():
     lua = new_runtime("ruRU")
     lua.execute("Slash('list')")
@@ -623,6 +732,8 @@ def main():
     test_learned_icon_redraws_window()
     test_debug()
     test_icon_field()
+    test_icon_search()
+    test_suggest_edit_box()
     test_russian()
     if failures:
         print("\n%d failed" % len(failures))

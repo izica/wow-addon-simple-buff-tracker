@@ -340,6 +340,9 @@ local function BuffPage(buff, index, count)
                 type = "input",
                 name = Text("settings.icon"),
                 desc = Text("settings.icon_hint"),
+                -- suggestions with pictures while typing a name (ui/ace_suggest_edit_box.lua)
+                dialogControl = ns.UI.SUGGEST_EDIT_BOX,
+                arg = ns.Dataflows.IconSearch.Search,
                 get = function()
                     return buff.iconText or ""
                 end,
