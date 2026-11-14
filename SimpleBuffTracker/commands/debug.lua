@@ -21,6 +21,12 @@ ns.Commands.Add("debug", {
                 .. " name=" .. tostring(enchant.name)
                 .. " left=" .. math.floor(enchant.expirationTime - now))
         end
+        for _, line in ipairs(WeaponEnchant.DebugLines()) do
+            Print(line)
+        end
+        for enchantId, name in pairs(ns.db.seenEnchants) do
+            Print("seen enchant " .. tostring(enchantId) .. " = " .. tostring(name))
+        end
         for index, buff in ipairs(ns.Services.Buff.List()) do
             local target = buff.target
             local found = nil

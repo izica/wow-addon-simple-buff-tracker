@@ -712,6 +712,19 @@ def test_debug():
     check("debug lists the auras", "name=Well Fed spellId=19705" in text)
     check("debug marks secret values", "name=<secret>" in text)
     check("debug shows the match of each buff", "found=Well Fed" in text)
+    lua.execute("""
+        weaponTooltips[16] = { { 'Arcanite Reaper', 1, 1, 1 },
+                               { 'Flametongue 3 (5 min)', 0, 1, 0 },
+                               { 'Brilliant Wizard Oil (30 min)', 0, 1, 0 } }
+        weaponEnchant = { true, 1800000, 0, 2628, false, 0, 0, 0 }
+        chat = {}
+        Slash('debug')
+    """)
+    text = "\n".join(lua.eval("chat")[i] for i in range(1, int(lua.eval("#chat")) + 1))
+    check("debug shows every green line of the weapon tooltip",
+          "mainhand tooltip line 2: Flametongue 3 (5 min) <- enchant" in text
+          and "mainhand tooltip line 3: Brilliant Wizard Oil (30 min) <- enchant" in text)
+    check("debug shows the remembered enchants", "seen enchant 2628 = " in text)
 
 
 def labels(lua, query, sources="ALL"):

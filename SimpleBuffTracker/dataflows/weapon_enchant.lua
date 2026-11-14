@@ -106,6 +106,35 @@ local function EnchantName(slot, enchantId)
     return seen and seen[enchantId]
 end
 
+-- For /sbt debug: every green line of the tooltips of both weapons, as the
+-- client gives them (a weapon may carry an oil and a weapon spell at once, or
+-- the line may look other than expected). Diagnostics, English.
+function WeaponEnchant.DebugLines()
+    local lines = {}
+    if not (C_TooltipInfo and C_TooltipInfo.GetInventoryItem) then
+        table.insert(lines, "no C_TooltipInfo.GetInventoryItem")
+        return lines
+    end
+    for _, slot in ipairs({ WEAPON_SLOT.MAIN_HAND, WEAPON_SLOT.OFF_HAND }) do
+        local ok, data = pcall(C_TooltipInfo.GetInventoryItem, "player", WEAPON_INVENTORY_SLOT[slot])
+        if not (ok and data and data.lines) then
+            table.insert(lines, slot .. " tooltip: none")
+        else
+            for index, line in ipairs(data.lines) do
+                local text = Plain(line.leftText)
+                if type(text) == "string" and IsGreen(line.leftColor) then
+                    local taken = ""
+                    if not IsItemSpellLine(text) and text:match("^(.-)%s*%(.-%)$") then
+                        taken = " <- enchant"
+                    end
+                    table.insert(lines, slot .. " tooltip line " .. index .. ": " .. text .. taken)
+                end
+            end
+        end
+    end
+    return lines
+end
+
 -- the name remembered for an enchant id; nil -- never read
 function WeaponEnchant.Name(enchantId)
     local seen = ns.db and ns.db.seenEnchants
