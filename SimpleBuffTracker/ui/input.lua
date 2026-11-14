@@ -13,10 +13,10 @@ local SEARCH_LEFT_OVERHANG = 6   -- the template frame is drawn this far left of
 
 -- The frame of the game's dropdown (WowStyle1DropdownTemplate on Forever): the
 -- same text holder, so fields and selects look alike. It sticks out of the box
--- by these pixels, as Lootified places it on this client.
+-- by these pixels, the same as the dropdown template (Blizzard_Menu/Mainline/MenuTemplates.xml).
 local DROPDOWN_FRAME_ATLAS = "common-dropdown-textholder"
-local DROPDOWN_FRAME_OUTSET_LEFT = 9
-local DROPDOWN_FRAME_OUTSET_TOP = 8
+local DROPDOWN_FRAME_OUTSET_LEFT = 8
+local DROPDOWN_FRAME_OUTSET_TOP = 7
 local DROPDOWN_FRAME_OUTSET_RIGHT = 8
 local DROPDOWN_FRAME_OUTSET_BOTTOM = 9
 local DROPDOWN_TEXT_INSET = 9

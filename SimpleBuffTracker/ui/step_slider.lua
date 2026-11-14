@@ -1,12 +1,21 @@
 -- step_slider.lua -- a slider over a list of values that are not evenly spaced
 -- (1 copper, 5 copper, ... 10 gold), with the chosen one as text on its right.
--- The mouse wheel over it moves it one step.
+-- Arrows on both sides, like the game's settings sliders, and the mouse wheel
+-- over it move it one step. The arrows stand outside of the slider frame.
 
 local ADDON, ns = ...
 ns.UI = ns.UI or {}
 
 local HEIGHT = 19
-local VALUE_GAP = 6
+local VALUE_GAP = 8
+-- the arrow buttons, as in MinimalSliderWithSteppersTemplate (Blizzard_SharedXML/Shared/Slider)
+local BACK_ATLAS = "Minimal_SliderBar_Button_Left"
+local FORWARD_ATLAS = "Minimal_SliderBar_Button_Right"
+local BACK_WIDTH = 11
+local BACK_HEIGHT = 19
+local FORWARD_WIDTH = 9
+local FORWARD_HEIGHT = 18
+local STEPPER_GAP = 4
 local TOOLTIP_TEXT_COLOR = { 1, 1, 1 }
 
 local function ClosestStep(steps, value)
@@ -72,6 +81,34 @@ function ns.UI.StepSlider(parent, options)
             Choose(index)
         end
     end)
+    -- one step to either side, from the arrows and the wheel
+    local function Step(delta)
+        Choose(stepIndex + delta)
+        isSetting = true
+        slider:SetValue(stepIndex)
+        isSetting = false
+    end
+
+    -- the arrows of the game's settings sliders (MinimalSliderWithSteppersTemplate)
+    local function AddStepper(atlas, width, height, point, relativePoint, offset, delta)
+        local button = CreateFrame("Button", nil, slider)
+        button:SetSize(width, height)
+        button:SetPoint(point, slider, relativePoint, offset, 0)
+        local texture = button:CreateTexture(nil, "BACKGROUND")
+        texture:SetAtlas(atlas, true)
+        texture:SetPoint("CENTER")
+        button:SetScript("OnClick", function()
+            Step(delta)
+        end)
+        return button
+    end
+    local backButton = AddStepper(BACK_ATLAS, BACK_WIDTH, BACK_HEIGHT, "RIGHT", "LEFT", -STEPPER_GAP, -1)
+    local forwardButton = AddStepper(FORWARD_ATLAS, FORWARD_WIDTH, FORWARD_HEIGHT, "LEFT", "RIGHT", STEPPER_GAP, 1)
+    slider.backButton = backButton
+    slider.forwardButton = forwardButton
+    valueText:ClearAllPoints()
+    valueText:SetPoint("LEFT", forwardButton, "RIGHT", VALUE_GAP, 0)
+
     slider:EnableMouseWheel(true)
     slider:SetScript("OnMouseWheel", function(self, delta)
         Choose(stepIndex + delta)

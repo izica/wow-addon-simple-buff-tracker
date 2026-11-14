@@ -36,6 +36,9 @@ python tests/run_tests.py
 Контролы `ui/` взяты из LootBuddy (они из PRR): селект — `WowStyle1DropdownTemplate`, слайдер со
 стрелками — `MinimalSliderTemplate` (`ui/step_slider.lua`), поле — в рамке селекта
 (`common-dropdown-textholder`), `ui/inset_panel.lua`, `ui/scroll_area.lua`, `ui/checkbox.lua`.
+**Раскладка формы — только через `ui/form_layout.lua`**: контролы игры рисуют за своим фреймом (рамка
+селекта и поля — 8 слева/справа, 7 сверху, 9 снизу; стрелки слайдера — 15 по бокам), и поставленные по
+одному x стояли лесенкой. Форма ставит их по нарисованному краю: левый край под меткой, правый — одна линия.
 
 * **Бафы**: слева `components/buff_list.lua` (иконка + имя, «Добавить баф»), справа
   `components/buff_editor.lua`: что отслеживать, баф, чем обновлять, заклинание/предмет, иконка
@@ -44,7 +47,7 @@ python tests/run_tests.py
   изменился** (имя предмета не в сумках обратно не разберётся). Ошибка — красным под полями.
   Правки — `BuffService.SetTargetKind/SetAuraText/SetSourceKind/SetSourceText/SetIconText`.
 * **Панель**: `components/panel_settings.lua` — режим, размер, ряд, отступ, порог, разблокировка,
-  кнопка миникарты.
+  закрепить панель (галочка = закреплена), кнопка миникарты.
 * **Подсказки** во всех полях: `ui/suggestions.lua` (общий список под полем, страта TOOLTIP,
   ↑/↓ + Enter, клик) + `dataflows/icon_search.lua` (`SOURCES`: бафы на игроке, книга, сумки;
   поле предмета — только сумки). У остальных картинок клиента имён нет.

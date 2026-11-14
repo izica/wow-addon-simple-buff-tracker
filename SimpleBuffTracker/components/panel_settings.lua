@@ -1,6 +1,7 @@
 -- panel_settings.lua -- the Panel tab of the window: what the panel shows, the
 -- size of its icons, how many in a row, the space between them, the warning
 -- time, unlock to drag, the minimap button. Applied at once.
+-- Laid out by ui/form_layout.lua: one drawn width for every control.
 
 local ADDON, ns = ...
 ns.Components = ns.Components or {}
@@ -12,14 +13,9 @@ local PanelSettings = {}
 ns.Components.PanelSettings = PanelSettings
 
 local PADDING = 20
-local LABEL_HEIGHT = 18
-local ROW_GAP = 16
-local SELECT_WIDTH = 260
-local SELECT_HEIGHT = 26
-local SLIDER_WIDTH = 260
-local SLIDER_HEIGHT = 22
-local SLIDER_VALUE_WIDTH = 80
-local CHECKBOX_HEIGHT = 26
+local CONTROL_WIDTH = 320          -- the drawn width of the dropdown and of the sliders with their arrows
+local SLIDER_VALUE_WIDTH = 90
+local CHECKBOXES_GAP = 4
 local WARN_STEPS = { 0, 15, 30, 60, 120, 180, 300, 600, 900, 1200, 1800 }
 
 local function Range(minimum, maximum, step)
@@ -33,24 +29,17 @@ end
 -- options: onChanged() -- after any change (the panel and the buff list redraw)
 function PanelSettings.Create(parent, options)
     local frame = ns.UI.InsetPanel(parent, {})
-    local nextTop = -PADDING
     local refreshers = {}   -- functions that put the saved values into the controls
 
     local function Settings()
         return ns.db.settings
     end
 
-    local function AddLabel(textKey)
-        local label = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        label:SetPoint("TOPLEFT", PADDING, nextTop)
-        label:SetText(Text(textKey))
-        nextTop = nextTop - LABEL_HEIGHT
-    end
+    local fieldForm = ns.UI.FormLayout(frame, { padding = PADDING, width = CONTROL_WIDTH })
 
-    AddLabel("settings.mode")
+    fieldForm:Label(Text("settings.mode"))
     local modeSelect = ns.UI.Select(frame, {
-        width = SELECT_WIDTH,
-        height = SELECT_HEIGHT,
+        width = CONTROL_WIDTH,
         choices = function()
             return {
                 { value = DISPLAY_MODE.ALL, text = Text("modes." .. DISPLAY_MODE.ALL) },
@@ -65,19 +54,23 @@ function PanelSettings.Create(parent, options)
             options.onChanged()
         end,
     })
-    modeSelect:SetPoint("TOPLEFT", PADDING, nextTop)
-    nextTop = nextTop - SELECT_HEIGHT - ROW_GAP
+    fieldForm:Field(modeSelect)
     table.insert(refreshers, function()
         modeSelect:Refresh()
     end)
 
-    -- field -- the key in ns.db.settings
+    -- field -- the key in ns.db.settings; the slider with its arrows is as wide as the dropdown
+    local sliderForm = ns.UI.FormLayout(frame, {
+        padding = PADDING,
+        width = CONTROL_WIDTH + SLIDER_VALUE_WIDTH + 8,
+    })
+    sliderForm.top = fieldForm.top
     local function AddSlider(textKey, field, steps, format)
-        AddLabel(textKey)
+        sliderForm:Label(Text(textKey))
         local slider = ns.UI.StepSlider(frame, {
             steps = steps,
             value = Settings()[field],
-            width = SLIDER_WIDTH,
+            width = 100,   -- the form sets it
             valueWidth = SLIDER_VALUE_WIDTH,
             format = format or tostring,
             onChange = function(value)
@@ -85,8 +78,7 @@ function PanelSettings.Create(parent, options)
                 options.onChanged()
             end,
         })
-        slider:SetPoint("TOPLEFT", PADDING + 18, nextTop - 4)
-        nextTop = nextTop - SLIDER_HEIGHT - ROW_GAP
+        sliderForm:Slider(slider, SLIDER_VALUE_WIDTH)
         table.insert(refreshers, function()
             slider:SetValueOf(Settings()[field])
         end)
@@ -96,6 +88,7 @@ function PanelSettings.Create(parent, options)
     AddSlider("settings.icons_per_row", "iconsPerRow", Range(1, ns.Config.MAX_ICONS_PER_ROW, 1))
     AddSlider("settings.icon_spacing", "iconSpacing", Range(0, 20, 1))
     AddSlider("settings.warn_seconds", "warnSeconds", WARN_STEPS, ns.Utilities.FormatSeconds)
+    sliderForm:Space(CHECKBOXES_GAP)
 
     local function AddCheckbox(textKey, tooltipKey, read, write)
         local checkbox = ns.UI.Checkbox(frame, {
@@ -107,22 +100,21 @@ function PanelSettings.Create(parent, options)
                 options.onChanged()
             end,
         })
-        checkbox:SetPoint("TOPLEFT", PADDING - 4, nextTop)
-        nextTop = nextTop - CHECKBOX_HEIGHT
+        sliderForm:Checkbox(checkbox)
         table.insert(refreshers, function()
             checkbox:SetChecked(read())
         end)
     end
 
-    AddCheckbox("settings.unlocked", "settings.unlocked_hint", function()
-        return not Settings().locked
+    AddCheckbox("settings.locked", "settings.locked_hint", function()
+        return Settings().locked
     end, function(isChecked)
         -- the panel holds secure buttons: it can not move in combat
         if InCombatLockdown() then
             ns.Utilities.Print(Text("messages.in_combat"))
             return
         end
-        Settings().locked = not isChecked
+        Settings().locked = isChecked
     end)
     AddCheckbox("settings.minimap", nil, function()
         return not Settings().minimap.hide

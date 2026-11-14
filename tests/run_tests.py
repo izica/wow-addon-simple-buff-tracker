@@ -562,11 +562,29 @@ def test_warn_seconds():
     check("500 s left, the buff warns at 600: shown", lua.eval("secureButtons[1].shown") is True)
     lua.execute("warnSlider.scripts.OnValueChanged(warnSlider, 1)")
     check("first step: as the panel again", lua.eval("SimpleBuffTrackerDB.buffs[1].warnSeconds") is None)
+    lua.execute("warnSlider.forwardButton.scripts.OnClick(warnSlider.forwardButton)")
+    check("the right arrow moves one step", lua.eval("SimpleBuffTrackerDB.buffs[1].warnSeconds") == 0)
+    lua.execute("warnSlider.backButton.scripts.OnClick(warnSlider.backButton)")
+    check("the left arrow moves back", lua.eval("SimpleBuffTrackerDB.buffs[1].warnSeconds") is None)
+    lua.execute("warnSlider.backButton.scripts.OnClick(warnSlider.backButton)")
+    check("no step before the first", lua.eval("SimpleBuffTrackerDB.buffs[1].warnSeconds") is None)
 
     lua.execute("Slash('config')")
     lua.globals().sizeSlider = find_slider(lua, "36")
     lua.execute("sizeSlider.scripts.OnValueChanged(sizeSlider, 13)")   # 16, 18, ... step 13: 40
     check("the Panel tab's icon size slider", lua.eval("SimpleBuffTrackerDB.settings.iconSize") == 40)
+
+    lua.execute("""
+        for _, frame in ipairs(allFrames) do
+            local label = rawget(frame, 'label')
+            if label and label.text == 'Lock the panel' then lockBox = frame end
+        end
+    """)
+    check("the lock checkbox is checked while the panel is locked", lua.eval("lockBox.checked") is True)
+    lua.execute("lockBox.checked = false; lockBox.scripts.OnClick(lockBox)")
+    check("unchecking it unlocks the panel", lua.eval("SimpleBuffTrackerDB.settings.locked") is False)
+    lua.execute("lockBox.checked = true; lockBox.scripts.OnClick(lockBox)")
+    check("checking it locks the panel", lua.eval("SimpleBuffTrackerDB.settings.locked") is True)
 
 
 def test_shift_click():

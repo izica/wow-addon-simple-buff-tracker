@@ -23,15 +23,12 @@ ns.Components.BuffEditor = BuffEditor
 local TARGET_AURA = "aura"
 local SOURCE_NONE = "none"
 
-local PADDING = 16
-local LABEL_HEIGHT = 16
-local ROW_GAP = 12
-local SELECT_WIDTH = 240
-local SELECT_HEIGHT = 26
-local INPUT_HEIGHT = 22
-local INPUT_LEFT = PADDING + 9          -- the dropdown frame of an input sticks out 9 pixels on the left
-local INPUT_RIGHT = PADDING + 8 + 34    -- room for the icon preview right of the fields
-local PREVIEW_SIZE = 30
+local PADDING = 18
+local PREVIEW_SIZE = 32
+local PREVIEW_GAP = 12
+-- every control ends on one line; the icon preview stands right of it
+local RIGHT_INSET = PADDING + PREVIEW_SIZE + PREVIEW_GAP
+local HINT_HEIGHT = 30
 local BUTTON_WIDTH = 90
 local BUTTON_HEIGHT = 24
 local ERROR_COLOR = { 1, 0.3, 0.3 }
@@ -40,9 +37,7 @@ local DELETE_POPUP = "SIMPLEBUFFTRACKER_DELETE_BUFF"
 -- the per-buff warning slider: the first step -- the panel's own setting
 local WARN_DEFAULT = -1
 local WARN_STEPS = { WARN_DEFAULT, 0, 15, 30, 60, 120, 180, 300, 600, 900, 1200, 1800 }
-local WARN_SLIDER_WIDTH = 220
-local WARN_SLIDER_HEIGHT = 22
-local WARN_VALUE_WIDTH = 140
+local WARN_VALUE_WIDTH = 130
 
 -- what goes into a field for a picked suggestion
 local function AuraTextOf(suggestion)
@@ -73,7 +68,7 @@ function BuffEditor.Create(parent, options)
     local buffIndex = nil
     local buffCount = 0
     local inputs = {}   -- [field key] = input
-    local nextTop = -PADDING
+    local form = ns.UI.FormLayout(frame, { padding = PADDING, rightInset = RIGHT_INSET })
 
     local errorText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     errorText:SetTextColor(ERROR_COLOR[1], ERROR_COLOR[2], ERROR_COLOR[3])
@@ -87,19 +82,10 @@ function BuffEditor.Create(parent, options)
         end
     end
 
-    local function AddLabel(textKey)
-        local label = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        label:SetPoint("TOPLEFT", PADDING, nextTop)
-        label:SetText(Text(textKey))
-        nextTop = nextTop - LABEL_HEIGHT
-        return label
-    end
-
     local function AddSelect(textKey, choices, selected, onChange)
-        local label = AddLabel(textKey)
+        local label = form:Label(Text(textKey))
         local select = ns.UI.Select(frame, {
-            width = SELECT_WIDTH,
-            height = SELECT_HEIGHT,
+            width = 100,   -- the form stretches it
             choices = choices,
             selected = selected,
             onChange = function(value)
@@ -110,8 +96,7 @@ function BuffEditor.Create(parent, options)
                 end
             end,
         })
-        select:SetPoint("TOPLEFT", PADDING, nextTop)
-        nextTop = nextTop - SELECT_HEIGHT - ROW_GAP
+        form:Field(select)
         select.label = label
         return select
     end
@@ -120,7 +105,7 @@ function BuffEditor.Create(parent, options)
     -- save(buff, text) -> ok, errorKey; sources -- IconSearch.SOURCES or a function
     -- returning them, textOf(suggestion) -> the text a picked suggestion puts in
     local function AddInput(key, textKey, read, save, sources, textOf)
-        local label = AddLabel(textKey)
+        local label = form:Label(Text(textKey))
         local input = nil
 
         local function Save(text)
@@ -139,8 +124,8 @@ function BuffEditor.Create(parent, options)
         end
 
         input = ns.UI.Input(frame, {
-            height = INPUT_HEIGHT,
-            width = 100,   -- stretched by the two points below
+            width = 100,   -- the form stretches it
+            fontObject = "GameFontHighlight",   -- the same font as the dropdowns
             onEnter = function()
                 input:TakeHighlighted()
             end,
@@ -150,9 +135,7 @@ function BuffEditor.Create(parent, options)
                 end
             end,
         })
-        input:SetPoint("TOPLEFT", INPUT_LEFT, nextTop - 2)
-        input:SetPoint("RIGHT", frame, "RIGHT", -INPUT_RIGHT, 0)
-        nextTop = nextTop - INPUT_HEIGHT - ROW_GAP - 2
+        form:Field(input)
 
         ns.UI.AttachSuggestions(input, {
             search = function(text)
@@ -233,14 +216,15 @@ function BuffEditor.Create(parent, options)
 
     local preview = frame:CreateTexture(nil, "ARTWORK")
     preview:SetSize(PREVIEW_SIZE, PREVIEW_SIZE)
-    preview:SetPoint("LEFT", iconInput, "RIGHT", 14, 0)
+    -- right of the drawn edge of the icon field (its art sticks out 8 pixels)
+    preview:SetPoint("LEFT", iconInput, "RIGHT", 8 + PREVIEW_GAP, 0)
 
     -- how long before the end the buff counts as missing: its own, or the panel's
-    local warnLabel = AddLabel("settings.buff_warn")
+    local warnLabel = form:Label(Text("settings.buff_warn"))
     local warnSlider = ns.UI.StepSlider(frame, {
         steps = WARN_STEPS,
         value = WARN_DEFAULT,
-        width = WARN_SLIDER_WIDTH,
+        width = 100,   -- the form stretches it
         valueWidth = WARN_VALUE_WIDTH,
         format = function(seconds)
             if seconds == WARN_DEFAULT then
@@ -260,17 +244,13 @@ function BuffEditor.Create(parent, options)
             options.onChanged()
         end,
     })
-    warnSlider:SetPoint("TOPLEFT", PADDING + 18, nextTop - 4)
-    nextTop = nextTop - WARN_SLIDER_HEIGHT - ROW_GAP
+    form:Slider(warnSlider, WARN_VALUE_WIDTH)
 
     local hint = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    hint:SetPoint("TOPLEFT", PADDING, nextTop)
-    hint:SetPoint("RIGHT", frame, "RIGHT", -PADDING, 0)
-    hint:SetJustifyH("LEFT")
     hint:SetTextColor(HINT_COLOR[1], HINT_COLOR[2], HINT_COLOR[3])
     hint:SetText(Text("settings.edit_hint"))
-    errorText:SetPoint("TOPLEFT", hint, "BOTTOMLEFT", 0, -8)
-    errorText:SetPoint("RIGHT", frame, "RIGHT", -PADDING, 0)
+    form:Text(hint, HINT_HEIGHT)
+    form:Text(errorText, HINT_HEIGHT)
 
     local upButton = ns.UI.Button(frame, {
         text = Text("settings.move_up"),
