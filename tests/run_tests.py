@@ -757,12 +757,18 @@ def test_drag_and_previews():
         Slash('add Arcane Intellect = item 2683')
         Slash('buffs')
     """)
-    check("the empty icon field says what it takes",
-          lua.eval("FindField('icon').placeholder.text") == "Empty: automatic. Type a name, drag or shift-click")
+    check("a note under the icon field says what it takes",
+          lua.eval("FindField('icon').note.text").startswith("Empty: the buff's own picture")
+          and lua.eval("FindField('icon').note.shown") is True)
     lua.execute("Enter('sourceValue', '')")
-    check("the empty item field says drag or shift-click",
-          lua.eval("FindField('sourceValue').placeholder.text") == "Drag an item here or shift-click it in the bags"
-          and lua.eval("FindField('sourceValue').placeholder.shown") is True)
+    check("the note under the item field says drag or shift-click",
+          lua.eval("FindField('sourceValue').note.text").startswith("Drag an item from the bags here"))
+    lua.execute("ns.Services.Buff.SetSourceKind(SimpleBuffTrackerDB.buffs[1], 'spell'); Window().Refresh()")
+    check("with a spell source the note talks of spells",
+          lua.eval("FindField('sourceValue').note.text").startswith("Drag a spell from the spellbook"))
+    lua.execute("ns.Services.Buff.SetSourceKind(SimpleBuffTrackerDB.buffs[1], 'none'); Window().Refresh()")
+    check("no source: no field and no note", lua.eval("FindField('sourceValue') == nil") is True)
+    lua.execute("ns.Services.Buff.SetSourceKind(SimpleBuffTrackerDB.buffs[1], 'item'); Window().Refresh()")
 
     # a spell dragged onto the item field: not taken, still on the cursor
     lua.execute("""

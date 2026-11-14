@@ -24,6 +24,9 @@ local FIELD_ART_BOTTOM = 9
 local SLIDER_HEIGHT = 19
 local SLIDER_STEPPER_SPACE = 15   -- the arrow button (11) and its gap (4), each side
 local SLIDER_VALUE_GAP = 8        -- from the right arrow to the value text
+local NOTE_GAP = 2                -- from the drawn bottom of a control to its note
+local NOTE_LINE_HEIGHT = 12
+local NOTE_COLOR = { 0.6, 0.6, 0.6 }
 local CHECKBOX_HEIGHT = 26
 local CHECKBOX_SHIFT = -4         -- the checkbox art has an empty edge on the left
 
@@ -31,7 +34,8 @@ local CHECKBOX_SHIFT = -4         -- the checkbox art has an empty edge on the l
 -- rightInset -- room kept on the right (default: padding);
 -- width -- the drawn width of every control; nil -- up to rightInset.
 -- form:Label(text), form:Field(control), form:Slider(slider, valueWidth),
--- form:Checkbox(checkbox), form:Text(fontString, height), form:Space(pixels).
+-- form:Checkbox(checkbox), form:Text(fontString, height), form:Note(text, lines),
+-- form:Space(pixels).
 function ns.UI.FormLayout(frame, options)
     local padding = options.padding
     local rightInset = options.rightInset or padding
@@ -90,6 +94,21 @@ function ns.UI.FormLayout(frame, options)
         fontString:SetPoint("RIGHT", frame, "RIGHT", -rightInset, 0)
         fontString:SetJustifyH("LEFT")
         self.top = self.top - height
+    end
+
+    -- A small grey note right under the control placed last (what to type or
+    -- drop there); lines -- how many lines of room it takes. Returns the text.
+    function form:Note(text, lines)
+        self.top = self.top + ROW_GAP - NOTE_GAP
+        local note = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        note:SetTextColor(NOTE_COLOR[1], NOTE_COLOR[2], NOTE_COLOR[3])
+        note:SetText(text)
+        note:SetJustifyV("TOP")
+        local height = NOTE_LINE_HEIGHT * (lines or 1)
+        note:SetHeight(height)
+        self:Text(note, height)
+        self.top = self.top - ROW_GAP
+        return note
     end
 
     function form:Space(pixels)

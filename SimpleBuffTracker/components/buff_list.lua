@@ -16,6 +16,9 @@ local ICON_SIZE = 20
 local ICON_CROP = 0.08
 local PADDING = 6
 local ADD_BUTTON_HEIGHT = 24
+local NOTE_GAP = 6
+local NOTE_ROOM = 44             -- the list ends above the note (up to three lines)
+local NOTE_COLOR = { 0.6, 0.6, 0.6 }
 local SELECTED_COLOR = { 1, 0.82, 0, 0.18 }
 local HIGHLIGHT_TEXTURE = "Interface\\QuestFrame\\UI-QuestTitleHighlight"
 
@@ -31,9 +34,17 @@ function BuffList.Create(parent, options)
     addButton:SetPoint("BOTTOMLEFT", PADDING, PADDING)
     addButton:SetPoint("BOTTOMRIGHT", -PADDING, PADDING)
 
+    -- the other way to add: a shift-click on a buff of yours
+    local note = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    note:SetPoint("BOTTOMLEFT", addButton, "TOPLEFT", 2, NOTE_GAP)
+    note:SetPoint("BOTTOMRIGHT", addButton, "TOPRIGHT", -2, NOTE_GAP)
+    note:SetJustifyH("LEFT")
+    note:SetTextColor(NOTE_COLOR[1], NOTE_COLOR[2], NOTE_COLOR[3])
+    note:SetText(Text("settings.add_note"))
+
     local area = ns.UI.ScrollArea(frame)
     area:SetPoint("TOPLEFT", PADDING, -PADDING)
-    area:SetPoint("BOTTOMRIGHT", addButton, "TOPRIGHT", -ns.UI.SCROLL_AREA_BAR_SPACE, PADDING)
+    area:SetPoint("BOTTOMRIGHT", addButton, "TOPRIGHT", -ns.UI.SCROLL_AREA_BAR_SPACE, NOTE_ROOM)
 
     local rows = {}
 

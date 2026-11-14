@@ -6,7 +6,8 @@
 -- the bags). While typing, suggestions with pictures drop under a field
 -- (ui/suggestions.lua, dataflows/icon_search.lua). A spell from the spellbook
 -- or an item from the bags can be dragged onto a field, or shift-clicked while
--- the field is in focus (MainWindow.PickLink); an empty field says so. Right of
+-- the field is in focus (MainWindow.PickLink); a grey note under each field says
+-- what to type or drop there. Right of
 -- the buff, spell and item fields stands their picture, with the game's tooltip
 -- of the spell or item on hover. An edit that fails shows its reason in red in
 -- the button row.
@@ -36,12 +37,11 @@ local PREVIEW_ART_GAP = 8     -- the field's art sticks out this far right of it
 -- every control ends on one line; the pictures stand right of it
 local RIGHT_INSET = PADDING + PREVIEW_SIZE + PREVIEW_GAP
 local ICON_CROP = 0.08
-local HINT_HEIGHT = 28
+local NOTE_LINES = 2
 local BUTTON_GAP = 10
 local BUTTON_WIDTH = 90
 local BUTTON_HEIGHT = 24
 local ERROR_COLOR = { 1, 0.3, 0.3 }
-local HINT_COLOR = { 0.6, 0.6, 0.6 }
 local DELETE_POPUP = "SIMPLEBUFFTRACKER_DELETE_BUFF"
 -- the per-buff warning slider: the first step -- the panel's own setting
 local WARN_DEFAULT = -1
@@ -126,7 +126,6 @@ function BuffEditor.Create(parent, options)
     local buffIndex = nil
     local buffCount = 0
     local inputs = {}     -- [field key] = input
-    local previews = {}   -- pictures right of the fields
     local form = ns.UI.FormLayout(frame, { padding = PADDING, rightInset = RIGHT_INSET })
 
     local errorText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -166,7 +165,7 @@ function BuffEditor.Create(parent, options)
 
     -- key -- the field name; field: read(buff) -> text, save(buff, text) -> ok, errorKey,
     -- sources() -> IconSearch.SOURCES, textOf(suggestion) -> text,
-    -- takes(linkKind) -> whether a "spell" / "item" link fits, placeholder() -> text,
+    -- takes(linkKind) -> whether a "spell" / "item" link fits, note() -> the text under it,
     -- preview() -> icon, showTooltip(tooltip) -- the picture right of the field (optional)
     local function AddInput(key, textKey, field)
         local label = form:Label(Text(textKey))
@@ -190,7 +189,6 @@ function BuffEditor.Create(parent, options)
         input = ns.UI.Input(frame, {
             width = 100,   -- the form stretches it
             fontObject = "GameFontHighlight",   -- the same font as the dropdowns
-            placeholder = "",
             onEnter = function()
                 input:TakeHighlighted()
             end,
@@ -201,6 +199,7 @@ function BuffEditor.Create(parent, options)
             end,
         })
         form:Field(input)
+        input.note = form:Note(field.note(), NOTE_LINES)
 
         ns.UI.AttachSuggestions(input, {
             search = function(text)
@@ -243,7 +242,6 @@ function BuffEditor.Create(parent, options)
             -- right of the drawn edge of the field
             preview:SetPoint("LEFT", input, "RIGHT", PREVIEW_ART_GAP + PREVIEW_GAP, 0)
             input.preview = preview
-            table.insert(previews, preview)
         end
         inputs[key] = input
         return input
@@ -271,8 +269,8 @@ function BuffEditor.Create(parent, options)
         takes = function(linkKind)
             return linkKind == "spell"
         end,
-        placeholder = function()
-            return Text("settings.aura_placeholder")
+        note = function()
+            return Text("settings.aura_note")
         end,
         preview = function()
             if not buff then
@@ -323,11 +321,11 @@ function BuffEditor.Create(parent, options)
             end
             return linkKind == "spell"
         end,
-        placeholder = function()
+        note = function()
             if IsItemSource() then
-                return Text("settings.item_placeholder")
+                return Text("settings.item_note")
             end
-            return Text("settings.spell_placeholder")
+            return Text("settings.spell_note")
         end,
         preview = function()
             local source = buff and buff.source
@@ -366,8 +364,8 @@ function BuffEditor.Create(parent, options)
         takes = function(linkKind)
             return linkKind == "spell" or linkKind == "item"
         end,
-        placeholder = function()
-            return Text("settings.icon_placeholder")
+        note = function()
+            return Text("settings.icon_note")
         end,
         preview = function()
             return buff and BuffService.Icon(buff)
@@ -401,10 +399,6 @@ function BuffEditor.Create(parent, options)
     })
     form:Slider(warnSlider, WARN_VALUE_WIDTH)
 
-    local hint = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    hint:SetTextColor(HINT_COLOR[1], HINT_COLOR[2], HINT_COLOR[3])
-    hint:SetText(Text("settings.edit_hint"))
-    form:Text(hint, HINT_HEIGHT)
     -- how tall the fields are, and the button row under them: the window must hold both
     frame.formHeight = -form.top
     frame.buttonRowHeight = PADDING + BUTTON_HEIGHT + BUTTON_GAP
@@ -461,7 +455,7 @@ function BuffEditor.Create(parent, options)
     -- everything but the empty text: shown while a buff is chosen
     local parts = { targetSelect, targetSelect.label, auraInput, auraInput.label, sourceSelect,
         sourceSelect.label, sourceInput, sourceInput.label, iconInput, iconInput.label,
-        warnLabel, warnSlider, hint, errorText, upButton, downButton, deleteButton }
+        warnLabel, warnSlider, errorText, upButton, downButton, deleteButton }
 
     -- show a buff (nil -- none chosen); index and count -- its place in the list
     function frame:Display(shownBuff, index, count)
@@ -474,8 +468,11 @@ function BuffEditor.Create(parent, options)
         end
         emptyText:SetShown(buff == nil)
         if not buff then
-            for _, preview in ipairs(previews) do
-                preview:Hide()
+            for _, input in pairs(inputs) do
+                input.note:Hide()
+                if input.preview then
+                    input.preview:Hide()
+                end
             end
             return
         end
@@ -490,6 +487,9 @@ function BuffEditor.Create(parent, options)
         local hasSource = buff.source ~= nil
         sourceInput:SetShown(hasSource)
         sourceInput.label:SetShown(hasSource)
+
+        iconInput:Show()
+        iconInput.label:Show()
         if IsItemSource() then
             sourceInput.label:SetText(Text("settings.source_item_value"))
         else
@@ -501,8 +501,9 @@ function BuffEditor.Create(parent, options)
                 input.shownText = input.field.read(buff)
                 input:SetText(input.shownText)
             end
-            input.placeholder:SetText(input.field.placeholder())
-            input.placeholder:SetShown(input:GetText() == "")
+            -- the note goes with its field
+            input.note:SetText(input.field.note())
+            input.note:SetShown(input:IsShown())
             if input.preview then
                 input.preview:Refresh()
                 if not input:IsShown() then
