@@ -23,6 +23,7 @@ local Spell = ns.Utilities.Spell
 local Item = ns.Utilities.Item
 local BuffService = ns.Services.Buff
 local IconSearch = ns.Dataflows.IconSearch
+local WeaponEnchant = ns.Dataflows.WeaponEnchant
 local SOURCE_KIND = ns.Constants.SOURCE_KIND
 local WEAPON_SLOT = ns.Constants.WEAPON_SLOT
 
@@ -31,6 +32,7 @@ ns.Components.BuffEditor = BuffEditor
 
 local TARGET_AURA = "aura"
 local SOURCE_NONE = "none"
+local ANY_ENCHANT = 0      -- the enchant select: any temporary enchant on the slot
 
 local PADDING = 18
 local PREVIEW_SIZE = 28
@@ -265,6 +267,24 @@ function BuffEditor.Create(parent, options)
         BuffService.SetTargetKind(buff, value)
     end)
 
+    -- a weapon buff: which temporary enchant -- any, or one seen on the weapons before
+    local enchantSelect = AddSelect("settings.enchant", function()
+        local choices = { { value = ANY_ENCHANT, text = Text("settings.enchant_any") } }
+        for _, enchant in ipairs(WeaponEnchant.Seen()) do
+            table.insert(choices, { value = enchant.enchantId, text = enchant.name })
+        end
+        return choices
+    end, function()
+        return buff and (buff.target.enchantId or ANY_ENCHANT)
+    end, function(value)
+        if value == ANY_ENCHANT then
+            BuffService.SetEnchant(buff, nil)
+        else
+            BuffService.SetEnchant(buff, value)
+        end
+    end)
+    enchantSelect.note = form:Note(Text("settings.enchant_note"), NOTE_LINES)
+
     local auraInput = AddInput("aura", "settings.aura", {
         read = BuffService.AuraText,
         save = BuffService.SetAuraText,
@@ -406,7 +426,11 @@ function BuffEditor.Create(parent, options)
     })
     form:Slider(warnSlider, WARN_VALUE_WIDTH)
 
-    -- how tall the fields are, and the button row under them: the window must hold both
+    -- How tall the fields are at most, and the button row under them: the window
+    -- must hold both. The enchant select and the buff field never show together
+    -- (a weapon buff or an aura), the buff field is the taller one.
+    enchantSelect.group:SetShown(false)
+    form:Layout()
     frame.formHeight = -form.top
     frame.buttonRowHeight = PADDING + BUTTON_HEIGHT + BUTTON_GAP
 
@@ -475,6 +499,9 @@ function BuffEditor.Create(parent, options)
         end
         emptyText:SetShown(buff == nil)
         if not buff then
+            enchantSelect:Hide()
+            enchantSelect.label:Hide()
+            enchantSelect.note:Hide()
             for _, input in pairs(inputs) do
                 input.note:Hide()
                 if input.preview then
@@ -491,6 +518,10 @@ function BuffEditor.Create(parent, options)
         auraInput:SetShown(isAura)
         auraInput.label:SetShown(isAura)
         auraInput.group:SetShown(isAura)
+        enchantSelect:SetShown(not isAura)
+        enchantSelect.label:SetShown(not isAura)
+        enchantSelect.note:SetShown(not isAura)
+        enchantSelect.group:SetShown(not isAura)
 
         local hasSource = buff.source ~= nil
         sourceInput:SetShown(hasSource)
@@ -521,6 +552,7 @@ function BuffEditor.Create(parent, options)
             end
         end
         targetSelect:Refresh()
+        enchantSelect:Refresh()
         sourceSelect:Refresh()
         warnSlider:SetValueOf(buff.warnSeconds or WARN_DEFAULT)
         -- the hidden fields take no room: the shown ones stack up without holes

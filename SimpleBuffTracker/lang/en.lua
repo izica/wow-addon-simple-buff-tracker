@@ -8,7 +8,8 @@ ns.Localization.Add("en", [==[
     "buff": {
         "mainhand": "Main hand enchant",
         "offhand": "Off hand enchant",
-        "new": "New buff"
+        "new": "New buff",
+        "weapon_enchant": "%s: %s"
     },
     "source": {
         "spell": "spell",
@@ -137,7 +138,10 @@ ns.Localization.Add("en", [==[
         "spell_note": "Drag a spell from the spellbook here, or shift-click it while this field is in focus.",
         "item_note": "Drag an item from the bags here, or shift-click it in the bags while this field is in focus.",
         "icon_note": "Empty: the buff's own picture. Suggests your spells, bag items and buffs you have had. Drag or shift-click works too.",
-        "add_note": "Drag a buff to change the order. Shift-click a buff of yours (top right) to add it."
+        "add_note": "Drag a buff to change the order. Shift-click a buff of yours (top right) to add it.",
+        "enchant": "Which enchant",
+        "enchant_any": "Any temporary enchant",
+        "enchant_note": "The enchants seen on your weapons. Not in the list? Put it on once (oil, Flametongue...)."
     }
 }
 ]==])

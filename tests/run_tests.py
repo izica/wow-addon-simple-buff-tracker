@@ -172,6 +172,18 @@ C_UnitAuras = {
 weaponEnchant = { false, 0, 0, 0, false, 0, 0, 0 }
 function GetWeaponEnchantInfo() return unpack(weaponEnchant) end
 function GetInventoryItemTexture() return 135000 end
+-- the weapon tooltips: weaponTooltips[inventory slot] = { { text, r, g, b }, ... }
+weaponTooltips = {}
+ITEM_SPELL_TRIGGER_ONUSE = "Use:"
+ITEM_SPELL_TRIGGER_ONEQUIP = "Equip:"
+local function Color(r, g, b) return { GetRGB = function() return r, g, b end } end
+C_TooltipInfo = { GetInventoryItem = function(unit, slot)
+    local lines = {}
+    for _, line in ipairs(weaponTooltips[slot] or {}) do
+        table.insert(lines, { leftText = line[1], leftColor = Color(line[2], line[3], line[4]) })
+    end
+    return { lines = lines }
+end }
 
 local spells = {
     [1459] = { spellID = 1459, name = "Arcane Intellect", iconID = 135932 },
@@ -853,6 +865,78 @@ def names(lua):
     return [lua.eval("SimpleBuffTrackerDB.buffs[%d].target.name" % i) for i in range(1, count + 1)]
 
 
+def test_weapon_enchants():
+    lua = new_runtime()
+    lua.execute("""
+        -- oil on the main hand: its tooltip has the green line with the time,
+        -- and the green "Use:" line of the weapon itself
+        weaponTooltips[16] = { { 'Arcanite Reaper', 1, 1, 1 },
+                               { 'Use: Something (5 Min Cooldown)', 0, 1, 0 },
+                               { 'Brilliant Wizard Oil (30 min)', 0, 1, 0 } }
+        weaponEnchant = { true, 1800000, 0, 2628, false, 0, 0, 0 }
+        Slash('add mainhand = item 20749')
+        Slash('add mainhand = spell Flametongue Weapon')
+        RunTickers()
+    """)
+    check("the enchant's name is read from the weapon tooltip",
+          lua.eval("SimpleBuffTrackerDB.seenEnchants[2628]") == "Brilliant Wizard Oil")
+    check("with no enchant chosen any enchant counts", lua.eval("secureButtons[1].state.isActive") is True
+          and lua.eval("secureButtons[2].state.isActive") is True)
+
+    lua.execute("""
+        weaponTooltips[16] = { { 'Arcanite Reaper', 1, 1, 1 }, { 'Flametongue 3 (5 min)', 0, 1, 0 } }
+        weaponEnchant = { true, 300000, 0, 5, false, 0, 0, 0 }
+        RunTickers()
+    """)
+    check("a second enchant is remembered too", lua.eval("SimpleBuffTrackerDB.seenEnchants[5]") == "Flametongue 3")
+
+    lua.execute("""
+        ns.Services.Buff.SetEnchant(SimpleBuffTrackerDB.buffs[1], 2628)
+        ns.Services.Buff.SetEnchant(SimpleBuffTrackerDB.buffs[2], 5)
+        RunTickers()
+    """)
+    check("Flametongue on: the Flametongue buff is on", lua.eval("secureButtons[2].state.isActive") is True)
+    check("Flametongue on: the oil buff is missing", lua.eval("secureButtons[1].state.isActive") is False)
+    check("the buff is named after its enchant",
+          lua.eval("ns.Models.Buff.TargetLabel(SimpleBuffTrackerDB.buffs[2])") == "Main hand enchant: Flametongue 3")
+
+    lua.execute("""
+        weaponEnchant = { true, 1800000, 0, 2628, false, 0, 0, 0 }
+        RunTickers()
+    """)
+    check("oil on again: the oil buff is on, Flametongue missing",
+          lua.eval("secureButtons[1].state.isActive") is True and lua.eval("secureButtons[2].state.isActive") is False)
+
+    lua.execute("""
+        weaponTooltips[16] = { { 'Brilliant Wizard Oil (29 min)', 0, 1, 0 } }
+        weaponEnchant = { true, 1700000, 0, 9999, false, 0, 0, 0 }
+        RunTickers()
+    """)
+    check("the same oil under another id counts by its name", lua.eval("secureButtons[1].state.isActive") is True)
+
+    lua.execute("""
+        inCombat = true
+        weaponTooltips[16] = { { 'Sharpened (30 min)', 0, 1, 0 } }
+        weaponEnchant = { true, 1800000, 0, 777, false, 0, 0, 0 }
+        RunTickers()
+        inCombat = false
+    """)
+    check("in combat the tooltip is not read", lua.eval("SimpleBuffTrackerDB.seenEnchants[777]") is None)
+
+    # the editor: the enchant select for weapon buffs only
+    lua.execute("Slash('buffs')")
+    lua.execute("""
+        for _, frame in ipairs(allFrames) do
+            if rawget(frame, 'label') and rawget(frame, 'group') and frame.label.text == 'Which enchant' then
+                enchantSelect = frame
+            end
+        end
+    """)
+    check("a weapon buff shows the enchant select", lua.eval("enchantSelect.shown") is True)
+    lua.execute("Slash('add Arcane Intellect'); Rows()[3].scripts.OnClick(Rows()[3])")
+    check("an aura hides it", lua.eval("enchantSelect.shown") is False)
+
+
 def test_drag_order():
     lua = new_runtime()
     lua.execute("""
@@ -892,7 +976,8 @@ def test_fields_stack():
           % (with_source, without_source), without_source > with_source)
     lua.execute("ns.Services.Buff.SetTargetKind(SimpleBuffTrackerDB.buffs[1], 'mainhand'); Window().Refresh()")
     weapon = icon_field_top(lua)
-    check("a weapon enchant: no buff field either, the icon field moves up again", weapon > without_source)
+    check("a weapon enchant: the enchant select takes the place of the buff field", weapon == without_source
+          and lua.eval("FindField('aura') == nil") is True)
     lua.execute("""
         ns.Services.Buff.SetTargetKind(SimpleBuffTrackerDB.buffs[1], 'aura')
         ns.Services.Buff.SetSourceKind(SimpleBuffTrackerDB.buffs[1], 'item')
@@ -945,6 +1030,7 @@ def main():
     test_seen_buffs()
     test_suggestions()
     test_drag_and_previews()
+    test_weapon_enchants()
     test_drag_order()
     test_fields_stack()
     test_editor_fits()

@@ -21,6 +21,8 @@ ns.Config.defaults = {
     buffs = {},
     -- [lower name] = { spellId, name, icon }: every buff seen on the character, for the search
     seenAuras = {},
+    -- [enchant id] = name: every temporary enchant seen on the weapons
+    seenEnchants = {},
 }
 
 ns.Config.TICK_SECONDS = 1             -- how often timers and the "missing" list are checked

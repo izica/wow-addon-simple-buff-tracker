@@ -5,7 +5,9 @@
 --     { spellId, name, icon }  an aura on the player; found by the spell id or by
 --                        the name (the name covers every rank of the spell);
 --                        icon -- its picture, kept once seen on the player;
---     { weapon }         a temporary enchant on a weapon slot (ns.Constants.WEAPON_SLOT);
+--     { weapon, enchantId, enchantName }  a temporary enchant on a weapon slot
+--                        (ns.Constants.WEAPON_SLOT); enchantId -- only this one
+--                        (an oil, not the shaman's Flametongue), nil -- any;
 --   warnSeconds -- this buff counts as missing this long before its end; nil --
 --             the panel's settings.warnSeconds;
 --   icon, iconText -- a picture picked in the buff window (texture id) and what
@@ -47,7 +49,11 @@ function Buff.TargetLabel(buff)
     local Text = ns.Localization.Text
     local target = buff.target
     if target.weapon then
-        return Text("buff." .. target.weapon)
+        local slotName = Text("buff." .. target.weapon)
+        if target.enchantName then
+            return Text("buff.weapon_enchant", slotName, target.enchantName)
+        end
+        return slotName
     end
     return target.name or (target.spellId and Spell.Name(target.spellId)) or Text("buff.new")
 end

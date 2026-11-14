@@ -11,7 +11,7 @@
 | исходник | `SimpleBuffTracker/` — **правим здесь** |
 | игра видит | `B:\World of Warcraft\_forever_\Interface\AddOns\SimpleBuffTracker` — junction на `SimpleBuffTracker/` |
 | клиент | WoW Forever, `_forever_`, `## Interface: 16001` |
-| база | `SimpleBuffTrackerDB` (**на персонажа**): `settings`, `buffs`, `seenAuras` (все бафы, виденные на персонаже) |
+| база | `SimpleBuffTrackerDB` (**на персонажа**): `settings`, `buffs`, `seenAuras` (все бафы, виденные на персонаже), `seenEnchants` |
 
 Команда — `/sbt` (и `/simplebufftracker`), клавиши `SIMPLEBUFFTRACKER_*`, глобал для
 Bindings.xml — `SimpleBuffTracker_RunCommand`. Новый файл в `.toc` — только перезапуск клиента.
@@ -97,6 +97,11 @@ buff = { target = { spellId, name } | { weapon = "mainhand"|"offhand" },
 * Аура ищется по `spellId` или по имени (имя покрывает все ранги).
 * Чары на оружии — не аура: `GetWeaponEnchantInfo` (`dataflows/weapon_enchant.lua`),
   длительность = самый большой остаток, виденный для того же enchantId.
+* **Какие именно чары** (масло или Flametongue на одной руке): `target.enchantId` + `enchantName`, nil — любые.
+  Имя чар — только в тултипе оружия (`C_TooltipInfo.GetInventoryItem`): зелёная строка «Имя (время)», не
+  «Use:/Equip:/Chance on hit:» (своего типа строки у временных чар нет); читается вне боя, раз на id,
+  копится в `seenEnchants[id] = имя`. Совпадение — тот же id или то же имя (`WeaponEnchant.Matches`).
+  В редакторе — селект «Какие чары» вместо поля «Баф».
 * Клик (`Buff.Action`): spell -> `type=spell`, item -> `type=item`, item на оружие ->
   `type=macro`, `/use item:ID` + `/use 16|17`.
 * Режим `missing`: показываются нет-бафы и те, у кого осталось ≤ `settings.warnSeconds`
