@@ -235,7 +235,20 @@ function FocusField(buffKey, optionKey)
         option.set(nil, text)
     end
     keyboardFocus = { obj = widget }
+    return widget
 end
+
+-- shift-click on an item in the bags: HandleModifiedItemClick -> ChatFrameUtil.InsertLink,
+-- with the hooks of AceGUI and of the addon after it
+function hooksecurefunc(owner, name, hook)
+    local original = owner[name]
+    owner[name] = function(...)
+        local result = original(...)
+        hook(...)
+        return result
+    end
+end
+ChatFrameUtil = { InsertLink = function(link) return false end }
 """
 
 
@@ -485,6 +498,62 @@ def test_shift_click():
     check("a secret aura is skipped", lua.eval("#SimpleBuffTrackerDB.buffs") == 2)
 
 
+OIL_LINK = "|cff1eff00|Hitem:20749::::|h[Brilliant Wizard Oil]|h|r"
+SPELL_LINK = "|cff71d5ff|Hspell:1459:0|h[Arcane Intellect]|h|r"
+
+
+def test_item_link():
+    lua = new_runtime()
+    lua.execute("""
+        Slash('add mainhand = item 2683')
+        Slash('buffs')
+        oilField = FocusField('buff1', 'sourceValue')
+    """)
+    lua.execute("ChatFrameUtil.InsertLink(...)", SPELL_LINK)
+    check("a spell link is not taken by the item field",
+          lua.eval("SimpleBuffTrackerDB.buffs[1].source.itemId") == 2683
+          and lua.eval("oilField.text") == "Crab Cake")
+    lua.execute("ChatFrameUtil.InsertLink(...)", OIL_LINK)
+    check("a shift-clicked item goes into the item field",
+          lua.eval("SimpleBuffTrackerDB.buffs[1].source.itemId") == 20749
+          and lua.eval("keyboardFocus") is None)
+
+    lua.execute("Slash('add Fake Buff = spell'); FocusField('buff2', 'aura')")
+    lua.execute("ChatFrameUtil.InsertLink(...)", OIL_LINK)
+    check("an item link is not taken by the buff field",
+          lua.eval("SimpleBuffTrackerDB.buffs[2].target.name") == "Fake Buff")
+    lua.execute("ChatFrameUtil.InsertLink(...)", SPELL_LINK)
+    check("a spellbook link goes into the buff field",
+          lua.eval("SimpleBuffTrackerDB.buffs[2].target.spellId") == 1459)
+
+    lua.execute("keyboardFocus = nil")
+    lua.execute("ChatFrameUtil.InsertLink(...)", OIL_LINK)
+    check("no field in focus: links go to the chat as usual", lua.eval("#SimpleBuffTrackerDB.buffs") == 2)
+
+
+def test_icons():
+    lua = new_runtime()
+    lua.execute("Slash('add Well Fed')")
+    check("a typed buff the client does not know: question mark",
+          lua.eval("Options('SimpleBuffTracker_Buffs').args.buff1.icon") == 134400)
+    lua.execute("""
+        auras = { { spellId = 19705, name = 'Well Fed', icon = 136000, expirationTime = clock + 900, duration = 900 } }
+        Fire('UNIT_AURA', 'player')
+        auras = {}
+        Fire('UNIT_AURA', 'player')
+    """)
+    check("seen once on the player: its picture is kept",
+          lua.eval("Options('SimpleBuffTracker_Buffs').args.buff1.icon") == 136000
+          and lua.eval("SimpleBuffTrackerDB.buffs[1].target.spellId") == 19705)
+    lua.execute("""
+        auras = { { spellId = 23697, name = 'Mana Regeneration', icon = 137000, expirationTime = 0, duration = 0 } }
+        Fire('UNIT_AURA', 'player')
+        Slash('add Mana Regeneration')
+    """)
+    check("typed while the buff is on: picture right away",
+          lua.eval("Options('SimpleBuffTracker_Buffs').args.buff2.icon") == 137000)
+
+
 def test_russian():
     lua = new_runtime("ruRU")
     lua.execute("Slash('list')")
@@ -496,6 +565,8 @@ def main():
     test_minimap()
     test_settings()
     test_shift_click()
+    test_item_link()
+    test_icons()
     test_russian()
     if failures:
         print("\n%d failed" % len(failures))

@@ -17,6 +17,7 @@ ns.Dataflows = ns.Dataflows or {}
 local Buff = ns.Models.Buff
 local Spell = ns.Utilities.Spell
 local Item = ns.Utilities.Item
+local AuraScan = ns.Dataflows.AuraScan
 local Trim = ns.Utilities.Trim
 local SOURCE_KIND = ns.Constants.SOURCE_KIND
 local WEAPON_SLOT = ns.Constants.WEAPON_SLOT
@@ -45,6 +46,12 @@ function BuffParser.ParseSpell(text)
     if found then
         return { spellId = found.spellId, name = found.name }
     end
+    -- not a spell of the character ("Well Fed"): maybe a buff on the player now --
+    -- then its spell id and picture are known
+    local aura = AuraScan.Find({ name = text }, GetTime())
+    if aura then
+        return { spellId = aura.spellId, name = aura.name, icon = aura.icon }
+    end
     return { name = text }
 end
 
@@ -61,7 +68,7 @@ end
 
 -- an item id by id, link or name of an item the client has seen; nil -- unknown
 function BuffParser.ParseItemId(text)
-    return tonumber(text:match("^(%d+)$")) or Item.FindId(text)
+    return tonumber(text:match("|Hitem:(%d+)")) or tonumber(text:match("^(%d+)$")) or Item.FindId(text)
 end
 
 -- source text -> source, or nil and the key of the error text

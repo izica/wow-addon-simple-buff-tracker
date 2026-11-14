@@ -119,7 +119,7 @@
         "source_spell_value": "Spell",
         "source_item_value": "Item",
         "source_hint": "A name, an id or a link (shift-click). An item by name only if it is in the bags.",
-        "drag_hint": "|cff888888Drag a spell from the spellbook or an item from the bags into a field, or shift-click a buff of yours while typing in it.|r",
+        "drag_hint": "|cff888888While typing in a field: shift-click an item in the bags, a spell in the spellbook or a buff of yours -- or just drag a spell or item into the field.|r",
         "move_up": "Up",
         "move_down": "Down",
         "remove": "Delete",

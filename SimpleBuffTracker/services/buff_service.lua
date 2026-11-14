@@ -52,7 +52,18 @@ local function TargetIcon(buff)
         local inventorySlot = ns.Constants.WEAPON_INVENTORY_SLOT[target.weapon]
         return GetInventoryItemTexture and GetInventoryItemTexture("player", inventorySlot)
     end
-    return Spell.Icon(target.spellId or target.name)
+    return target.icon or Spell.Icon(target.spellId or target.name)
+end
+
+-- A buff typed by name ("Well Fed") has no spell the client knows by that name:
+-- the first time it is seen on the player its spell id and picture are kept.
+local function RememberAura(target, aura)
+    if aura.icon and target.icon ~= aura.icon then
+        target.icon = aura.icon
+    end
+    if aura.spellId and not target.spellId then
+        target.spellId = aura.spellId
+    end
 end
 
 -- the picture of a buff that is not on the player: of its spell, of the
@@ -70,6 +81,9 @@ local function Evaluate(buff, index, now, weapons, warnSeconds)
         found = weapons[buff.target.weapon]
     else
         found = AuraScan.Find(buff.target, now)
+        if found then
+            RememberAura(buff.target, found)
+        end
     end
 
     local state = {

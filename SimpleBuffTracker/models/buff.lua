@@ -2,8 +2,9 @@
 --
 -- Stored in SavedVariables as a plain table (no metatable):
 --   target -- what is tracked, one of:
---     { spellId, name }  an aura on the player; found by the spell id or by the
---                        name (the name covers every rank of the spell);
+--     { spellId, name, icon }  an aura on the player; found by the spell id or by
+--                        the name (the name covers every rank of the spell);
+--                        icon -- its picture, kept once seen on the player;
 --     { weapon }         a temporary enchant on a weapon slot (ns.Constants.WEAPON_SLOT);
 --   source -- how a click puts it back, or nil -- only tracked:
 --     { kind = "spell", spellId, name }

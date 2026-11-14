@@ -39,8 +39,8 @@ local BUFFS_NAME = "SimpleBuffTracker_Buffs"     -- AceConfig id of the buff win
 local BUFF_KEY_PREFIX = "buff"                   -- buff pages: buff1, buff2, ...
 local BUFF_WINDOW_WIDTH = 640
 local BUFF_WINDOW_HEIGHT = 420
--- the fields of a buff page that take a spell from a shift-click
-local SPELL_FIELDS = { aura = true, sourceValue = true }
+-- the fields of a buff page that take a shift-clicked buff, spell or item
+local LINK_FIELDS = { aura = true, sourceValue = true }
 
 local TARGET_AURA = "aura"                       -- the target select: an aura or a weapon slot
 local SOURCE_NONE = "none"                       -- the source select: only tracked
@@ -443,7 +443,8 @@ function SettingsWindow.ToggleBuffs()
     SettingsWindow.OpenBuffs()
 end
 
--- the AceGUI edit box of the buff window being typed in now, and the key of its option; nil -- none
+-- The AceGUI edit box of the buff window being typed in now, the key of its
+-- option and the buff of its page; nil -- none.
 local function FocusedBuffField()
     local focus = GetCurrentKeyBoardFocus and GetCurrentKeyBoardFocus()
     local widget = focus and focus.obj
@@ -455,10 +456,46 @@ local function FocusedBuffField()
         return nil
     end
     local optionKey = user.path[#user.path]
-    if not SPELL_FIELDS[optionKey] then
+    if not LINK_FIELDS[optionKey] then
         return nil
     end
-    return widget, optionKey
+    local buffIndex = tonumber((user.path[1] or ""):match("^" .. BUFF_KEY_PREFIX .. "(%d+)$"))
+    local buff = buffIndex and BuffService.List()[buffIndex]
+    if not buff then
+        return nil
+    end
+    return widget, optionKey, buff
+end
+
+-- as if typed into the field and confirmed with Enter: the option's validate and set run
+local function Confirm(widget, text)
+    widget:SetText(text)
+    widget:Fire("OnEnterPressed", text)
+    LibStub("AceGUI-3.0"):ClearFocus()
+end
+
+-- A shift-clicked link (an item from the bags, a spell from the spellbook)
+-- while a field of the buff window is in focus: the item field takes an item,
+-- the buff and spell fields take a spell. AceGUI itself has already inserted
+-- the link at the cursor: a link the field does not take is undone.
+function SettingsWindow.PickLink(link)
+    local widget, optionKey, buff = FocusedBuffField()
+    if not widget then
+        return
+    end
+    local isItemLink = link:find("|Hitem:") ~= nil
+    local isSpellLink = link:find("|Hspell:") ~= nil
+    local isItemField = optionKey == "sourceValue" and buff.source and buff.source.kind == SOURCE_KIND.ITEM
+    local isTaken = (isItemField and isItemLink) or (not isItemField and isSpellLink)
+    if isTaken then
+        Confirm(widget, link)
+        return
+    end
+    if optionKey == "aura" then
+        widget:SetText(AuraText(buff))
+    else
+        widget:SetText(SourceText(buff))
+    end
 end
 
 -- A shift-click on a buff of the player. Into the buff field being typed in --
@@ -468,10 +505,7 @@ end
 function SettingsWindow.PickAura(spellId, name)
     local widget = FocusedBuffField()
     if widget then
-        local text = name or tostring(spellId)
-        widget:SetText(text)
-        widget:Fire("OnEnterPressed", text)
-        LibStub("AceGUI-3.0"):ClearFocus()
+        Confirm(widget, name or tostring(spellId))
         return true
     end
     if not SettingsWindow.IsBuffWindowOpen() then

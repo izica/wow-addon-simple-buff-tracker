@@ -46,6 +46,13 @@ python tests/run_tests.py
   `sourceValue`, по `user.path` виджета AceConfigDialog) — вписать и Enter (validate + set);
   иначе при открытом окне — новый баф (или страница уже отслеживаемого). Чары на оружии
   событие не шлют.
+* **Shift-клик по предмету/заклинанию** — хук на `ChatFrameUtil.InsertLink` (Forever; старые клиенты —
+  `ChatEdit_InsertLink`), `events/chat_link.lua` -> `SettingsWindow.PickLink`: поле предмета берёт
+  только item-ссылку, поля бафа/заклинания — только spell-ссылку, чужую ссылку (AceGUI уже
+  вставил её в поле сам) откатывает.
+* Иконка бафа: `target.icon` — запоминается, когда баф впервые виден на игроке (`RememberAura`
+  в `services/buff_service.lua`, там же дописывается `spellId`); название, введённое текстом,
+  сверяется с текущими бафами (`BuffParser.ParseSpell`).
 * Регистрация — один раз на `PLAYER_LOGIN`.
 
 ## Миникарта
