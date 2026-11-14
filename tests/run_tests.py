@@ -60,7 +60,12 @@ function Frame:SetShown(shown) self.shown = shown and true or false end
 function Frame:IsShown() return self.shown end
 function Frame:SetAttribute(name, value) self.attributes[name] = value end
 function Frame:GetAttribute(name) return self.attributes[name] end
-function Frame:SetPoint(...) self.point = { ... } end
+function Frame:SetPoint(...)
+    self.point = { ... }
+    self.points = rawget(self, "points") or {}
+    self.points[(...)] = { ... }
+end
+function Frame:ClearAllPoints() self.points = {} end
 function Frame:GetPoint() return "TOPLEFT", nil, "TOPLEFT", 10, -20 end
 function Frame:GetFrameLevel() return 1 end
 function Frame:GetFont() return "Fonts\\FRIZQT__.TTF", 12, "OUTLINE" end
@@ -839,6 +844,29 @@ def test_drag_and_previews():
     check("hovering the buff's picture shows the spell's tooltip", lua.eval("tooltipSpell") == 1459)
 
 
+def icon_field_top(lua):
+    return lua.eval("FindField('icon').points.TOPLEFT[5]")
+
+
+def test_fields_stack():
+    lua = new_runtime()
+    lua.execute("Slash('add Arcane Intellect = item 2683'); Slash('buffs')")
+    with_source = icon_field_top(lua)
+    lua.execute("ns.Services.Buff.SetSourceKind(SimpleBuffTrackerDB.buffs[1], 'none'); Window().Refresh()")
+    without_source = icon_field_top(lua)
+    check("no source: the icon field moves up into the room of the item field (%d -> %d)"
+          % (with_source, without_source), without_source > with_source)
+    lua.execute("ns.Services.Buff.SetTargetKind(SimpleBuffTrackerDB.buffs[1], 'mainhand'); Window().Refresh()")
+    weapon = icon_field_top(lua)
+    check("a weapon enchant: no buff field either, the icon field moves up again", weapon > without_source)
+    lua.execute("""
+        ns.Services.Buff.SetTargetKind(SimpleBuffTrackerDB.buffs[1], 'aura')
+        ns.Services.Buff.SetSourceKind(SimpleBuffTrackerDB.buffs[1], 'item')
+        Window().Refresh()
+    """)
+    check("all fields back: the icon field back in its place", icon_field_top(lua) == with_source)
+
+
 def test_editor_fits():
     lua = new_runtime()
     lua.execute("Slash('buffs')")
@@ -883,6 +911,7 @@ def main():
     test_seen_buffs()
     test_suggestions()
     test_drag_and_previews()
+    test_fields_stack()
     test_editor_fits()
     test_action_bar_look()
     test_russian()

@@ -7,7 +7,9 @@
 -- (ui/suggestions.lua, dataflows/icon_search.lua). A spell from the spellbook
 -- or an item from the bags can be dragged onto a field, or shift-clicked while
 -- the field is in focus (MainWindow.PickLink); a grey note under each field says
--- what to type or drop there. Right of
+-- what to type or drop there. A field that does not apply (the buff of a weapon
+-- enchant, the spell or item of a buff without a source) is hidden with its
+-- label and note, and the fields under it move up (ui/form_layout.lua groups). Right of
 -- the buff, spell and item fields stands their picture, with the game's tooltip
 -- of the spell or item on hover. An edit that fails shows its reason in red in
 -- the button row.
@@ -145,6 +147,7 @@ function BuffEditor.Create(parent, options)
     end
 
     local function AddSelect(textKey, choices, selected, onChange)
+        local group = form:Group()
         local label = form:Label(Text(textKey))
         local select = ns.UI.Select(frame, {
             width = 100,   -- the form stretches it
@@ -160,6 +163,7 @@ function BuffEditor.Create(parent, options)
         })
         form:Field(select)
         select.label = label
+        select.group = group
         return select
     end
 
@@ -168,6 +172,7 @@ function BuffEditor.Create(parent, options)
     -- takes(linkKind) -> whether a "spell" / "item" link fits, note() -> the text under it,
     -- preview() -> icon, showTooltip(tooltip) -- the picture right of the field (optional)
     local function AddInput(key, textKey, field)
+        local group = form:Group()
         local label = form:Label(Text(textKey))
         local input = nil
 
@@ -215,6 +220,7 @@ function BuffEditor.Create(parent, options)
 
         input.fieldKey = key
         input.label = label
+        input.group = group
         input.field = field
         -- put a text in as if typed and confirmed (shift-clicks, drops)
         function input:Put(text)
@@ -373,6 +379,7 @@ function BuffEditor.Create(parent, options)
     })
 
     -- how long before the end the buff counts as missing: its own, or the panel's
+    form:Group()
     local warnLabel = form:Label(Text("settings.buff_warn"))
     local warnSlider = ns.UI.StepSlider(frame, {
         steps = WARN_STEPS,
@@ -483,10 +490,12 @@ function BuffEditor.Create(parent, options)
         local isAura = buff.target.weapon == nil
         auraInput:SetShown(isAura)
         auraInput.label:SetShown(isAura)
+        auraInput.group:SetShown(isAura)
 
         local hasSource = buff.source ~= nil
         sourceInput:SetShown(hasSource)
         sourceInput.label:SetShown(hasSource)
+        sourceInput.group:SetShown(hasSource)
 
         iconInput:Show()
         iconInput.label:Show()
@@ -514,6 +523,8 @@ function BuffEditor.Create(parent, options)
         targetSelect:Refresh()
         sourceSelect:Refresh()
         warnSlider:SetValueOf(buff.warnSeconds or WARN_DEFAULT)
+        -- the hidden fields take no room: the shown ones stack up without holes
+        form:Layout()
         upButton:SetEnabled(buffIndex > 1)
         downButton:SetEnabled(buffIndex < buffCount)
     end

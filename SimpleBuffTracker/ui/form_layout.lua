@@ -9,6 +9,10 @@
 -- (MinimalSliderWithSteppersTemplate: 11 pixels wide, 4 from the bar). Placed
 -- at the same x, such controls stood like a staircase. Here every control is
 -- placed by its drawn edge, not by its frame.
+--
+-- Rows can be put into groups (form:Group()): a hidden group takes no room --
+-- after showing or hiding groups, form:Layout() stacks the shown rows again,
+-- with no holes where the hidden ones were.
 
 local ADDON, ns = ...
 ns.UI = ns.UI or {}
@@ -35,11 +39,19 @@ local CHECKBOX_SHIFT = -4         -- the checkbox art has an empty edge on the l
 -- width -- the drawn width of every control; nil -- up to rightInset.
 -- form:Label(text), form:Field(control), form:Slider(slider, valueWidth),
 -- form:Checkbox(checkbox), form:Text(fontString, height), form:Note(text, lines),
--- form:Space(pixels).
+-- form:Space(pixels); form:Group() -> group, group:SetShown(isShown), form:Layout().
 function ns.UI.FormLayout(frame, options)
     local padding = options.padding
     local rightInset = options.rightInset or padding
     local form = { top = -padding }
+    local steps = {}           -- { place = function(), group = group or nil }, in order
+    local currentGroup = nil   -- the group new rows join
+
+    -- remember a row and place it now; Layout places all the shown rows again
+    local function AddStep(place)
+        table.insert(steps, { place = place, group = currentGroup })
+        place()
+    end
 
     -- place a control by its drawn box: art -- how far it draws past its frame
     local function Place(control, height, art)
@@ -54,65 +66,106 @@ function ns.UI.FormLayout(frame, options)
         form.top = form.top - art.top - height - art.bottom - ROW_GAP
     end
 
+    local function PlaceText(fontString, height)
+        fontString:ClearAllPoints()
+        fontString:SetPoint("TOPLEFT", frame, "TOPLEFT", padding, form.top)
+        fontString:SetPoint("RIGHT", frame, "RIGHT", -rightInset, 0)
+        fontString:SetJustifyH("LEFT")
+        form.top = form.top - height
+    end
+
+    -- the rows added after this call belong to the returned group, until the next Group
+    function form:Group()
+        local group = { isShown = true }
+        function group:SetShown(isShown)
+            self.isShown = isShown
+        end
+        currentGroup = group
+        return group
+    end
+
+    -- stack the rows of the shown groups from the top again
+    function form:Layout()
+        self.top = -padding
+        for _, step in ipairs(steps) do
+            local isShown = step.group == nil or step.group.isShown
+            if isShown then
+                step.place()
+            end
+        end
+    end
+
     function form:Label(text)
         local label = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        label:SetPoint("TOPLEFT", padding, self.top)
         label:SetText(text)
-        self.top = self.top - LABEL_HEIGHT - LABEL_GAP
+        AddStep(function()
+            label:ClearAllPoints()
+            label:SetPoint("TOPLEFT", frame, "TOPLEFT", padding, form.top)
+            form.top = form.top - LABEL_HEIGHT - LABEL_GAP
+        end)
         return label
     end
 
     -- a dropdown (ui/select.lua) or an input (ui/input.lua)
     function form:Field(control)
-        Place(control, FIELD_HEIGHT, {
-            left = FIELD_ART_LEFT,
-            right = FIELD_ART_RIGHT,
-            top = FIELD_ART_TOP,
-            bottom = FIELD_ART_BOTTOM,
-        })
+        AddStep(function()
+            Place(control, FIELD_HEIGHT, {
+                left = FIELD_ART_LEFT,
+                right = FIELD_ART_RIGHT,
+                top = FIELD_ART_TOP,
+                bottom = FIELD_ART_BOTTOM,
+            })
+        end)
     end
 
     -- a slider with arrows (ui/step_slider.lua); its value text right of it
     function form:Slider(slider, valueWidth)
-        Place(slider, SLIDER_HEIGHT, {
-            left = SLIDER_STEPPER_SPACE,
-            right = SLIDER_STEPPER_SPACE + SLIDER_VALUE_GAP + valueWidth,
-            top = 2,
-            bottom = 2,
-        })
+        AddStep(function()
+            Place(slider, SLIDER_HEIGHT, {
+                left = SLIDER_STEPPER_SPACE,
+                right = SLIDER_STEPPER_SPACE + SLIDER_VALUE_GAP + valueWidth,
+                top = 2,
+                bottom = 2,
+            })
+        end)
     end
 
     function form:Checkbox(checkbox)
-        checkbox:ClearAllPoints()
-        checkbox:SetPoint("TOPLEFT", frame, "TOPLEFT", padding + CHECKBOX_SHIFT, self.top)
-        self.top = self.top - CHECKBOX_HEIGHT
+        AddStep(function()
+            checkbox:ClearAllPoints()
+            checkbox:SetPoint("TOPLEFT", frame, "TOPLEFT", padding + CHECKBOX_SHIFT, form.top)
+            form.top = form.top - CHECKBOX_HEIGHT
+        end)
     end
 
     -- a text across the form, height -- the room it takes
     function form:Text(fontString, height)
-        fontString:SetPoint("TOPLEFT", frame, "TOPLEFT", padding, self.top)
-        fontString:SetPoint("RIGHT", frame, "RIGHT", -rightInset, 0)
-        fontString:SetJustifyH("LEFT")
-        self.top = self.top - height
+        AddStep(function()
+            PlaceText(fontString, height)
+        end)
     end
 
     -- A small grey note right under the control placed last (what to type or
     -- drop there); lines -- how many lines of room it takes. Returns the text.
     function form:Note(text, lines)
-        self.top = self.top + ROW_GAP - NOTE_GAP
         local note = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
         note:SetTextColor(NOTE_COLOR[1], NOTE_COLOR[2], NOTE_COLOR[3])
         note:SetText(text)
         note:SetJustifyV("TOP")
         local height = NOTE_LINE_HEIGHT * (lines or 1)
         note:SetHeight(height)
-        self:Text(note, height)
-        self.top = self.top - ROW_GAP
+        AddStep(function()
+            form.top = form.top + ROW_GAP - NOTE_GAP
+            PlaceText(note, height)
+            form.top = form.top - ROW_GAP
+        end)
         return note
     end
 
     function form:Space(pixels)
-        self.top = self.top - pixels
+        AddStep(function()
+            form.top = form.top - pixels
+        end)
     end
 
     return form
