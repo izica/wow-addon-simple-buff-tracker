@@ -16,8 +16,9 @@ local function OutOfCombat()
     return true
 end
 
+-- the panel and the open window (its lock checkbox and the other controls)
 local function Apply()
-    ns.Components.BuffPanel.Refresh()
+    ns.Core.Refresh()
 end
 
 -- a whole number from the arguments within the limits, or nil with the usage printed

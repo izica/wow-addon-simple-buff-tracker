@@ -26,7 +26,9 @@ ns.Localization.Add("en", [==[
         "no_source": "Tracking only",
         "click": "Click: %s",
         "item_count": "In bags: %d",
-        "shift_drag": "Shift + drag: move the panel"
+        "shift_drag": "Shift + drag: move the panel",
+        "mover_drag": "Drag: move the panel",
+        "mover_lock": "Right click: lock the panel"
     },
     "messages": {
         "buff_with_source": "%s <- %s %s",
@@ -37,10 +39,10 @@ ns.Localization.Add("en", [==[
         "add_usage": "/sbt add <buff> [= spell|item <name, id or link>]; <buff> -- a spell name, id or link, or mainhand / offhand for a weapon enchant",
         "unknown_target": "the buff is a spell (name, id or link) or mainhand / offhand, not an item",
         "unknown_source_kind": "after = write spell or item, then a name, id or link",
-        "unknown_item": "unknown item: put it into the bags or give its id or link (shift-click)",
-        "in_combat": "not in combat: the panel can change only out of combat",
+        "unknown_item": "unknown item: put it in your bags, or give its id or link (shift-click it)",
+        "in_combat": "not in combat: the panel changes only out of combat",
         "mode_set": "the panel shows %s",
-        "unlocked": "the panel is unlocked: drag it, then /sbt lock",
+        "unlocked": "the panel is unlocked: drag it, then right-click it or type /sbt lock",
         "locked": "the panel is locked",
         "size_usage": "/sbt size <%d-%d>",
         "row_usage": "/sbt row <%d-%d>",
@@ -58,7 +60,7 @@ ns.Localization.Add("en", [==[
             "help": "<number> -- stop tracking a buff (numbers from /sbt list)"
         },
         "list": {
-            "help": "the tracked buffs"
+            "help": "list the tracked buffs"
         },
         "mode": {
             "help": "[all|missing] -- all buffs with timers or only the missing ones",
@@ -115,7 +117,7 @@ ns.Localization.Add("en", [==[
         "icons_per_row": "Icons in a line (a row, or a column when growing down / up)",
         "icon_spacing": "Space between icons",
         "locked": "Lock the panel",
-        "locked_hint": "Unchecked: a green frame covers the panel, drag it with the left mouse button. Checked: hold Shift and drag the panel. Not in combat.",
+        "locked_hint": "Unchecked: a green frame covers the panel; drag it with the left mouse button, right-click it to lock. Checked: hold Shift and drag the panel. Not in combat.",
         "minimap": "Minimap button",
         "add": "Add buff",
         "no_buff_chosen": "Add a buff or pick one on the left",
@@ -129,8 +131,8 @@ ns.Localization.Add("en", [==[
         "source_spell_value": "Spell",
         "source_item_value": "Item",
         "icon": "Icon (empty -- automatic)",
-        "buff_warn": "Show before it runs out",
-        "warn_default": "as the panel (%s)",
+        "buff_warn": "Show this long before it runs out",
+        "warn_default": "same as the panel (%s)",
         "move_up": "Up",
         "move_down": "Down",
         "remove": "Delete",
@@ -138,7 +140,7 @@ ns.Localization.Add("en", [==[
         "aura_note": "Name or spell id. Suggests your spells and every buff you have had on you. Shift-click or drag a spell here.",
         "spell_note": "Drag a spell from the spellbook here, or shift-click it while this field is in focus.",
         "item_note": "Drag an item from the bags here, or shift-click it in the bags while this field is in focus.",
-        "icon_note": "Empty: the buff's own picture. Suggests your spells, bag items and buffs you have had. Drag or shift-click works too.",
+        "icon_note": "Empty: the buff's own picture. Suggests your spells, bag items and buffs you have had on you. Drag or shift-click works too.",
         "add_note": "Drag a buff to change the order. Shift-click a buff of yours (top right) to add it.",
         "enchant": "Which enchant",
         "enchant_any": "Any temporary enchant",

@@ -585,7 +585,7 @@ def test_warn_seconds():
     check("500 s left, panel warns at 120: hidden",
           lua.eval("secureButtons[1] == nil or not secureButtons[1].shown") is True)
     lua.execute("Slash('buffs')")
-    lua.globals().warnSlider = find_slider(lua, "as the panel (120 sec)")
+    lua.globals().warnSlider = find_slider(lua, "same as the panel (120 sec)")
     check("the buff's slider starts at the panel's time", lua.eval("warnSlider ~= nil") is True)
     lua.execute("warnSlider.scripts.OnValueChanged(warnSlider, 9)")   # step 9: 600 seconds
     check("its own time is saved", lua.eval("SimpleBuffTrackerDB.buffs[1].warnSeconds") == 600)
@@ -601,8 +601,8 @@ def test_warn_seconds():
 
     lua.execute("Slash('config')")
     lua.globals().sizeSlider = find_slider(lua, "36")
-    lua.execute("sizeSlider.scripts.OnValueChanged(sizeSlider, 13)")   # 16, 18, ... step 13: 40
-    check("the Panel tab's icon size slider", lua.eval("SimpleBuffTrackerDB.settings.iconSize") == 40)
+    lua.execute("sizeSlider.scripts.OnValueChanged(sizeSlider, 13)")   # 16, 17, ... step 13: 28
+    check("the Panel tab's icon size slider goes by 1", lua.eval("SimpleBuffTrackerDB.settings.iconSize") == 28)
 
     lua.execute("""
         for _, frame in ipairs(allFrames) do
@@ -1116,6 +1116,10 @@ def test_editor_fits():
     content_height = lua.eval("ns.Components.MainWindow.CONTENT_HEIGHT")
     check("the editor's fields and buttons fit in the window (%d + %d <= %d)"
           % (form_height, button_row, content_height), form_height + button_row <= content_height)
+    lua.execute("Slash('config')")
+    panel_height = lua.eval("FindFrames('panelFormHeight')[1].panelFormHeight")
+    check("the Panel tab fits in the window (%d <= %d)" % (panel_height, content_height),
+          panel_height <= content_height)
 
 
 def test_action_bar_look():
@@ -1213,6 +1217,12 @@ def test_shift_drag():
         inCombat = false; shiftDown = false
     """)
     check("not in combat", lua.eval("mover.shown") is False)
+    lua.execute("Slash('unlock'); mover.scripts.OnMouseUp(mover, 'LeftButton')")
+    check("unlocked: a left click does not lock", lua.eval("SimpleBuffTrackerDB.settings.locked") is False
+          and lua.eval("mover.shown") is True)
+    lua.execute("mover.scripts.OnMouseUp(mover, 'RightButton')")
+    check("unlocked: a right click locks the panel", lua.eval("SimpleBuffTrackerDB.settings.locked") is True
+          and lua.eval("mover.shown") is False)
 
 
 def test_russian():

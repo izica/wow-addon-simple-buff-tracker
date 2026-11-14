@@ -36,7 +36,8 @@ local CHECKBOX_SHIFT = -4         -- the checkbox art has an empty edge on the l
 
 -- options: padding -- from the frame edges to the drawn edges of the controls;
 -- rightInset -- room kept on the right (default: padding);
--- width -- the drawn width of every control; nil -- up to rightInset.
+-- width -- the drawn width of every control; nil -- up to rightInset;
+-- sliderWidth -- the drawn width of the sliders with their value text, width when nil.
 -- form:Label(text), form:Field(control), form:Slider(slider, valueWidth),
 -- form:Checkbox(checkbox), form:Text(fontString, height), form:Note(text, lines),
 -- form:Space(pixels); form:Group() -> group, group:SetShown(isShown), form:Layout().
@@ -54,11 +55,13 @@ function ns.UI.FormLayout(frame, options)
     end
 
     -- place a control by its drawn box: art -- how far it draws past its frame
-    local function Place(control, height, art)
+    -- width -- the drawn width of this control, options.width when nil
+    local function Place(control, height, art, width)
+        width = width or options.width
         control:ClearAllPoints()
         control:SetPoint("TOPLEFT", frame, "TOPLEFT", padding + art.left, form.top - art.top)
-        if options.width then
-            control:SetWidth(options.width - art.left - art.right)
+        if width then
+            control:SetWidth(width - art.left - art.right)
         else
             control:SetPoint("RIGHT", frame, "RIGHT", -(rightInset + art.right), 0)
         end
@@ -126,7 +129,7 @@ function ns.UI.FormLayout(frame, options)
                 right = SLIDER_STEPPER_SPACE + SLIDER_VALUE_GAP + valueWidth,
                 top = 2,
                 bottom = 2,
-            })
+            }, options.sliderWidth)
         end)
     end
 

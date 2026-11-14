@@ -1,6 +1,6 @@
--- panel_settings.lua -- the Panel tab of the window: what the panel shows, the
--- size of its icons, how many in a row, the space between them, the warning
--- time, unlock to drag, the minimap button. Applied at once.
+-- panel_settings.lua -- the Panel tab of the window: lock, what the panel shows
+-- and how early, which way the icons grow, their look, size, line and spacing,
+-- the minimap button. Applied at once.
 -- Laid out by ui/form_layout.lua: one drawn width for every control.
 
 local ADDON, ns = ...
@@ -39,118 +39,13 @@ function PanelSettings.Create(parent, options)
         return ns.db.settings
     end
 
-    local fieldForm = ns.UI.FormLayout(frame, { padding = PADDING, width = CONTROL_WIDTH })
-
-    fieldForm:Label(Text("settings.mode"))
-    local modeSelect = ns.UI.Select(frame, {
-        width = CONTROL_WIDTH,
-        choices = function()
-            return {
-                { value = DISPLAY_MODE.ALL, text = Text("modes." .. DISPLAY_MODE.ALL) },
-                { value = DISPLAY_MODE.MISSING, text = Text("modes." .. DISPLAY_MODE.MISSING) },
-            }
-        end,
-        selected = function()
-            return Settings().mode
-        end,
-        onChange = function(value)
-            Settings().mode = value
-            options.onChanged()
-        end,
-    })
-    fieldForm:Field(modeSelect)
-    table.insert(refreshers, function()
-        modeSelect:Refresh()
-    end)
-
-    -- which way the icons go; the panel stays held by the corner they start from
-    fieldForm:Label(Text("settings.grow"))
-    local growSelect = ns.UI.Select(frame, {
-        width = CONTROL_WIDTH,
-        choices = function()
-            local choices = {}
-            for _, direction in ipairs(GROW_ORDER) do
-                table.insert(choices, { value = direction, text = Text("grow." .. direction) })
-            end
-            return choices
-        end,
-        selected = function()
-            return Settings().growDirection
-        end,
-        onChange = function(value)
-            -- the panel holds secure buttons: it can not be laid out anew in combat
-            if InCombatLockdown() then
-                ns.Utilities.Print(Text("messages.in_combat"))
-                return
-            end
-            Settings().growDirection = value
-            options.onChanged()
-        end,
-    })
-    fieldForm:Field(growSelect)
-    table.insert(refreshers, function()
-        growSelect:Refresh()
-    end)
-
-    -- how the icons look: like the action bar, the same without the frame, square
-    fieldForm:Label(Text("settings.icon_template"))
-    local templateSelect = ns.UI.Select(frame, {
-        width = CONTROL_WIDTH,
-        choices = function()
-            local choices = {}
-            for _, template in ipairs(TEMPLATE_ORDER) do
-                table.insert(choices, { value = template, text = Text("icon_templates." .. template) })
-            end
-            return choices
-        end,
-        selected = function()
-            return Settings().iconTemplate
-        end,
-        onChange = function(value)
-            -- the icons are secure buttons: their look changes only out of combat
-            if InCombatLockdown() then
-                ns.Utilities.Print(Text("messages.in_combat"))
-                return
-            end
-            Settings().iconTemplate = value
-            options.onChanged()
-        end,
-    })
-    fieldForm:Field(templateSelect)
-    table.insert(refreshers, function()
-        templateSelect:Refresh()
-    end)
-
-    -- field -- the key in ns.db.settings; the slider with its arrows is as wide as the dropdown
-    local sliderForm = ns.UI.FormLayout(frame, {
+    -- one column, in the order a player looks for: lock first, then what the
+    -- panel shows, then how it looks; the minimap button last
+    local form = ns.UI.FormLayout(frame, {
         padding = PADDING,
-        width = CONTROL_WIDTH + SLIDER_VALUE_WIDTH + 8,
+        width = CONTROL_WIDTH,
+        sliderWidth = CONTROL_WIDTH + SLIDER_VALUE_WIDTH + 8,
     })
-    sliderForm.top = fieldForm.top
-    local function AddSlider(textKey, field, steps, format)
-        sliderForm:Label(Text(textKey))
-        local slider = ns.UI.StepSlider(frame, {
-            steps = steps,
-            value = Settings()[field],
-            width = 100,   -- the form sets it
-            valueWidth = SLIDER_VALUE_WIDTH,
-            format = format or tostring,
-            onChange = function(value)
-                Settings()[field] = value
-                options.onChanged()
-            end,
-        })
-        sliderForm:Slider(slider, SLIDER_VALUE_WIDTH)
-        table.insert(refreshers, function()
-            slider:SetValueOf(Settings()[field])
-        end)
-    end
-
-    AddSlider("settings.icon_size", "iconSize", Range(ns.Config.MIN_ICON_SIZE, ns.Config.MAX_ICON_SIZE, 2))
-    AddSlider("settings.icons_per_row", "iconsPerRow", Range(1, ns.Config.MAX_ICONS_PER_ROW, 1))
-    AddSlider("settings.icon_spacing", "iconSpacing", Range(0, 20, 1))
-    AddSlider("settings.warn_seconds", "warnSeconds", WARN_STEPS, ns.Utilities.FormatSeconds)
-    sliderForm:Space(CHECKBOXES_GAP)
 
     local function AddCheckbox(textKey, tooltipKey, read, write)
         local checkbox = ns.UI.Checkbox(frame, {
@@ -162,9 +57,53 @@ function PanelSettings.Create(parent, options)
                 options.onChanged()
             end,
         })
-        sliderForm:Checkbox(checkbox)
+        form:Checkbox(checkbox)
         table.insert(refreshers, function()
             checkbox:SetChecked(read())
+        end)
+    end
+
+    -- choices() -> { { value, text } }; field -- the key in ns.db.settings;
+    -- isLayout -- the change lays the secure icons out anew: not in combat
+    local function AddSelect(textKey, choices, field, isLayout)
+        form:Label(Text(textKey))
+        local select = ns.UI.Select(frame, {
+            width = CONTROL_WIDTH,
+            choices = choices,
+            selected = function()
+                return Settings()[field]
+            end,
+            onChange = function(value)
+                if isLayout and InCombatLockdown() then
+                    ns.Utilities.Print(Text("messages.in_combat"))
+                    return
+                end
+                Settings()[field] = value
+                options.onChanged()
+            end,
+        })
+        form:Field(select)
+        table.insert(refreshers, function()
+            select:Refresh()
+        end)
+    end
+
+    local function AddSlider(textKey, field, steps, format)
+        form:Label(Text(textKey))
+        local slider = ns.UI.StepSlider(frame, {
+            steps = steps,
+            value = Settings()[field],
+            width = 100,   -- the form sets it
+            valueWidth = SLIDER_VALUE_WIDTH,
+            format = format or tostring,
+            onChange = function(value)
+                Settings()[field] = value
+                options.onChanged()
+            end,
+        })
+        form:Slider(slider, SLIDER_VALUE_WIDTH)
+        table.insert(refreshers, function()
+            slider:SetValueOf(Settings()[field])
         end)
     end
 
@@ -178,11 +117,45 @@ function PanelSettings.Create(parent, options)
         end
         Settings().locked = isChecked
     end)
+    form:Space(CHECKBOXES_GAP)
+
+    -- what the panel shows
+    AddSelect("settings.mode", function()
+        return {
+            { value = DISPLAY_MODE.ALL, text = Text("modes." .. DISPLAY_MODE.ALL) },
+            { value = DISPLAY_MODE.MISSING, text = Text("modes." .. DISPLAY_MODE.MISSING) },
+        }
+    end, "mode", false)
+    AddSlider("settings.warn_seconds", "warnSeconds", WARN_STEPS, ns.Utilities.FormatSeconds)
+
+    -- how it looks: which way the icons go (the panel stays held by the corner
+    -- they start from), their look, size, line and spacing
+    AddSelect("settings.grow", function()
+        local choices = {}
+        for _, direction in ipairs(GROW_ORDER) do
+            table.insert(choices, { value = direction, text = Text("grow." .. direction) })
+        end
+        return choices
+    end, "growDirection", true)
+    AddSelect("settings.icon_template", function()
+        local choices = {}
+        for _, template in ipairs(TEMPLATE_ORDER) do
+            table.insert(choices, { value = template, text = Text("icon_templates." .. template) })
+        end
+        return choices
+    end, "iconTemplate", true)
+    AddSlider("settings.icon_size", "iconSize", Range(ns.Config.MIN_ICON_SIZE, ns.Config.MAX_ICON_SIZE, 1))
+    AddSlider("settings.icons_per_row", "iconsPerRow", Range(1, ns.Config.MAX_ICONS_PER_ROW, 1))
+    AddSlider("settings.icon_spacing", "iconSpacing", Range(0, 20, 1))
+    form:Space(CHECKBOXES_GAP)
+
     AddCheckbox("settings.minimap", nil, function()
         return not Settings().minimap.hide
     end, function(isChecked)
         ns.Components.MinimapButton.SetHidden(not isChecked)
     end)
+
+    frame.panelFormHeight = PADDING - form.top   -- for the tests: the form fits in the window
 
     function frame:Refresh()
         for _, refresh in ipairs(refreshers) do

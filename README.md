@@ -21,9 +21,12 @@ Left click on the minimap button or `/sbt buffs`:
   bags); while typing, shift-click an item in the bags, a spell in the spellbook or a
   buff of yours (top right of the screen). With no field in focus a shift-clicked
   buff of yours is added as a new one.
-* **Panel** (shift + left click, or `/sbt config`) -- the mode, icon size, icons in a
-  row, spacing, the warning time, lock, the minimap button.
-- Shift + drag moves the panel even when it is locked (out of combat).
+* **Panel** (shift + left click, or `/sbt config`) -- lock, the mode, the warning
+  time, which way the icons grow, their look, size, icons in a row, spacing, the
+  minimap button.
+
+Unlocked, the panel is covered by a green frame: drag it, right-click it to lock.
+Locked, Shift + drag still moves it (out of combat).
 
 The icons on the panel look like the buttons of the action bars.
 

@@ -6,8 +6,8 @@
 -- In combat only the pictures of the icons already shown are updated; a new
 -- set of icons waits for the end of combat (Refresh from events/auras.lua).
 --
--- Unlocked, a green mover covers the panel and drags it; the place is saved
--- in settings.position. Locked, the same mover (without the green) comes up
+-- Unlocked, a green mover covers the panel and drags it, a right click on it
+-- locks the panel; the place is saved in settings.position. Locked, the same mover (without the green) comes up
 -- while Shift is held with the mouse over the panel: Shift + drag moves it,
 -- and a Shift-click does not reach the icons. Out of combat only.
 
@@ -188,7 +188,23 @@ local function CreateMover()
         SavePosition()
         BuffPanel.UpdateMover()
     end)
+    -- unlocked: a right click locks the panel (the /sbt lock command)
+    mover:SetScript("OnMouseUp", function(_, mouseButton)
+        if mouseButton == "RightButton" and not ns.db.settings.locked then
+            ns.Commands.Run("lock")
+        end
+    end)
+    mover:SetScript("OnEnter", function(self)
+        if ns.db.settings.locked then
+            return
+        end
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOMRIGHT")
+        GameTooltip:AddLine(Text("tooltip.mover_drag"), TOOLTIP_HINT_COLOR[1], TOOLTIP_HINT_COLOR[2], TOOLTIP_HINT_COLOR[3])
+        GameTooltip:AddLine(Text("tooltip.mover_lock"), TOOLTIP_HINT_COLOR[1], TOOLTIP_HINT_COLOR[2], TOOLTIP_HINT_COLOR[3])
+        GameTooltip:Show()
+    end)
     mover:SetScript("OnLeave", function()
+        HideTooltip()
         BuffPanel.UpdateMover()
     end)
     mover:Hide()
