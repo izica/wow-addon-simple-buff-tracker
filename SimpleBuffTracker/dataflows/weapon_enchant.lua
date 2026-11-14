@@ -83,23 +83,33 @@ local function ReadEnchantName(slot)
     return nil
 end
 
--- the name of an enchant: kept once read; read from the tooltip out of combat
+-- The name of an enchant: read from the tooltip on every reading out of combat,
+-- the remembered one in combat. Read every time, not once: right after a new
+-- enchant goes on (oil over Flametongue) the client already gives the new id
+-- while the tooltip may still show the old line -- the name read then was
+-- wrong, and kept for good it made the oil look missing. A later reading puts
+-- the right name over it.
 local function EnchantName(slot, enchantId)
     if not enchantId then
         return nil
     end
     local seen = ns.db and ns.db.seenEnchants
-    if seen and seen[enchantId] then
-        return seen[enchantId]
+    if not InCombatLockdown() then
+        local name = ReadEnchantName(slot)
+        if name and seen then
+            seen[enchantId] = name
+        end
+        if name then
+            return name
+        end
     end
-    if InCombatLockdown() then
-        return nil
-    end
-    local name = ReadEnchantName(slot)
-    if name and seen then
-        seen[enchantId] = name
-    end
-    return name
+    return seen and seen[enchantId]
+end
+
+-- the name remembered for an enchant id; nil -- never read
+function WeaponEnchant.Name(enchantId)
+    local seen = ns.db and ns.db.seenEnchants
+    return seen and enchantId and seen[enchantId]
 end
 
 local function Describe(slot, hasEnchant, millisecondsLeft, charges, enchantId, now)
@@ -158,7 +168,9 @@ end
 
 -- does the enchant on the weapon (from Read) count for a weapon target?
 -- target.enchantId -- a chosen one: the same id, or another id with the same
--- name (the same oil seen before under its other id); none chosen -- any
+-- name (the same oil seen before under its other id); none chosen -- any.
+-- The name of the chosen id is the one remembered now (a wrong one read once is
+-- corrected later), the name kept in the buff only when there is none.
 function WeaponEnchant.Matches(target, enchant)
     if not enchant then
         return false
@@ -169,5 +181,6 @@ function WeaponEnchant.Matches(target, enchant)
     if enchant.enchantId == target.enchantId then
         return true
     end
-    return target.enchantName ~= nil and enchant.name == target.enchantName
+    local targetName = WeaponEnchant.Name(target.enchantId) or target.enchantName
+    return targetName ~= nil and enchant.name == targetName
 end

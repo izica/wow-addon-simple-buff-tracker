@@ -107,8 +107,10 @@ buff = { target = { spellId, name } | { weapon = "mainhand"|"offhand" },
   длительность = самый большой остаток, виденный для того же enchantId.
 * **Какие именно чары** (масло или Flametongue на одной руке): `target.enchantId` + `enchantName`, nil — любые.
   Имя чар — только в тултипе оружия (`C_TooltipInfo.GetInventoryItem`): зелёная строка «Имя (время)», не
-  «Use:/Equip:/Chance on hit:» (своего типа строки у временных чар нет); читается вне боя, раз на id,
-  копится в `seenEnchants[id] = имя`. Совпадение — тот же id или то же имя (`WeaponEnchant.Matches`).
+  «Use:/Equip:/Chance on hit:» (своего типа строки у временных чар нет); **читается на каждом чтении вне
+  боя**, не раз на id: сразу после масла поверх Flametongue клиент уже даёт новый id, а тултип ещё старую
+  строку — имя, прочитанное раз, навсегда записывало масло как Flametongue. Копится в `seenEnchants[id] = имя`,
+  сверка и подпись бафа берут текущее имя по id (`WeaponEnchant.Name`). Совпадение — тот же id или то же имя (`WeaponEnchant.Matches`).
   В редакторе — селект «Какие чары» вместо поля «Баф».
 * Клик (`Buff.Action`): spell -> `type=spell`, item -> `type=item`, item на оружие ->
   `type=macro`, `/use item:ID` + `/use 16|17`.

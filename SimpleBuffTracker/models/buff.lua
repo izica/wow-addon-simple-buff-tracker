@@ -50,8 +50,14 @@ function Buff.TargetLabel(buff)
     local target = buff.target
     if target.weapon then
         local slotName = Text("buff." .. target.weapon)
-        if target.enchantName then
-            return Text("buff.weapon_enchant", slotName, target.enchantName)
+        -- the name remembered now for the chosen enchant (corrected if it was read wrong once)
+        local enchantName = target.enchantName
+        local seen = ns.db and ns.db.seenEnchants
+        if target.enchantId and seen and seen[target.enchantId] then
+            enchantName = seen[target.enchantId]
+        end
+        if enchantName then
+            return Text("buff.weapon_enchant", slotName, enchantName)
         end
         return slotName
     end
