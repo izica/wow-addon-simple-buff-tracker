@@ -8,6 +8,8 @@ ns.Components = ns.Components or {}
 
 local Text = ns.Localization.Text
 local DISPLAY_MODE = ns.Constants.DISPLAY_MODE
+local GROW_DIRECTION = ns.Constants.GROW_DIRECTION
+local GROW_ORDER = { GROW_DIRECTION.RIGHT, GROW_DIRECTION.LEFT, GROW_DIRECTION.DOWN, GROW_DIRECTION.UP }
 
 local PanelSettings = {}
 ns.Components.PanelSettings = PanelSettings
@@ -57,6 +59,35 @@ function PanelSettings.Create(parent, options)
     fieldForm:Field(modeSelect)
     table.insert(refreshers, function()
         modeSelect:Refresh()
+    end)
+
+    -- which way the icons go; the panel stays held by the corner they start from
+    fieldForm:Label(Text("settings.grow"))
+    local growSelect = ns.UI.Select(frame, {
+        width = CONTROL_WIDTH,
+        choices = function()
+            local choices = {}
+            for _, direction in ipairs(GROW_ORDER) do
+                table.insert(choices, { value = direction, text = Text("grow." .. direction) })
+            end
+            return choices
+        end,
+        selected = function()
+            return Settings().growDirection
+        end,
+        onChange = function(value)
+            -- the panel holds secure buttons: it can not be laid out anew in combat
+            if InCombatLockdown() then
+                ns.Utilities.Print(Text("messages.in_combat"))
+                return
+            end
+            Settings().growDirection = value
+            options.onChanged()
+        end,
+    })
+    fieldForm:Field(growSelect)
+    table.insert(refreshers, function()
+        growSelect:Refresh()
     end)
 
     -- field -- the key in ns.db.settings; the slider with its arrows is as wide as the dropdown

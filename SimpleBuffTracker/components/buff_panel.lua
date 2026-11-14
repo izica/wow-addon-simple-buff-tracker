@@ -15,6 +15,8 @@ ns.Components = ns.Components or {}
 local Text = ns.Localization.Text
 local Buff = ns.Models.Buff
 local BuffService = ns.Services.Buff
+local GROW_DIRECTION = ns.Constants.GROW_DIRECTION
+local GROW_CORNER = ns.Constants.GROW_CORNER
 
 local BuffPanel = {}
 ns.Components.BuffPanel = BuffPanel
@@ -71,18 +73,63 @@ local function HideTooltip()
     GameTooltip:Hide()
 end
 
-local function SavePosition()
-    local point, _, _, x, y = panel:GetPoint(1)
-    local position = ns.db.settings.position
-    position.point = point
-    position.x = x
-    position.y = y
+-- The panel is held by the corner its icons grow from (GROW_CORNER): more icons
+-- make it longer away from that corner, the corner stays where it was put.
+-- settings.position = { point = the corner, x, y -- from the bottom left of the
+-- screen, isCorner = true }; an older position (point = "CENTER", relative to
+-- the same point of the screen) is moved to the corner on the next layout.
+local function PinToCorner()
+    local corner = GROW_CORNER[ns.db.settings.growDirection] or GROW_CORNER.right
+    local left = panel:GetLeft()
+    local right = panel:GetRight()
+    local top = panel:GetTop()
+    local bottom = panel:GetBottom()
+    if not (left and right and top and bottom) then
+        return
+    end
+    local x = left
+    if corner:find("RIGHT") then
+        x = right
+    end
+    local y = top
+    if corner:find("BOTTOM") then
+        y = bottom
+    end
+    panel:ClearAllPoints()
+    panel:SetPoint(corner, UIParent, "BOTTOMLEFT", x, y)
+    ns.db.settings.position = { point = corner, x = x, y = y, isCorner = true }
 end
 
 local function PlacePanel()
     local position = ns.db.settings.position
+    local relativePoint = position.point
+    if position.isCorner then
+        relativePoint = "BOTTOMLEFT"
+    end
     panel:ClearAllPoints()
-    panel:SetPoint(position.point, UIParent, position.point, position.x, position.y)
+    panel:SetPoint(position.point, UIParent, relativePoint, position.x, position.y)
+end
+
+local function SavePosition()
+    PinToCorner()
+end
+
+-- Where the icon number index stands: the anchor point on the panel and the
+-- offset from it. perLine -- icons in a row (growing right or left) or in a
+-- column (growing down or up); a full line starts the next one.
+local function IconPlace(index, perLine, step, direction)
+    local along = (index - 1) % perLine
+    local across = math.floor((index - 1) / perLine)
+    if direction == GROW_DIRECTION.LEFT then
+        return "TOPRIGHT", -along * step, -across * step
+    end
+    if direction == GROW_DIRECTION.DOWN then
+        return "TOPLEFT", across * step, -along * step
+    end
+    if direction == GROW_DIRECTION.UP then
+        return "BOTTOMLEFT", across * step, along * step
+    end
+    return "TOPLEFT", along * step, -across * step
 end
 
 local function CreateMover()
@@ -160,15 +207,21 @@ local function Layout(states)
     local settings = ns.db.settings
     local size = settings.iconSize
     local spacing = settings.iconSpacing
-    local perRow = settings.iconsPerRow
+    local perLine = settings.iconsPerRow
+    local step = size + spacing
+    local direction = settings.growDirection
+
+    -- another direction (or an older position): hold the panel by its new corner first
+    if settings.position.point ~= GROW_CORNER[direction] then
+        PinToCorner()
+    end
 
     for index, state in ipairs(states) do
         local button = GetButton(index)
-        local column = (index - 1) % perRow
-        local row = math.floor((index - 1) / perRow)
+        local point, x, y = IconPlace(index, perLine, step, direction)
         button:SetIconSize(size)
         button:ClearAllPoints()
-        button:SetPoint("TOPLEFT", panel, "TOPLEFT", column * (size + spacing), -row * (size + spacing))
+        button:SetPoint(point, panel, point, x, y)
         button:SetAction(state.action)
         Paint(button, state)
         button:Show()
@@ -179,10 +232,18 @@ local function Layout(states)
     end
     shownCount = #states
 
-    local columns = math.min(shownCount, perRow)
-    local rows = math.ceil(shownCount / perRow)
-    local width = math.max(ns.Config.EMPTY_PANEL_SIZE, columns * (size + spacing) - spacing)
-    local height = math.max(ns.Config.EMPTY_PANEL_SIZE, rows * (size + spacing) - spacing)
+    -- along the growth: up to perLine icons; across it: the lines
+    local alongCount = math.min(shownCount, perLine)
+    local acrossCount = math.ceil(shownCount / perLine)
+    local isVertical = direction == GROW_DIRECTION.DOWN or direction == GROW_DIRECTION.UP
+    local columns = alongCount
+    local rows = acrossCount
+    if isVertical then
+        columns = acrossCount
+        rows = alongCount
+    end
+    local width = math.max(ns.Config.EMPTY_PANEL_SIZE, columns * step - spacing)
+    local height = math.max(ns.Config.EMPTY_PANEL_SIZE, rows * step - spacing)
     panel:SetSize(width, height)
     mover:SetShown(not settings.locked)
 end

@@ -10,6 +10,7 @@ ns.Config.defaults = {
         mode = DISPLAY_MODE.ALL,
         iconSize = 36,
         iconsPerRow = 8,
+        growDirection = ns.Constants.GROW_DIRECTION.RIGHT,
         iconSpacing = 4,
         locked = true,
         -- a buff with this many seconds left or less counts as missing in the "missing" mode

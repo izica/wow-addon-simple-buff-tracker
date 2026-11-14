@@ -26,3 +26,19 @@ ns.Constants.WEAPON_INVENTORY_SLOT = {
     mainhand = 16,
     offhand = 17,
 }
+
+-- where the panel adds icons: the next icon of a line stands that way
+ns.Constants.GROW_DIRECTION = {
+    RIGHT = "right",
+    LEFT = "left",
+    DOWN = "down",
+    UP = "up",
+}
+
+-- the corner of the panel the icons grow from: it stays in place as the panel grows
+ns.Constants.GROW_CORNER = {
+    right = "TOPLEFT",
+    left = "TOPRIGHT",
+    down = "TOPLEFT",
+    up = "BOTTOMLEFT",
+}

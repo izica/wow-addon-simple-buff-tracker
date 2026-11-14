@@ -111,7 +111,7 @@ ns.Localization.Add("en", [==[
         "mode": "Panel shows",
         "warn_seconds": "Show a buff this long before it runs out",
         "icon_size": "Icon size",
-        "icons_per_row": "Icons in a row",
+        "icons_per_row": "Icons in a line (a row, or a column when growing down / up)",
         "icon_spacing": "Space between icons",
         "locked": "Lock the panel",
         "locked_hint": "Unchecked: a green frame covers the panel, drag it with the left mouse button. Not in combat.",
@@ -141,7 +141,14 @@ ns.Localization.Add("en", [==[
         "add_note": "Drag a buff to change the order. Shift-click a buff of yours (top right) to add it.",
         "enchant": "Which enchant",
         "enchant_any": "Any temporary enchant",
-        "enchant_note": "The enchants seen on your weapons. Not in the list? Put it on once (oil, Flametongue...)."
+        "enchant_note": "The enchants seen on your weapons. Not in the list? Put it on once (oil, Flametongue...).",
+        "grow": "Icons grow"
+    },
+    "grow": {
+        "right": "Right",
+        "left": "Left",
+        "down": "Down",
+        "up": "Up"
     }
 }
 ]==])

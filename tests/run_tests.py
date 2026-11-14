@@ -76,7 +76,11 @@ function Frame:SetDesaturated(value) self.desaturated = value end
 function Frame:SetCooldown(start, duration) self.cooldown = { start, duration } end
 function Frame:Clear() self.cooldown = nil end
 function Frame:CreateTexture() return NewFrame() end
-function Frame:CreateFontString() return NewFrame() end
+function Frame:CreateFontString()
+    local fontString = NewFrame()
+    table.insert(allFrames, fontString)
+    return fontString
+end
 function Frame:GetCountdownFontString() return NewFrame() end
 function Frame:GetText() return self.text end
 function Frame:GetWidth() return 300 end
@@ -865,6 +869,61 @@ def names(lua):
     return [lua.eval("SimpleBuffTrackerDB.buffs[%d].target.name" % i) for i in range(1, count + 1)]
 
 
+def icon_place(lua, index):
+    point = lua.eval("secureButtons[%d].point" % index)
+    return (point[1], point[4], point[5])
+
+
+def test_grow_direction():
+    lua = new_runtime()
+    lua.execute("""
+        -- the panel stands with its left edge at 100, right 300, top 500, bottom 400
+        local panel = SimpleBuffTrackerPanel
+        function panel:GetLeft() return 100 end
+        function panel:GetRight() return 300 end
+        function panel:GetTop() return 500 end
+        function panel:GetBottom() return 400 end
+        Slash('size 36')
+        Slash('row 2')
+        Slash('add Arcane Intellect')
+        Slash('add Well Fed')
+        Slash('add Trueshot Aura')
+    """)
+    # icon 36 + spacing 4 = a step of 40; two in a line
+    check("right: the old centered place is moved to the top left corner",
+          lua.eval("SimpleBuffTrackerDB.settings.position.point") == "TOPLEFT"
+          and lua.eval("SimpleBuffTrackerDB.settings.position.x") == 100
+          and lua.eval("SimpleBuffTrackerDB.settings.position.y") == 500)
+    check("right: second icon right of the first, third on the next row",
+          icon_place(lua, 2) == ("TOPLEFT", 40, 0) and icon_place(lua, 3) == ("TOPLEFT", 0, -40))
+
+    lua.execute("SimpleBuffTrackerDB.settings.growDirection = 'left'; ns.Components.BuffPanel.Refresh()")
+    check("left: held by the top right corner",
+          lua.eval("SimpleBuffTrackerDB.settings.position.point") == "TOPRIGHT"
+          and lua.eval("SimpleBuffTrackerDB.settings.position.x") == 300)
+    check("left: second icon left of the first",
+          icon_place(lua, 2) == ("TOPRIGHT", -40, 0) and icon_place(lua, 3) == ("TOPRIGHT", 0, -40))
+
+    lua.execute("SimpleBuffTrackerDB.settings.growDirection = 'down'; ns.Components.BuffPanel.Refresh()")
+    check("down: second icon under the first, third in the next column",
+          icon_place(lua, 2) == ("TOPLEFT", 0, -40) and icon_place(lua, 3) == ("TOPLEFT", 40, 0))
+
+    lua.execute("SimpleBuffTrackerDB.settings.growDirection = 'up'; ns.Components.BuffPanel.Refresh()")
+    check("up: held by the bottom left corner",
+          lua.eval("SimpleBuffTrackerDB.settings.position.point") == "BOTTOMLEFT"
+          and lua.eval("SimpleBuffTrackerDB.settings.position.y") == 400)
+    check("up: second icon above the first",
+          icon_place(lua, 2) == ("BOTTOMLEFT", 0, 40) and icon_place(lua, 3) == ("BOTTOMLEFT", 40, 0))
+
+    lua.execute("""
+        Slash('config')
+        for _, frame in ipairs(allFrames) do
+            if frame.text == 'Icons grow' then growLabel = frame end
+        end
+    """)
+    check("the Panel tab has the grow select", lua.eval("growLabel ~= nil") is True)
+
+
 def test_weapon_enchants():
     lua = new_runtime()
     lua.execute("""
@@ -1030,6 +1089,7 @@ def main():
     test_seen_buffs()
     test_suggestions()
     test_drag_and_previews()
+    test_grow_direction()
     test_weapon_enchants()
     test_drag_order()
     test_fields_stack()

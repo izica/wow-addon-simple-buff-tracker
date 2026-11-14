@@ -53,7 +53,7 @@ python tests/run_tests.py
   ссылки берёт (`takes("spell"|"item")`), серая заметка под полем (`form:Note`: что вводить, перетащи или shift-клик),
   картинка справа с тултипом игры (`SetItemByID` / `SetSpellByID`). Перетаскивание — `OnReceiveDrag` и клик
   с предметом на курсоре (`GetCursorInfo`), шифт-клик — `MainWindow.PickLink`; оба через `editor:TakeLink`.
-* **Панель**: `components/panel_settings.lua` — режим, размер, ряд, отступ, порог, разблокировка,
+* **Панель**: `components/panel_settings.lua` — режим, куда растут иконки, размер, ряд, отступ, порог, разблокировка,
   закрепить панель (галочка = закреплена), кнопка миникарты.
 * **Подсказки** во всех полях: `ui/suggestions.lua` (общий список под полем, страта TOOLTIP,
   ↑/↓ + Enter, клик) + `dataflows/icon_search.lua` (`SOURCES`: бафы на игроке, виденные раньше
@@ -74,6 +74,14 @@ python tests/run_tests.py
   (`buff.icon` + `buff.iconText`, `BuffParser.ParseIcon`: spell id, `item:<id>`, `icon:<id>`,
   ссылки) важнее всего.
 * `/sbt debug` — что клиент отдаёт по каждой ауре (секретное помечено) и что нашлось для каждого бафа.
+
+## Куда растёт панель
+
+`settings.growDirection`: right / left / down / up (`GROW_DIRECTION`), `iconsPerRow` — иконок в линии (ряд
+или столбец). Панель держится за угол, откуда растут иконки (`GROW_CORNER`): `settings.position =
+{ point = угол, x, y от низа-лева экрана, isCorner = true }` (`PinToCorner` в `components/buff_panel.lua`) —
+больше иконок, панель длиннее от угла, сам угол на месте. Старая позиция (CENTER) и смена направления
+переводятся на новый угол при раскладке, панель не прыгает.
 
 ## Иконка на панели
 
