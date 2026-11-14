@@ -31,19 +31,27 @@ python tests/run_tests.py
 
 ## Настройки
 
-Не своё окно, а страницы в «Настройки → Модификации → Simple Buff Tracker»
-(`components/settings_window.lua`, AceConfig-3.0 + AceConfigDialog-3.0 `AddToBlizOptions`,
-как в Purple Note): главная — панель (режим, размер, ряд, отступ, порог «скоро кончится»,
-разблокировка, кнопка миникарты), подстраница «Бафы» — дерево, страница на баф (что
-отслеживать, чем обновлять, выше/ниже, удалить). Таблица опций — функция, страница бафов
-собирается заново при каждой перерисовке: после правки списка — `SettingsWindow.Refresh()`
-(зовут и чат-команды). Поля ввода AceGUI принимают перетащенное заклинание/предмет.
-Регистрация — один раз на `PLAYER_LOGIN`, `/sbt config` открывает и закрывает.
+* «Настройки → Модификации → Simple Buff Tracker» (`components/settings_window.lua`,
+  AceConfigDialog `AddToBlizOptions`, как в Purple Note): панель — режим, размер, ряд, отступ,
+  порог «скоро кончится», разблокировка, кнопка миникарты, кнопка «Настроить бафы...».
+* **Окно бафов** — своё небольшое окно `AceConfigDialog:Open(BUFFS_NAME)` (640×420): дерево,
+  страница на баф (что отслеживать, чем обновлять, выше/ниже, удалить). `/sbt buffs`, левый
+  клик по миникарте. Таблица опций — функция, собирается заново при каждой перерисовке:
+  после правки списка — `SettingsWindow.Refresh()` (зовут и чат-команды).
+* Поля ввода AceGUI принимают перетащенное заклинание/предмет.
+* **Shift-клик по своему бафу** (окно бафов клиента): в Forever кнопки бафов — `AuraButtonMixin`
+  (Blizzard_BuffFrame), клик шлёт `EventRegistry` `"BuffButton.OnClick"` (кнопка, мышь),
+  аура — `buttonInfo.auraInstanceID` -> `C_UnitAuras.GetAuraDataByAuraInstanceID`
+  (`events/buff_frame.lua`). `SettingsWindow.PickAura`: поле окна бафов в фокусе (`aura` /
+  `sourceValue`, по `user.path` виджета AceConfigDialog) — вписать и Enter (validate + set);
+  иначе при открытом окне — новый баф (или страница уже отслеживаемого). Чары на оружии
+  событие не шлют.
+* Регистрация — один раз на `PLAYER_LOGIN`.
 
 ## Миникарта
 
 `components/minimap_button.lua` на LibDBIcon (+ LibDataBroker, CallbackHandler в `libs/`):
-левый клик — `/sbt config`, правый — `/sbt mode`. Позиция и
+левый клик — `/sbt buffs`, shift + левый — `/sbt config`, правый — `/sbt mode`. Позиция и
 скрытие — `settings.minimap`, `/sbt minimap` прячет и показывает. В тестах `.xml` из `.toc`
 не грузятся, библиотеки (LibDBIcon, AceConfig) подменяет `FAKE_LIBRARIES`; `Options(имя)`
 строит таблицу опций, тесты жмут её `set`/`func`, как игрок.

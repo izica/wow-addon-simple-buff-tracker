@@ -2,6 +2,9 @@
     <Binding name="SIMPLEBUFFTRACKER_MODE" header="SIMPLEBUFFTRACKER" category="ADDONS">
         SimpleBuffTracker_RunCommand("mode")
     </Binding>
+    <Binding name="SIMPLEBUFFTRACKER_BUFFS" category="ADDONS">
+        SimpleBuffTracker_RunCommand("buffs")
+    </Binding>
     <Binding name="SIMPLEBUFFTRACKER_CONFIG" category="ADDONS">
         SimpleBuffTracker_RunCommand("config")
     </Binding>

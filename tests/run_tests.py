@@ -184,6 +184,7 @@ optionTables = {}
 notified = 0
 function registry:RegisterOptionsTable(name, options) optionTables[name] = options end
 function registry:NotifyChange() notified = notified + 1 end
+function registry:GetOptionsTable(name) return optionTables[name] end
 function Options(name)
     local options = optionTables[name]
     if type(options) == "function" then return options() end
@@ -196,7 +197,45 @@ function dialog:AddToBlizOptions(name, title, parent)
     return NewFrame(), #blizzardPages
 end
 function dialog:SelectGroup(name, key) selectedGroup = key end
+dialog.OpenFrames = {}
+function dialog:SetDefaultSize(name, width, height) windowSize = { width, height } end
+function dialog:Open(name) self.OpenFrames[name] = NewFrame() end
+function dialog:Close(name) self.OpenFrames[name] = nil end
 Settings = { OpenToCategory = function(id) openedCategory = id end }
+
+local gui = LibStub:NewLibrary("AceGUI-3.0", 1)
+function gui:ClearFocus() keyboardFocus = nil end
+
+-- the client's buff frame: shift-click a buff -> EventRegistry "BuffButton.OnClick"
+shiftDown = false
+function IsShiftKeyDown() return shiftDown end
+function GetCurrentKeyBoardFocus() return keyboardFocus end
+local callbacks = {}
+EventRegistry = { RegisterCallback = function(self, event, handler, owner)
+    callbacks[event] = { handler = handler, owner = owner }
+end }
+aurasByInstance = {}
+C_UnitAuras.GetAuraDataByAuraInstanceID = function(unit, id) return aurasByInstance[id] end
+function ShiftClickBuff(auraInstanceId)
+    shiftDown = true
+    local callback = callbacks["BuffButton.OnClick"]
+    callback.handler(callback.owner, { buttonInfo = { auraInstanceID = auraInstanceId } }, "LeftButton")
+    shiftDown = false
+end
+-- an AceGUI edit box of the buff window in focus; Enter runs the option's validate + set
+function FocusField(buffKey, optionKey)
+    local option = Options('SimpleBuffTracker_Buffs').args[buffKey].args[optionKey]
+    local widget = {
+        user = { appName = 'SimpleBuffTracker_Buffs', path = { buffKey, optionKey } },
+    }
+    function widget:GetUserDataTable() return self.user end
+    function widget:SetText(text) self.text = text end
+    function widget:Fire(event, text)
+        if option.validate and option.validate(nil, text) ~= true then return end
+        option.set(nil, text)
+    end
+    keyboardFocus = { obj = widget }
+end
 """
 
 
@@ -330,7 +369,13 @@ def test_minimap():
     lua = new_runtime()
     check("minimap button registered on login", lua.eval("minimapRegistered") is True)
     lua.execute("launcher.OnClick(nil, 'LeftButton')")
-    check("left click opens the settings", lua.eval("openedCategory") == 1)
+    check("left click opens the buff window",
+          lua.eval("LibStub('AceConfigDialog-3.0').OpenFrames.SimpleBuffTracker_Buffs") is not None)
+    lua.execute("launcher.OnClick(nil, 'LeftButton')")
+    check("a second left click closes it",
+          lua.eval("LibStub('AceConfigDialog-3.0').OpenFrames.SimpleBuffTracker_Buffs") is None)
+    lua.execute("shiftDown = true; launcher.OnClick(nil, 'LeftButton'); shiftDown = false")
+    check("shift + left click opens the settings", lua.eval("openedCategory") == 1)
     lua.execute("launcher.OnClick(nil, 'RightButton')")
     check("right click switches the mode", lua.eval("SimpleBuffTrackerDB.settings.mode") == "missing")
     lua.execute("Slash('move')")
@@ -344,8 +389,12 @@ def test_minimap():
 
 def test_settings():
     lua = new_runtime()
-    check("two pages in Options -> AddOns", lua.eval("#blizzardPages") == 2
-          and lua.eval("blizzardPages[2].parent") == "Simple Buff Tracker")
+    check("one page in Options -> AddOns, buffs in their own window", lua.eval("#blizzardPages") == 1
+          and lua.eval("windowSize[1]") == 640)
+    lua.execute("Options('SimpleBuffTracker').args.openBuffs.func()")
+    check("the settings page button opens the buff window",
+          lua.eval("LibStub('AceConfigDialog-3.0').OpenFrames.SimpleBuffTracker_Buffs") is not None)
+    check("the window is titled", lua.eval("Options('SimpleBuffTracker_Buffs').name") == "Simple Buff Tracker: buffs")
 
     # the general page writes the settings and builds without errors
     lua.execute("""
@@ -400,6 +449,42 @@ def test_settings():
           and lua.eval("Options('SimpleBuffTracker_Buffs').args.buff2.name") == "Well Fed")
 
 
+def test_shift_click():
+    lua = new_runtime()
+    lua.execute("""
+        aurasByInstance[7] = { spellId = 1459, name = 'Arcane Intellect' }
+        aurasByInstance[8] = { spellId = 19705, name = 'Well Fed' }
+        aurasByInstance[9] = { spellId = SECRET, name = SECRET }
+        ShiftClickBuff(7)
+    """)
+    check("window closed: a shift-click does nothing", lua.eval("#SimpleBuffTrackerDB.buffs") == 0)
+
+    lua.execute("Slash('buffs'); ShiftClickBuff(7)")
+    check("window open, no field in focus: a new buff",
+          lua.eval("#SimpleBuffTrackerDB.buffs") == 1
+          and lua.eval("SimpleBuffTrackerDB.buffs[1].target.name") == "Arcane Intellect"
+          and lua.eval("selectedGroup") == "buff1")
+    lua.execute("selectedGroup = nil; ShiftClickBuff(7)")
+    check("the same buff again: its page, no copy",
+          lua.eval("#SimpleBuffTrackerDB.buffs") == 1 and lua.eval("selectedGroup") == "buff1")
+
+    lua.execute("Options('SimpleBuffTracker_Buffs').args.add.func(); FocusField('buff2', 'aura'); ShiftClickBuff(8)")
+    check("field in focus: the buff goes into it",
+          lua.eval("#SimpleBuffTrackerDB.buffs") == 2
+          and lua.eval("SimpleBuffTrackerDB.buffs[2].target.name") == "Well Fed"
+          and lua.eval("keyboardFocus") is None)
+
+    lua.execute("""
+        Options('SimpleBuffTracker_Buffs').args.buff2.args.sourceKind.set(nil, 'spell')
+        FocusField('buff2', 'sourceValue')
+        ShiftClickBuff(7)
+    """)
+    check("the spell field takes it too", lua.eval("SimpleBuffTrackerDB.buffs[2].source.name") == "Arcane Intellect")
+
+    lua.execute("ShiftClickBuff(9)")
+    check("a secret aura is skipped", lua.eval("#SimpleBuffTrackerDB.buffs") == 2)
+
+
 def test_russian():
     lua = new_runtime("ruRU")
     lua.execute("Slash('list')")
@@ -410,6 +495,7 @@ def main():
     test_buffs()
     test_minimap()
     test_settings()
+    test_shift_click()
     test_russian()
     if failures:
         print("\n%d failed" % len(failures))

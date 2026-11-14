@@ -13,9 +13,12 @@ A World of Warcraft addon (Forever client, interface 16001): your buffs as icons
 
 ## Settings
 
-Options -> AddOns -> Simple Buff Tracker (or the minimap button, or `/sbt config`):
-the panel on the main page, the buffs on the Buffs page -- add, edit, reorder, delete.
-A spell from the spellbook or an item from the bags can be dragged into a field.
+* **Buff window** (left click on the minimap button, or `/sbt buffs`): the buffs --
+  add, edit, reorder, delete. Drag a spell from the spellbook or an item from the
+  bags into a field, or shift-click a buff of yours (top right of the screen): into
+  the field you are typing in, or as a new buff.
+* **Panel settings** -- Options -> AddOns -> Simple Buff Tracker (shift + left click
+  on the minimap button, or `/sbt config`).
 
 ## Commands
 
@@ -30,6 +33,7 @@ A spell from the spellbook or an item from the bags can be dragged into a field.
 /sbt unlock | lock | move
 /sbt minimap
 /sbt config
+/sbt buffs
 /sbt size <pixels>
 /sbt row <count>
 /sbt warn <seconds>

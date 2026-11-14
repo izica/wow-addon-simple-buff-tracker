@@ -80,18 +80,23 @@
         "config": {
             "help": "open / close the settings",
             "binding": "Open the settings"
+        },
+        "buffs": {
+            "help": "open / close the buff window",
+            "binding": "Open the buff window"
         }
     },
     "minimap": {
         "mode": "Panel: %s",
-        "left_click": "Left click: settings",
+        "left_click": "Left click: buffs",
         "right_click": "Right click: switch the mode",
         "drag": "Drag: move this button",
-        "no_library": "no LibDBIcon: the minimap button is off"
+        "no_library": "no LibDBIcon: the minimap button is off",
+        "shift_click": "Shift + left click: settings"
     },
     "settings": {
         "version": "version %s",
-        "summary": "Your buffs as icons on one panel. The buffs themselves are set on the Buffs page on the left.",
+        "summary": "Your buffs as icons on one panel. The buffs themselves are set in their own window: the button below, a left click on the minimap button or /sbt buffs.",
         "mode": "Panel shows",
         "warn_seconds": "Running out soon, seconds",
         "warn_seconds_hint": "In the \"only missing\" mode a buff with this many seconds left or less shows up too",
@@ -101,8 +106,7 @@
         "unlocked": "Unlock the panel to drag it",
         "unlocked_hint": "A green frame covers the panel: drag it with the left mouse button. Not in combat.",
         "minimap": "Minimap button",
-        "buffs_page": "Buffs",
-        "buffs_intro": "The buffs tracked on the panel, in its order. Pick one on the left to change it.",
+        "buffs_intro": "The buffs tracked on the panel, in its order. Pick one on the left to change it. Shift-click a buff of yours (top right of the screen) to add it, or to put it into the field you are typing in.",
         "add": "Add buff",
         "target": "What is tracked",
         "target_aura": "A buff (aura)",
@@ -115,10 +119,12 @@
         "source_spell_value": "Spell",
         "source_item_value": "Item",
         "source_hint": "A name, an id or a link (shift-click). An item by name only if it is in the bags.",
-        "drag_hint": "|cff888888Drag a spell from the spellbook or an item from the bags into a field.|r",
+        "drag_hint": "|cff888888Drag a spell from the spellbook or an item from the bags into a field, or shift-click a buff of yours while typing in it.|r",
         "move_up": "Up",
         "move_down": "Down",
         "remove": "Delete",
-        "remove_confirm": "Stop tracking %s?"
+        "remove_confirm": "Stop tracking %s?",
+        "open_buffs": "Set up buffs...",
+        "buffs_window": "%s: buffs"
     }
 }

@@ -1,17 +1,22 @@
 -- settings_window.lua -- the addon settings in the game settings (Options ->
 -- AddOns -> Simple Buff Tracker), not a window of our own.
 --
--- AceConfig-3.0 describes options as a table, AceConfigDialog-3.0 draws them
--- into the game's settings panel (AddToBlizOptions), as in Purple Note and PRR.
---   the addon page -- the panel: mode, lock, icon size, icons per row, warning time;
---   "Buffs"        -- the tracked buffs as a tree on the left, one buff per
---                     page: what is tracked, how a click puts it back, order, delete.
--- The buffs page is built anew on every redraw (the options table is a
+-- AceConfig-3.0 describes options as a table, AceConfigDialog-3.0 draws them.
+--   the addon page    -- in the game's settings panel (AddToBlizOptions), as in
+--                        Purple Note and PRR: mode, lock, icon size, icons per
+--                        row, warning time, and a button to the buff window;
+--   the buff window   -- a small window of its own (AceConfigDialog:Open): the
+--                        tracked buffs as a tree on the left, one buff per page --
+--                        what is tracked, how a click puts it back, order, delete.
+-- The buff window is built anew on every redraw (the options table is a
 -- function): after a change of the list SettingsWindow.Refresh redraws it.
 -- Every change is applied to the panel at once.
 --
 -- The text fields take a dragged spell (from the spellbook) or item (from the
--- bags): AceGUI's edit box puts its name or link in and saves.
+-- bags): AceGUI's edit box puts its name or link in and saves. A shift-click on
+-- a buff of the player (the client's buff frame, events/buff_frame.lua) goes to
+-- SettingsWindow.PickAura: into the buff field being typed in, or, with no field
+-- in focus, as a new buff.
 
 local ADDON, ns = ...
 ns.Components = ns.Components or {}
@@ -30,8 +35,12 @@ local SettingsWindow = {}
 ns.Components.SettingsWindow = SettingsWindow
 
 local OPTIONS_NAME = "SimpleBuffTracker"         -- AceConfig id of the addon page
-local BUFFS_NAME = "SimpleBuffTracker_Buffs"     -- AceConfig id of the buffs page
+local BUFFS_NAME = "SimpleBuffTracker_Buffs"     -- AceConfig id of the buff window
 local BUFF_KEY_PREFIX = "buff"                   -- buff pages: buff1, buff2, ...
+local BUFF_WINDOW_WIDTH = 640
+local BUFF_WINDOW_HEIGHT = 420
+-- the fields of a buff page that take a spell from a shift-click
+local SPELL_FIELDS = { aura = true, sourceValue = true }
 
 local TARGET_AURA = "aura"                       -- the target select: an aura or a weapon slot
 local SOURCE_NONE = "none"                       -- the source select: only tracked
@@ -51,7 +60,7 @@ end
 -- The buffs page is drawn from the current list: redraw it after any change of
 -- the list, also from chat commands.
 function SettingsWindow.Refresh()
-    if categoryId or panelFrame then
+    if configRegistry:GetOptionsTable(BUFFS_NAME) then
         configRegistry:NotifyChange(BUFFS_NAME)
     end
 end
@@ -90,6 +99,18 @@ local function GeneralPage()
                 name = Text("settings.summary") .. "\n",
                 fontSize = "medium",
                 order = 2,
+            },
+            openBuffs = {
+                type = "execute",
+                name = Text("settings.open_buffs"),
+                func = function()
+                    if SettingsPanel and SettingsPanel:IsShown() then
+                        HideUIPanel(SettingsPanel)
+                    end
+                    SettingsWindow.OpenBuffs()
+                end,
+                width = "double",
+                order = 3,
             },
             mode = WithSetting({
                 type = "select",
@@ -367,7 +388,7 @@ local function BuffsPage()
     local buffs = BuffService.List()
     local page = {
         type = "group",
-        name = Text("settings.buffs_page"),
+        name = Text("settings.buffs_window", ns.Constants.ADDON_TITLE),
         childGroups = "tree",
         args = {
             intro = {
@@ -400,10 +421,76 @@ function SettingsWindow.Setup()
     if categoryId or panelFrame then return end
     configRegistry:RegisterOptionsTable(OPTIONS_NAME, GeneralPage)
     configRegistry:RegisterOptionsTable(BUFFS_NAME, BuffsPage)
+    configDialog:SetDefaultSize(BUFFS_NAME, BUFF_WINDOW_WIDTH, BUFF_WINDOW_HEIGHT)
 
-    local title = ns.Constants.ADDON_TITLE
-    panelFrame, categoryId = configDialog:AddToBlizOptions(OPTIONS_NAME, title)
-    configDialog:AddToBlizOptions(BUFFS_NAME, Text("settings.buffs_page"), title)
+    panelFrame, categoryId = configDialog:AddToBlizOptions(OPTIONS_NAME, ns.Constants.ADDON_TITLE)
+end
+
+function SettingsWindow.IsBuffWindowOpen()
+    return configDialog.OpenFrames[BUFFS_NAME] ~= nil
+end
+
+function SettingsWindow.OpenBuffs()
+    configDialog:Open(BUFFS_NAME)
+end
+
+-- the buff window: open it, or close it when it is open
+function SettingsWindow.ToggleBuffs()
+    if SettingsWindow.IsBuffWindowOpen() then
+        configDialog:Close(BUFFS_NAME)
+        return
+    end
+    SettingsWindow.OpenBuffs()
+end
+
+-- the AceGUI edit box of the buff window being typed in now, and the key of its option; nil -- none
+local function FocusedBuffField()
+    local focus = GetCurrentKeyBoardFocus and GetCurrentKeyBoardFocus()
+    local widget = focus and focus.obj
+    if not (widget and widget.GetUserDataTable) then
+        return nil
+    end
+    local user = widget:GetUserDataTable()
+    if user.appName ~= BUFFS_NAME or not user.path then
+        return nil
+    end
+    local optionKey = user.path[#user.path]
+    if not SPELL_FIELDS[optionKey] then
+        return nil
+    end
+    return widget, optionKey
+end
+
+-- A shift-click on a buff of the player. Into the buff field being typed in --
+-- as if typed and confirmed with Enter (the option's validate and set run); with
+-- no such field but the buff window open -- a new buff with this aura.
+-- Returns whether the click was used.
+function SettingsWindow.PickAura(spellId, name)
+    local widget = FocusedBuffField()
+    if widget then
+        local text = name or tostring(spellId)
+        widget:SetText(text)
+        widget:Fire("OnEnterPressed", text)
+        LibStub("AceGUI-3.0"):ClearFocus()
+        return true
+    end
+    if not SettingsWindow.IsBuffWindowOpen() then
+        return false
+    end
+    -- already tracked: show its page instead of a second copy
+    for index, buff in ipairs(BuffService.List()) do
+        local target = buff.target
+        local isSameSpell = spellId ~= nil and target.spellId == spellId
+        local isSameName = name ~= nil and target.name ~= nil and target.name:lower() == name:lower()
+        if isSameSpell or isSameName then
+            SelectBuff(index)
+            return true
+        end
+    end
+    BuffService.Add(Buff.New({ spellId = spellId, name = name }, nil))
+    Changed()
+    SelectBuff(#BuffService.List())
+    return true
 end
 
 -- Open the game settings on our page; a second call closes them.

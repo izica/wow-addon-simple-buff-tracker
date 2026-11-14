@@ -1,6 +1,6 @@
--- minimap_button.lua -- minimap button on LibDBIcon: left click -- the settings,
--- right click -- switch the panel mode. The library stores the position itself
--- in settings.minimap.
+-- minimap_button.lua -- minimap button on LibDBIcon: left click -- the buff
+-- window, shift + left click -- the settings, right click -- switch the panel
+-- mode. The library stores the position itself in settings.minimap.
 
 local ADDON, ns = ...
 ns.Components = ns.Components or {}
@@ -21,8 +21,10 @@ local launcher = dataBroker and dataBroker:NewDataObject(NAME, {
     OnClick = function(_, mouseButton)
         if mouseButton == "RightButton" then
             ns.Commands.Run("mode")
-        else
+        elseif IsShiftKeyDown() then
             ns.Commands.Run("config")
+        else
+            ns.Commands.Run("buffs")
         end
     end,
     OnTooltipShow = function(tooltip)
@@ -31,6 +33,8 @@ local launcher = dataBroker and dataBroker:NewDataObject(NAME, {
         tooltip:AddLine(Text("minimap.mode", Text("modes." .. ns.db.settings.mode)),
             TOOLTIP_HINT_COLOR[1], TOOLTIP_HINT_COLOR[2], TOOLTIP_HINT_COLOR[3])
         tooltip:AddLine(Text("minimap.left_click"),
+            TOOLTIP_HINT_COLOR[1], TOOLTIP_HINT_COLOR[2], TOOLTIP_HINT_COLOR[3])
+        tooltip:AddLine(Text("minimap.shift_click"),
             TOOLTIP_HINT_COLOR[1], TOOLTIP_HINT_COLOR[2], TOOLTIP_HINT_COLOR[3])
         tooltip:AddLine(Text("minimap.right_click"),
             TOOLTIP_HINT_COLOR[1], TOOLTIP_HINT_COLOR[2], TOOLTIP_HINT_COLOR[3])
