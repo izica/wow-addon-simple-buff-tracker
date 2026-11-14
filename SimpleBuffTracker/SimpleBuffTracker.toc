@@ -3,10 +3,12 @@
 ## Notes: Your buffs as icons on one panel: all with timers or only the missing ones. Click an icon to put the buff back.
 ## IconTexture: Interface\Icons\Spell_Holy_WordFortitude
 ## Author: izica
-## Version: 0.1.0
+## Version: 0.2.0
 ## SavedVariablesPerCharacter: SimpleBuffTrackerDB
 
 libs\LibStub\LibStub.lua
+libs\CallbackHandler-1.0\CallbackHandler-1.0.xml
+libs\LibDBIcon-1.0\lib.xml
 libs\json\json.lua
 
 constants\addon.lua
@@ -28,6 +30,7 @@ dataflows\buff_parser.lua
 services\buff_service.lua
 ui\buff_button.lua
 components\buff_panel.lua
+components\minimap_button.lua
 core.lua
 commands\buffs.lua
 commands\panel.lua

@@ -70,6 +70,32 @@ ns.Commands.Add("lock", {
     help = Text("commands.lock.help"),
 })
 
+-- unlock a locked panel, lock an unlocked one: the right click of the minimap button
+ns.Commands.Add("move", {
+    run = function()
+        if ns.db.settings.locked then
+            ns.Commands.Run("unlock")
+        else
+            ns.Commands.Run("lock")
+        end
+    end,
+    help = Text("commands.move.help"),
+    binding = Text("commands.move.binding"),
+})
+
+ns.Commands.Add("minimap", {
+    run = function()
+        local minimap = ns.db.settings.minimap
+        ns.Components.MinimapButton.SetHidden(not minimap.hide)
+        if minimap.hide then
+            Print(Text("messages.minimap_hidden"))
+        else
+            Print(Text("messages.minimap_shown"))
+        end
+    end,
+    help = Text("commands.minimap.help"),
+})
+
 ns.Commands.Add("size", {
     run = function(arguments)
         if not OutOfCombat() then return end

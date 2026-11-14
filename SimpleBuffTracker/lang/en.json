@@ -36,20 +36,52 @@
         "size_usage": "/sbt size <%d-%d>",
         "row_usage": "/sbt row <%d-%d>",
         "warn_usage": "/sbt warn <%d-%d seconds>",
-        "warn_set": "a buff with %d seconds left or less counts as missing"
+        "warn_set": "a buff with %d seconds left or less counts as missing",
+        "minimap_hidden": "the minimap button is hidden, /sbt minimap brings it back",
+        "minimap_shown": "the minimap button is shown"
     },
     "commands": {
-        "add": { "help": "<buff> [= spell|item <source>] -- track a buff; with a source a click puts it back" },
-        "remove": { "help": "<number> -- stop tracking a buff (numbers from /sbt list)" },
-        "list": { "help": "the tracked buffs" },
+        "add": {
+            "help": "<buff> [= spell|item <source>] -- track a buff; with a source a click puts it back"
+        },
+        "remove": {
+            "help": "<number> -- stop tracking a buff (numbers from /sbt list)"
+        },
+        "list": {
+            "help": "the tracked buffs"
+        },
         "mode": {
             "help": "[all|missing] -- all buffs with timers or only the missing ones",
             "binding": "Switch the panel mode"
         },
-        "unlock": { "help": "unlock the panel to drag it" },
-        "lock": { "help": "lock the panel" },
-        "size": { "help": "<pixels> -- icon size" },
-        "row": { "help": "<count> -- icons in a row" },
-        "warn": { "help": "<seconds> -- a buff running out this soon counts as missing" }
+        "unlock": {
+            "help": "unlock the panel to drag it"
+        },
+        "lock": {
+            "help": "lock the panel"
+        },
+        "size": {
+            "help": "<pixels> -- icon size"
+        },
+        "row": {
+            "help": "<count> -- icons in a row"
+        },
+        "warn": {
+            "help": "<seconds> -- a buff running out this soon counts as missing"
+        },
+        "move": {
+            "help": "unlock the panel to drag it, or lock it",
+            "binding": "Unlock / lock the panel"
+        },
+        "minimap": {
+            "help": "hide / show the minimap button"
+        }
+    },
+    "minimap": {
+        "mode": "Panel: %s",
+        "left_click": "Left click: switch the mode",
+        "right_click": "Right click: unlock / lock the panel",
+        "drag": "Drag: move this button",
+        "no_library": "no LibDBIcon: the minimap button is off"
     }
 }

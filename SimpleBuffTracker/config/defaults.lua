@@ -15,6 +15,7 @@ ns.Config.defaults = {
         -- a buff with this many seconds left or less counts as missing in the "missing" mode
         warnSeconds = 120,
         position = { point = "CENTER", x = 0, y = -180 },
+        minimap = { hide = false, minimapPos = 200 },   -- LibDBIcon keeps the position here
     },
     -- { target = { spellId, name, weapon }, source = { kind, spellId, name, itemId } or nil }
     buffs = {},

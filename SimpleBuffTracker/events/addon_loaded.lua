@@ -8,6 +8,10 @@ ns.Events.On("ADDON_LOADED", function(name)
     end
 end)
 
+ns.Events.On("PLAYER_LOGIN", function()
+    ns.Components.MinimapButton.Setup()
+end)
+
 ns.Events.On("PLAYER_ENTERING_WORLD", function()
     ns.Dataflows.AuraScan.Update()
     ns.Components.BuffPanel.Refresh()

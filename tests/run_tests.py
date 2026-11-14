@@ -168,6 +168,18 @@ function Slash(text) SlashCmdList.SIMPLEBUFFTRACKER(text) end
 """
 
 
+FAKE_LIBRARIES = r"""
+local dataBroker = LibStub:NewLibrary("LibDataBroker-1.1", 1)
+function dataBroker:NewDataObject(name, object) launcher = object; return object end
+local dbIcon = LibStub:NewLibrary("LibDBIcon-1.0", 1)
+minimapRegistered = false
+function dbIcon:IsRegistered() return minimapRegistered end
+function dbIcon:Register(name, object, settings) minimapRegistered = true end
+function dbIcon:Hide() minimapShown = false end
+function dbIcon:Show() minimapShown = true end
+"""
+
+
 def toc_files():
     with open(os.path.join(ADDON_FOLDER, ADDON + ".toc"), encoding="utf-8") as toc:
         for line in toc:
@@ -182,10 +194,14 @@ def new_runtime(locale="enUS"):
     lua.globals().locale = locale
     lua.execute("ns = {}")
     for relative in toc_files():
+        if relative.endswith(".xml"):
+            continue   # the minimap libraries: FAKE_LIBRARIES stand in for them
         with open(os.path.join(ADDON_FOLDER, relative), encoding="utf-8") as source:
             code = source.read()
         chunk = lua.eval("function(code, name) return assert(loadstring(code, name)) end")(code, "@" + relative)
         lua.execute("local chunk = ...; chunk('%s', ns)" % ADDON, chunk)
+        if relative.endswith("LibStub.lua"):
+            lua.execute(FAKE_LIBRARIES)
     lua.execute("Fire('ADDON_LOADED', '%s'); Fire('PLAYER_LOGIN'); Fire('PLAYER_ENTERING_WORLD')" % ADDON)
     return lua
 
@@ -290,6 +306,22 @@ def test_buffs():
     check("list numbers the buffs", "3. Trueshot Aura" in last_chat(lua))
 
 
+def test_minimap():
+    lua = new_runtime()
+    check("minimap button registered on login", lua.eval("minimapRegistered") is True)
+    lua.execute("launcher.OnClick(nil, 'LeftButton')")
+    check("left click switches the mode", lua.eval("SimpleBuffTrackerDB.settings.mode") == "missing")
+    lua.execute("launcher.OnClick(nil, 'RightButton')")
+    check("right click unlocks the panel", lua.eval("SimpleBuffTrackerDB.settings.locked") is False)
+    lua.execute("launcher.OnClick(nil, 'RightButton')")
+    check("right click again locks it", lua.eval("SimpleBuffTrackerDB.settings.locked") is True)
+    lua.execute("launcher.OnTooltipShow(GameTooltip)")
+    check("tooltip shows without errors", True)
+    lua.execute("Slash('minimap')")
+    check("/sbt minimap hides the button",
+          lua.eval("SimpleBuffTrackerDB.settings.minimap.hide") is True and lua.eval("minimapShown") is False)
+
+
 def test_russian():
     lua = new_runtime("ruRU")
     lua.execute("Slash('list')")
@@ -298,6 +330,7 @@ def test_russian():
 
 def main():
     test_buffs()
+    test_minimap()
     test_russian()
     if failures:
         print("\n%d failed" % len(failures))

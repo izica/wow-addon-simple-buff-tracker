@@ -21,7 +21,8 @@ A World of Warcraft addon (Forever client, interface 16001): your buffs as icons
 /sbt list
 /sbt remove <number>
 /sbt mode [all|missing]
-/sbt unlock | lock
+/sbt unlock | lock | move
+/sbt minimap
 /sbt size <pixels>
 /sbt row <count>
 /sbt warn <seconds>

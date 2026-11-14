@@ -29,6 +29,13 @@ python tests/run_tests.py
 строгие: Show/Hide/SetPoint/SetAttribute защищённой кнопки или панели в бою — ошибка, перебор
 аур, пока они скрыты, — ошибка. Внешний вид и реальный клик — только в игре.
 
+## Миникарта
+
+`components/minimap_button.lua` на LibDBIcon (+ LibDataBroker, CallbackHandler в `libs/`):
+левый клик — `/sbt mode`, правый — `/sbt move` (разблокировать / закрепить). Позиция и
+скрытие — `settings.minimap`, `/sbt minimap` прячет и показывает. В тестах `.xml` из `.toc`
+не грузятся, библиотеки подменяет `FAKE_LIBRARIES`.
+
 ## Модель
 
 ```
