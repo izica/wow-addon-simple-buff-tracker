@@ -1,11 +1,10 @@
--- icon_search.lua -- pictures for the icon field of the buff window, found by
+-- icon_search.lua -- suggestions for the fields of the buff window, found by
 -- name as the player types: the buffs on the player, the spells of the
 -- spellbook and the items in the bags. The client gives no names for the rest
 -- of its pictures, so only these are searched.
 --
--- A suggestion: { label -- the name shown, icon -- the picture, text -- what
--- goes into the field (BuffParser.ParseIcon reads it back): a spell id,
--- "item:<id>" or "icon:<picture id>" }.
+-- A suggestion: { label -- the name shown, icon -- the picture, kind -- "aura",
+-- "spell" or "item", spellId (may be nil for an aura), itemId }.
 
 local ADDON, ns = ...
 ns.Dataflows = ns.Dataflows or {}
@@ -15,6 +14,14 @@ local AuraScan = ns.Dataflows.AuraScan
 local IconSearch = {}
 ns.Dataflows.IconSearch = IconSearch
 
+-- which sources a field searches
+IconSearch.SOURCES = {
+    ALL = { auras = true, spells = true, items = true },
+    BUFFS = { auras = true, spells = true },
+    SPELLS = { spells = true, auras = true },
+    ITEMS = { items = true },
+}
+
 local MAX_SUGGESTIONS = 10
 local MIN_QUERY_LENGTH = 2
 local FIRST_BAG = 0
@@ -22,13 +29,7 @@ local LAST_BAG = 4
 
 local function AuraSuggestions(add)
     for _, aura in ipairs(AuraScan.All()) do
-        if aura.icon then
-            local text = "icon:" .. aura.icon
-            if aura.spellId then
-                text = tostring(aura.spellId)
-            end
-            add(aura.name, aura.icon, text)
-        end
+        add({ label = aura.name, icon = aura.icon, kind = "aura", spellId = aura.spellId })
     end
 end
 
@@ -44,8 +45,9 @@ local function SpellBookSuggestions(add)
         if skillLine then
             for offset = 1, skillLine.numSpellBookItems do
                 local info = C_SpellBook.GetSpellBookItemInfo(skillLine.itemIndexOffset + offset, bank)
-                if info and info.spellID and info.name then
-                    add(info.name, info.iconID, tostring(info.spellID))
+                local isSpell = info and info.spellID and not info.isPassive
+                if isSpell then
+                    add({ label = info.name, icon = info.iconID, kind = "spell", spellId = info.spellID })
                 end
             end
         end
@@ -61,17 +63,17 @@ local function BagSuggestions(add)
             local info = C_Container.GetContainerItemInfo(bag, slot)
             if info and info.itemID then
                 local name = info.itemName or (info.hyperlink and info.hyperlink:match("%[(.-)%]"))
-                if name then
-                    add(name, info.iconFileID, "item:" .. info.itemID)
-                end
+                add({ label = name, icon = info.iconFileID, kind = "item", itemId = info.itemID })
             end
         end
     end
 end
 
--- Suggestions whose name has the query in it, names that start with it first;
--- nothing for a query shorter than MIN_QUERY_LENGTH or a bare number (an id is typed).
-function IconSearch.Search(query)
+-- Suggestions from the sources (IconSearch.SOURCES) whose name has the query
+-- in it, names that start with it first; nothing for a query shorter than
+-- MIN_QUERY_LENGTH or a bare number (an id is being typed).
+function IconSearch.Search(query, sources)
+    sources = sources or IconSearch.SOURCES.ALL
     query = (query or ""):lower():match("^%s*(.-)%s*$")
     local isTooShort = #query < MIN_QUERY_LENGTH
     if isTooShort or query:match("^%d+$") then
@@ -81,20 +83,19 @@ function IconSearch.Search(query)
     local starting = {}
     local containing = {}
     local seen = {}
-    local function add(name, icon, text)
-        if not (name and icon) then
+    local function add(suggestion)
+        if not (suggestion.label and suggestion.icon) then
             return
         end
-        local key = name .. "|" .. tostring(icon)
+        local key = suggestion.label .. "|" .. tostring(suggestion.icon)
         if seen[key] then
             return
         end
-        local position = name:lower():find(query, 1, true)
+        local position = suggestion.label:lower():find(query, 1, true)
         if not position then
             return
         end
         seen[key] = true
-        local suggestion = { label = name, icon = icon, text = text }
         if position == 1 then
             table.insert(starting, suggestion)
         else
@@ -103,16 +104,22 @@ function IconSearch.Search(query)
     end
 
     -- every source on its own: one failing API must not take the others down
-    pcall(AuraSuggestions, add)
-    pcall(SpellBookSuggestions, add)
-    pcall(BagSuggestions, add)
+    if sources.auras then
+        pcall(AuraSuggestions, add)
+    end
+    if sources.spells then
+        pcall(SpellBookSuggestions, add)
+    end
+    if sources.items then
+        pcall(BagSuggestions, add)
+    end
 
     local result = {}
-    for _, list in ipairs({ starting, containing }) do
-        table.sort(list, function(a, b)
+    for _, group in ipairs({ starting, containing }) do
+        table.sort(group, function(a, b)
             return a.label < b.label
         end)
-        for _, suggestion in ipairs(list) do
+        for _, suggestion in ipairs(group) do
             if #result >= MAX_SUGGESTIONS then
                 return result
             end

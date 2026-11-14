@@ -2,7 +2,7 @@
 
 Для агента. Правила кода — скилл `wow-addon` (`~/.claude/skills/wow-addon/SKILL.md`):
 слои, snake_case файлов, полные имена, команды с тремя входами, тексты только в `lang/`.
-`utilities/secrets.lua`, `event_bus.lua`, `localization.lua` взяты из SimpleAuras.
+`utilities/secrets.lua`, `event_bus.lua`, `localization.lua` взяты из SimpleAuras, `ui/` — из LootBuddy.
 
 ## Где что лежит
 
@@ -29,48 +29,52 @@ python tests/run_tests.py
 строгие: Show/Hide/SetPoint/SetAttribute защищённой кнопки или панели в бою — ошибка, перебор
 аур, пока они скрыты, — ошибка. Внешний вид и реальный клик — только в игре.
 
-## Настройки
+## Окно аддона
 
-* «Настройки → Модификации → Simple Buff Tracker» (`components/settings_window.lua`,
-  AceConfigDialog `AddToBlizOptions`, как в Purple Note): панель — режим, размер, ряд, отступ,
-  порог «скоро кончится», разблокировка, кнопка миникарты, кнопка «Настроить бафы...».
-* **Окно бафов** — своё небольшое окно `AceConfigDialog:Open(BUFFS_NAME)` (640×420): дерево,
-  страница на баф (что отслеживать, чем обновлять, выше/ниже, удалить). `/sbt buffs`, левый
-  клик по миникарте. Таблица опций — функция, собирается заново при каждой перерисовке:
-  после правки списка — `SettingsWindow.Refresh()` (зовут и чат-команды).
-* Поля ввода AceGUI принимают перетащенное заклинание/предмет.
+Своё окно в стиле Forever, без AceConfig (`components/main_window.lua`): рамка окон игры
+(`ui/client_border.lua`, `ui/panel.lua` с `gameSkin`), вкладки под окном (`ui/tab_bar.lua`).
+Контролы `ui/` взяты из LootBuddy (они из PRR): селект — `WowStyle1DropdownTemplate`, слайдер со
+стрелками — `MinimalSliderTemplate` (`ui/step_slider.lua`), поле — в рамке селекта
+(`common-dropdown-textholder`), `ui/inset_panel.lua`, `ui/scroll_area.lua`, `ui/checkbox.lua`.
+
+* **Бафы**: слева `components/buff_list.lua` (иконка + имя, «Добавить баф»), справа
+  `components/buff_editor.lua`: что отслеживать, баф, чем обновлять, заклинание/предмет, иконка
+  (с превью), «показывать до конца бафа» (свой `buff.warnSeconds` или как у панели), выше/ниже,
+  удалить (StaticPopup). Поле сохраняет по Enter и при потере фокуса, **только если текст
+  изменился** (имя предмета не в сумках обратно не разберётся). Ошибка — красным под полями.
+  Правки — `BuffService.SetTargetKind/SetAuraText/SetSourceKind/SetSourceText/SetIconText`.
+* **Панель**: `components/panel_settings.lua` — режим, размер, ряд, отступ, порог, разблокировка,
+  кнопка миникарты.
+* **Подсказки** во всех полях: `ui/suggestions.lua` (общий список под полем, страта TOOLTIP,
+  ↑/↓ + Enter, клик) + `dataflows/icon_search.lua` (`SOURCES`: бафы на игроке, книга, сумки;
+  поле предмета — только сумки). У остальных картинок клиента имён нет.
+* `/sbt buffs` (левый клик по миникарте) — вкладка «Бафы», `/sbt config` (shift + левый) — «Панель».
+  Escape закрывает (`UISpecialFrames`). Чат-команды перерисовывают окно (`MainWindow.Refresh`).
 * **Shift-клик по своему бафу** (окно бафов клиента): в Forever кнопки бафов — `AuraButtonMixin`
-  (Blizzard_BuffFrame), клик шлёт `EventRegistry` `"BuffButton.OnClick"` (кнопка, мышь),
-  аура — `buttonInfo.auraInstanceID` -> `C_UnitAuras.GetAuraDataByAuraInstanceID`
-  (`events/buff_frame.lua`). `SettingsWindow.PickAura`: поле окна бафов в фокусе (`aura` /
-  `sourceValue`, по `user.path` виджета AceConfigDialog) — вписать и Enter (validate + set);
-  иначе при открытом окне — новый баф (или страница уже отслеживаемого). Чары на оружии
-  событие не шлют.
-* **Shift-клик по предмету/заклинанию** — хук на `ChatFrameUtil.InsertLink` (Forever; старые клиенты —
-  `ChatEdit_InsertLink`), `events/chat_link.lua` -> `SettingsWindow.PickLink`: поле предмета берёт
-  только item-ссылку, поля бафа/заклинания — только spell-ссылку, чужую ссылку (AceGUI уже
-  вставил её в поле сам) откатывает.
-* Иконка бафа: `target.icon` — запоминается, когда баф впервые виден на игроке (`RememberAura`
-  в `services/buff_service.lua`, там же дописывается `spellId`); название, введённое текстом,
-  сверяется с текущими бафами (`BuffParser.ParseSpell`). Выученная иконка перерисовывает окно бафов
-  (`BuffService.TakeLearnedIcons` в `ns.Core.Refresh`). Поле «Иконка» (`buff.icon` + `buff.iconText`,
-  `BuffParser.ParseIcon`: spell id, ссылка на заклинание/предмет, имя своего заклинания) важнее всего.
-* **Автокомплит иконки**: поле «Иконка» — `dialogControl = ns.UI.SUGGEST_EDIT_BOX`
-  (`ui/ace_suggest_edit_box.lua`: AceGUI EditBox + общий список под полем, страта TOOLTIP),
-  `arg` — функция поиска (AceConfigDialog отдаёт её в `SetCustomData`). Поиск —
-  `dataflows/icon_search.lua`: бафы на игроке, книга (`C_SpellBook`), сумки (`C_Container`);
-  у остальных картинок клиента имён нет. Текст подсказки: spell id, `item:<id>` или `icon:<id>`
-  (`BuffParser.ParseIcon`).
+  (Blizzard_BuffFrame), клик шлёт `EventRegistry` `"BuffButton.OnClick"`, аура —
+  `buttonInfo.auraInstanceID` -> `C_UnitAuras.GetAuraDataByAuraInstanceID` (`events/buff_frame.lua`)
+  -> `MainWindow.PickAura`: в поле в фокусе (иконке — spell id, остальным — имя), без фокуса —
+  новый баф (или уже отслеживаемый). Чары на оружии событие не шлют.
+* **Shift-клик по предмету/заклинанию** — хук на `ChatFrameUtil.InsertLink` (`events/chat_link.lua`)
+  -> `MainWindow.PickLink`: поле предмета берёт item-ссылку, поля бафа/заклинания — spell, иконка — обе.
+* Иконка бафа: `target.icon` запоминается, когда баф впервые виден на игроке (`RememberAura`),
+  название текстом сверяется с текущими бафами (`BuffParser.ParseSpell`); выученная иконка
+  перерисовывает окно (`BuffService.TakeLearnedIcons` в `ns.Core.Refresh`). Своя иконка
+  (`buff.icon` + `buff.iconText`, `BuffParser.ParseIcon`: spell id, `item:<id>`, `icon:<id>`,
+  ссылки) важнее всего.
 * `/sbt debug` — что клиент отдаёт по каждой ауре (секретное помечено) и что нашлось для каждого бафа.
-* Регистрация — один раз на `PLAYER_LOGIN`.
+
+## Иконка на панели
+
+`ui/buff_button.lua`: защищённая кнопка, внутри — `ActionButtonTemplate` игры как картинка
+(`SetScale(size / 45)`, `EnableMouse(false)`), как в SimpleAuras; подсветка — на слое над шаблоном.
+Нет шаблона — картинка в тонкой рамке.
 
 ## Миникарта
 
 `components/minimap_button.lua` на LibDBIcon (+ LibDataBroker, CallbackHandler в `libs/`):
-левый клик — `/sbt buffs`, shift + левый — `/sbt config`, правый — `/sbt mode`. Позиция и
-скрытие — `settings.minimap`, `/sbt minimap` прячет и показывает. В тестах `.xml` из `.toc`
-не грузятся, библиотеки (LibDBIcon, AceConfig) подменяет `FAKE_LIBRARIES`; `Options(имя)`
-строит таблицу опций, тесты жмут её `set`/`func`, как игрок.
+левый клик — `/sbt buffs`, shift + левый — `/sbt config`, правый — `/sbt mode`.
+В тестах `.xml` из `.toc` не грузятся, LibDBIcon подменяет `FAKE_LIBRARIES`.
 
 ## Модель
 

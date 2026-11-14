@@ -17,6 +17,6 @@ end
 function ns.Core.Refresh()
     ns.Components.BuffPanel.Refresh()
     if ns.Services.Buff.TakeLearnedIcons() then
-        ns.Components.SettingsWindow.Refresh()
+        ns.Components.MainWindow.Refresh()
     end
 end

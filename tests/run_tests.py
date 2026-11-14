@@ -73,9 +73,33 @@ function Frame:Clear() self.cooldown = nil end
 function Frame:CreateTexture() return NewFrame() end
 function Frame:CreateFontString() return NewFrame() end
 function Frame:GetCountdownFontString() return NewFrame() end
+function Frame:GetText() return self.text end
+function Frame:GetWidth() return 300 end
+function Frame:IsMouseOver() return false end
+function Frame:SetChecked(value) self.checked = value end
+function Frame:GetChecked() return self.checked end
+function Frame:SetEnabled(value) self.enabled = value end
+-- edit boxes: the focus, and the scripts the client fires with it
+function Frame:HasFocus() return self.focused == true end
+function Frame:SetFocus()
+    if keyboardFocus and keyboardFocus ~= self then keyboardFocus:ClearFocus() end
+    self.focused = true
+    keyboardFocus = self
+    if self.scripts.OnEditFocusGained then self.scripts.OnEditFocusGained(self) end
+end
+function Frame:ClearFocus()
+    if not self.focused then return end
+    self.focused = false
+    if keyboardFocus == self then keyboardFocus = nil end
+    if self.scripts.OnEditFocusLost then self.scripts.OnEditFocusLost(self) end
+end
 
+-- fields a real frame has only with some templates: nil here, like on a plain frame
+NIL_FIELDS = { TopEdge = true, TopLeftCorner = true, NineSlice = true, Instructions = true, Text = true,
+    TextOverlayContainer = true, layoutType = true }
 local frameMeta = {
     __index = function(self, key)
+        if NIL_FIELDS[key] then return nil end
         local method = Frame[key]
         if not method then
             return function() end
@@ -101,7 +125,17 @@ allFrames = {}
 function CreateFrame(frameType, name, parent, template)
     local frame = NewFrame()
     frame.parent = parent
+    frame.template = template
     table.insert(allFrames, frame)
+    -- the action bar template comes with its parts
+    if template == "ActionButtonTemplate" then
+        frame.icon = NewFrame()
+        frame.cooldown = NewFrame()
+        frame.HotKey = NewFrame()
+        frame.Count = NewFrame()
+        frame.Name = NewFrame()
+        frame.TextOverlayContainer = NewFrame()
+    end
     if template and template:find("SecureActionButtonTemplate") then
         frame.protected = true
         table.insert(secureButtons, frame)
@@ -188,51 +222,64 @@ function dbIcon:Register(name, object, settings) minimapRegistered = true end
 function dbIcon:Hide() minimapShown = false end
 function dbIcon:Show() minimapShown = true end
 
--- AceConfig: keeps the registered options; Options(name) builds the table as the dialog would
-local registry = LibStub:NewLibrary("AceConfigRegistry-3.0", 1)
-optionTables = {}
-notified = 0
-function registry:RegisterOptionsTable(name, options) optionTables[name] = options end
-function registry:NotifyChange() notified = notified + 1 end
-function registry:GetOptionsTable(name) return optionTables[name] end
-function Options(name)
-    local options = optionTables[name]
-    if type(options) == "function" then return options() end
-    return options
+-- the addon window: inputs found by their field key, typed into like a player would
+StaticPopupDialogs = {}
+function StaticPopup_Show(name, textArgument, _, data) StaticPopupDialogs[name].OnAccept(nil, data) end
+UISpecialFrames = {}
+function PanelTemplates_SelectTab(tab) tab.selected = true end
+function PanelTemplates_DeselectTab(tab) tab.selected = false end
+function PanelTemplates_TabResize() end
+YES = "Yes"
+NO = "No"
+function FindField(key)
+    for _, frame in ipairs(allFrames) do
+        if rawget(frame, "fieldKey") == key and frame.shown then return frame end
+    end
 end
-local dialog = LibStub:NewLibrary("AceConfigDialog-3.0", 1)
-blizzardPages = {}
-function dialog:AddToBlizOptions(name, title, parent)
-    table.insert(blizzardPages, { name = name, title = title, parent = parent })
-    return NewFrame(), #blizzardPages
+function FindFrames(field)
+    local found = {}
+    for _, frame in ipairs(allFrames) do
+        if rawget(frame, field) then table.insert(found, frame) end
+    end
+    return found
 end
-function dialog:SelectGroup(name, key) selectedGroup = key end
-dialog.OpenFrames = {}
-function dialog:SetDefaultSize(name, width, height) windowSize = { width, height } end
-function dialog:Open(name) self.OpenFrames[name] = NewFrame() end
-function dialog:Close(name) self.OpenFrames[name] = nil end
-Settings = { OpenToCategory = function(id) openedCategory = id end }
-
-local gui = LibStub:NewLibrary("AceGUI-3.0", 1)
-function gui:ClearFocus() keyboardFocus = nil end
-gui.WidgetRegistry = {}
-function gui:RegisterWidgetType(name, constructor) self.WidgetRegistry[name] = constructor end
--- AceGUI's EditBox: a widget around an edit box frame; Fire("OnEnterPressed") is what AceConfigDialog hears
-gui.WidgetRegistry.EditBox = function()
-    local editbox = NewFrame()
-    editbox.value = ""
-    function editbox:GetText() return self.value end
-    function editbox:HasFocus() return self.focused end
-    function editbox:GetWidth() return 300 end
-    local widget = { editbox = editbox, type = "EditBox", fired = {} }
-    function widget:SetText(text) editbox.value = text end
-    function widget:Fire(event, text) table.insert(self.fired, text) end
-    function widget:OnRelease() end
-    return widget
+-- type text into a field: suggestions appear, nothing is saved yet
+function TypeInto(input, text)
+    input:SetFocus()
+    input.text = text
+    input.scripts.OnTextChanged(input, true)
 end
-function Type(editbox, text)
-    editbox.value = text
-    editbox.scripts.OnTextChanged(editbox, true)
+-- type text and leave the field: saved
+function Enter(key, text)
+    local input = FindField(key)
+    input:SetFocus()
+    input.text = text
+    input:ClearFocus()
+end
+function FocusField(key)
+    local input = FindField(key)
+    input:SetFocus()
+    return input
+end
+function Window() return ns.Components.MainWindow end
+function Rows()
+    local rows = {}
+    for _, frame in ipairs(allFrames) do
+        local parent = rawget(frame, "parent")
+        local isRow = rawget(frame, "index") and rawget(frame, "selection") and frame.shown
+        if isRow then table.insert(rows, frame) end
+    end
+    table.sort(rows, function(a, b) return a.index < b.index end)
+    return rows
+end
+function ShownSuggestions()
+    local rows = {}
+    for _, frame in ipairs(allFrames) do
+        local parent = rawget(frame, "parent")
+        local isRow = parent and rawget(parent, "strata") == "TOOLTIP" and rawget(frame, "label")
+        if isRow and frame.shown and parent.shown then table.insert(rows, frame) end
+    end
+    return rows
 end
 
 -- the spellbook and the bags, for the icon search
@@ -266,24 +313,9 @@ function ShiftClickBuff(auraInstanceId)
     callback.handler(callback.owner, { buttonInfo = { auraInstanceID = auraInstanceId } }, "LeftButton")
     shiftDown = false
 end
--- an AceGUI edit box of the buff window in focus; Enter runs the option's validate + set
-function FocusField(buffKey, optionKey)
-    local option = Options('SimpleBuffTracker_Buffs').args[buffKey].args[optionKey]
-    local widget = {
-        user = { appName = 'SimpleBuffTracker_Buffs', path = { buffKey, optionKey } },
-    }
-    function widget:GetUserDataTable() return self.user end
-    function widget:SetText(text) self.text = text end
-    function widget:Fire(event, text)
-        if option.validate and option.validate(nil, text) ~= true then return end
-        option.set(nil, text)
-    end
-    keyboardFocus = { obj = widget }
-    return widget
-end
 
 -- shift-click on an item in the bags: HandleModifiedItemClick -> ChatFrameUtil.InsertLink,
--- with the hooks of AceGUI and of the addon after it
+-- with the addon's hook after it
 function hooksecurefunc(owner, name, hook)
     local original = owner[name]
     owner[name] = function(...)
@@ -426,13 +458,11 @@ def test_minimap():
     lua = new_runtime()
     check("minimap button registered on login", lua.eval("minimapRegistered") is True)
     lua.execute("launcher.OnClick(nil, 'LeftButton')")
-    check("left click opens the buff window",
-          lua.eval("LibStub('AceConfigDialog-3.0').OpenFrames.SimpleBuffTracker_Buffs") is not None)
+    check("left click opens the window", lua.eval("Window().IsOpen()") is True)
     lua.execute("launcher.OnClick(nil, 'LeftButton')")
-    check("a second left click closes it",
-          lua.eval("LibStub('AceConfigDialog-3.0').OpenFrames.SimpleBuffTracker_Buffs") is None)
+    check("a second left click closes it", lua.eval("Window().IsOpen()") is False)
     lua.execute("shiftDown = true; launcher.OnClick(nil, 'LeftButton'); shiftDown = false")
-    check("shift + left click opens the settings", lua.eval("openedCategory") == 1)
+    check("shift + left click opens the Panel tab", lua.eval("Window().IsOpen()") is True)
     lua.execute("launcher.OnClick(nil, 'RightButton')")
     check("right click switches the mode", lua.eval("SimpleBuffTrackerDB.settings.mode") == "missing")
     lua.execute("Slash('move')")
@@ -444,66 +474,99 @@ def test_minimap():
           lua.eval("SimpleBuffTrackerDB.settings.minimap.hide") is True and lua.eval("minimapShown") is False)
 
 
-def test_settings():
+def click_button(lua, text):
+    lua.execute("""
+        local wanted = ...
+        for _, frame in ipairs(allFrames) do
+            if frame.text == wanted and frame.shown and frame.scripts.OnClick then
+                frame.scripts.OnClick(frame)
+                return
+            end
+        end
+        error('no button ' .. wanted)
+    """, text)
+
+
+def test_window_editing():
     lua = new_runtime()
-    check("one page in Options -> AddOns, buffs in their own window", lua.eval("#blizzardPages") == 1
-          and lua.eval("windowSize[1]") == 640)
-    lua.execute("Options('SimpleBuffTracker').args.openBuffs.func()")
-    check("the settings page button opens the buff window",
-          lua.eval("LibStub('AceConfigDialog-3.0').OpenFrames.SimpleBuffTracker_Buffs") is not None)
-    check("the window is titled", lua.eval("Options('SimpleBuffTracker_Buffs').name") == "Simple Buff Tracker: buffs")
+    lua.execute("Slash('buffs')")
+    check("the window opens", lua.eval("Window().IsOpen()") is True)
+    check("Escape closes it", lua.eval("UISpecialFrames[1]") == "SimpleBuffTrackerWindow")
+    check("no buffs: nothing to edit", lua.eval("FindField('aura') == nil") is True)
 
-    # the general page writes the settings and builds without errors
-    lua.execute("""
-        local general = Options('SimpleBuffTracker')
-        general.args.mode.set(nil, 'missing')
-        general.args.iconSize.set(nil, 40)
-        general.args.unlocked.set(nil, true)
-        general.args.minimap.set(nil, false)
-    """)
-    check("general page: mode", lua.eval("SimpleBuffTrackerDB.settings.mode") == "missing")
-    check("general page: icon size", lua.eval("SimpleBuffTrackerDB.settings.iconSize") == 40)
-    check("general page: unlock", lua.eval("SimpleBuffTrackerDB.settings.locked") is False)
-    check("general page: hide minimap button", lua.eval("SimpleBuffTrackerDB.settings.minimap.hide") is True)
+    click_button(lua, "Add buff")
+    check("Add buff makes an empty buff and shows it",
+          lua.eval("#SimpleBuffTrackerDB.buffs") == 1 and lua.eval("FindField('aura') ~= nil") is True)
+    check("the list shows it as New buff", lua.eval("Rows()[1].label.text") == "New buff")
 
-    # add a buff and fill it in, field by field, like a player would
-    lua.execute("Options('SimpleBuffTracker_Buffs').args.add.func()")
-    check("add makes an empty buff and selects it",
-          lua.eval("#SimpleBuffTrackerDB.buffs") == 1 and lua.eval("selectedGroup") == "buff1")
-    check("an empty buff is named 'New buff'", lua.eval("Options('SimpleBuffTracker_Buffs').args.buff1.name") == "New buff")
-    lua.execute("""
-        local page = Options('SimpleBuffTracker_Buffs').args.buff1.args
-        page.aura.set(nil, 'Arcane Intellect')
-    """)
-    lua.execute("Options('SimpleBuffTracker_Buffs').args.buff1.args.sourceKind.set(nil, 'spell')")
-    check("spell source takes the buff's own spell",
-          lua.eval("SimpleBuffTrackerDB.buffs[1].source.name") == "Arcane Intellect")
-    check("the page is named after the buff",
-          lua.eval("Options('SimpleBuffTracker_Buffs').args.buff1.name") == "Arcane Intellect")
+    lua.execute("Enter('aura', 'Arcane Intellect')")
+    check("typing a name sets the buff", lua.eval("SimpleBuffTrackerDB.buffs[1].target.spellId") == 1459)
+    check("the list follows", lua.eval("Rows()[1].label.text") == "Arcane Intellect")
 
-    lua.execute("Options('SimpleBuffTracker_Buffs').args.add.func()")
-    lua.execute("Options('SimpleBuffTracker_Buffs').args.buff2.args.target.set(nil, 'mainhand')")
-    lua.execute("Options('SimpleBuffTracker_Buffs').args.buff2.args.sourceKind.set(nil, 'item')")
-    check("a picked but empty item does nothing on click", lua.eval("secureButtons[2].attributes.type") is None)
-    check("unknown item is refused by the field",
-          lua.eval("Options('SimpleBuffTracker_Buffs').args.buff2.args.sourceValue.validate(nil, 'Nothing')")
-          == "unknown item: put it into the bags or give its id or link (shift-click)")
-    lua.execute("""Options('SimpleBuffTracker_Buffs').args.buff2.args.sourceValue.set(nil,
-        '|cff1eff00|Hitem:20749::::|h[Brilliant Wizard Oil]|h|r')""")
-    check("a dragged item link fills the oil in",
-          lua.eval("secureButtons[2].attributes.macrotext") == "/use item:20749\n/use 16")
-    check("the item field shows the item name",
-          lua.eval("Options('SimpleBuffTracker_Buffs').args.buff2.args.sourceValue.get()") == "Brilliant Wizard Oil")
+    lua.execute("ns.Services.Buff.SetSourceKind(SimpleBuffTrackerDB.buffs[1], 'spell'); Window().Refresh()")
+    check("the spell source takes the buff's spell", lua.eval("FindField('sourceValue').text") == "Arcane Intellect")
+    lua.execute("ns.Components.BuffPanel.Refresh()")
+    check("a spell button casts it", lua.eval("secureButtons[1].attributes.spell") == "Arcane Intellect")
 
-    lua.execute("Options('SimpleBuffTracker_Buffs').args.buff2.args.moveUp.func()")
-    check("move up swaps the buffs", lua.eval("SimpleBuffTrackerDB.buffs[1].target.weapon") == "mainhand"
-          and lua.eval("selectedGroup") == "buff1")
-    lua.execute("Options('SimpleBuffTracker_Buffs').args.buff1.args.remove.func()")
-    check("delete removes the buff", lua.eval("#SimpleBuffTrackerDB.buffs") == 1
+    lua.execute("ns.Services.Buff.SetSourceKind(SimpleBuffTrackerDB.buffs[1], 'item'); Window().Refresh()")
+    lua.execute("Enter('sourceValue', 'Nothing at all')")
+    check("an unknown item changes nothing", lua.eval("SimpleBuffTrackerDB.buffs[1].source.itemId") is None)
+    lua.execute("Enter('sourceValue', 'Crab Cake')")
+    check("a bag item by name", lua.eval("SimpleBuffTrackerDB.buffs[1].source.itemId") == 2683)
+    lua.execute("bagItems = {}; Enter('sourceValue', 'Crab Cake')")
+    check("an unchanged name is not parsed again (item no longer in the bags)",
+          lua.eval("SimpleBuffTrackerDB.buffs[1].source.itemId") == 2683)
+
+    lua.execute("Enter('icon', '1459')")
+    check("an icon by spell id", lua.eval("SimpleBuffTrackerDB.buffs[1].icon") == 135932)
+    lua.execute("Enter('icon', '')")
+    check("empty icon: automatic", lua.eval("SimpleBuffTrackerDB.buffs[1].icon") is None)
+
+    click_button(lua, "Add buff")
+    lua.execute("Enter('aura', 'Well Fed')")
+    click_button(lua, "Up")
+    check("Up moves the buff", lua.eval("SimpleBuffTrackerDB.buffs[1].target.name") == "Well Fed"
+          and lua.eval("Rows()[1].label.text") == "Well Fed")
+    click_button(lua, "Delete")
+    check("Delete removes it after the question", lua.eval("#SimpleBuffTrackerDB.buffs") == 1
           and lua.eval("SimpleBuffTrackerDB.buffs[1].target.name") == "Arcane Intellect")
-    lua.execute("Slash('add Well Fed')")
-    check("a chat command redraws the settings", lua.eval("notified") > 0
-          and lua.eval("Options('SimpleBuffTracker_Buffs').args.buff2.name") == "Well Fed")
+
+    lua.execute("Slash('add Trueshot Aura')")
+    check("a chat command redraws the window", lua.eval("Rows()[2].label.text") == "Trueshot Aura")
+
+
+def find_slider(lua, shown_text):
+    return lua.eval("""(function(wanted)
+        for _, slider in ipairs(FindFrames('isStepSlider')) do
+            if slider.shown and slider.valueText.text == wanted then return slider end
+        end
+    end)(...)""", shown_text)
+
+
+def test_warn_seconds():
+    lua = new_runtime()
+    lua.execute("""
+        Slash('add Arcane Intellect = spell')
+        Slash('mode missing')
+        auras = { { spellId = 1459, name = 'Arcane Intellect', icon = 135932,
+                    expirationTime = clock + 500, duration = 1800 } }
+        Fire('UNIT_AURA', 'player')
+    """)
+    check("500 s left, panel warns at 120: hidden",
+          lua.eval("secureButtons[1] == nil or not secureButtons[1].shown") is True)
+    lua.execute("Slash('buffs')")
+    lua.globals().warnSlider = find_slider(lua, "as the panel (120 sec)")
+    check("the buff's slider starts at the panel's time", lua.eval("warnSlider ~= nil") is True)
+    lua.execute("warnSlider.scripts.OnValueChanged(warnSlider, 9)")   # step 9: 600 seconds
+    check("its own time is saved", lua.eval("SimpleBuffTrackerDB.buffs[1].warnSeconds") == 600)
+    check("500 s left, the buff warns at 600: shown", lua.eval("secureButtons[1].shown") is True)
+    lua.execute("warnSlider.scripts.OnValueChanged(warnSlider, 1)")
+    check("first step: as the panel again", lua.eval("SimpleBuffTrackerDB.buffs[1].warnSeconds") is None)
+
+    lua.execute("Slash('config')")
+    lua.globals().sizeSlider = find_slider(lua, "36")
+    lua.execute("sizeSlider.scripts.OnValueChanged(sizeSlider, 13)")   # 16, 18, ... step 13: 40
+    check("the Panel tab's icon size slider", lua.eval("SimpleBuffTrackerDB.settings.iconSize") == 40)
 
 
 def test_shift_click():
@@ -517,29 +580,18 @@ def test_shift_click():
     check("window closed: a shift-click does nothing", lua.eval("#SimpleBuffTrackerDB.buffs") == 0)
 
     lua.execute("Slash('buffs'); ShiftClickBuff(7)")
-    check("window open, no field in focus: a new buff",
-          lua.eval("#SimpleBuffTrackerDB.buffs") == 1
-          and lua.eval("SimpleBuffTrackerDB.buffs[1].target.name") == "Arcane Intellect"
-          and lua.eval("selectedGroup") == "buff1")
-    lua.execute("selectedGroup = nil; ShiftClickBuff(7)")
-    check("the same buff again: its page, no copy",
-          lua.eval("#SimpleBuffTrackerDB.buffs") == 1 and lua.eval("selectedGroup") == "buff1")
+    check("no field in focus: a new buff", lua.eval("#SimpleBuffTrackerDB.buffs") == 1
+          and lua.eval("SimpleBuffTrackerDB.buffs[1].target.name") == "Arcane Intellect")
+    lua.execute("ShiftClickBuff(7)")
+    check("the same buff again: no copy", lua.eval("#SimpleBuffTrackerDB.buffs") == 1)
 
-    lua.execute("Options('SimpleBuffTracker_Buffs').args.add.func(); FocusField('buff2', 'aura'); ShiftClickBuff(8)")
+    lua.execute("FocusField('aura'); ShiftClickBuff(8)")
     check("field in focus: the buff goes into it",
-          lua.eval("#SimpleBuffTrackerDB.buffs") == 2
-          and lua.eval("SimpleBuffTrackerDB.buffs[2].target.name") == "Well Fed"
-          and lua.eval("keyboardFocus") is None)
-
-    lua.execute("""
-        Options('SimpleBuffTracker_Buffs').args.buff2.args.sourceKind.set(nil, 'spell')
-        FocusField('buff2', 'sourceValue')
-        ShiftClickBuff(7)
-    """)
-    check("the spell field takes it too", lua.eval("SimpleBuffTrackerDB.buffs[2].source.name") == "Arcane Intellect")
-
+          lua.eval("SimpleBuffTrackerDB.buffs[1].target.name") == "Well Fed" and lua.eval("keyboardFocus") is None)
+    lua.execute("FocusField('icon'); ShiftClickBuff(7)")
+    check("the icon field takes the spell id", lua.eval("SimpleBuffTrackerDB.buffs[1].iconText") == "1459")
     lua.execute("ShiftClickBuff(9)")
-    check("a secret aura is skipped", lua.eval("#SimpleBuffTrackerDB.buffs") == 2)
+    check("a secret aura is skipped", lua.eval("#SimpleBuffTrackerDB.buffs") == 1)
 
 
 OIL_LINK = "|cff1eff00|Hitem:20749::::|h[Brilliant Wizard Oil]|h|r"
@@ -548,28 +600,27 @@ SPELL_LINK = "|cff71d5ff|Hspell:1459:0|h[Arcane Intellect]|h|r"
 
 def test_item_link():
     lua = new_runtime()
-    lua.execute("""
-        Slash('add mainhand = item 2683')
-        Slash('buffs')
-        oilField = FocusField('buff1', 'sourceValue')
-    """)
+    lua.execute("Slash('add mainhand = item 2683'); Slash('buffs'); FocusField('sourceValue')")
     lua.execute("ChatFrameUtil.InsertLink(...)", SPELL_LINK)
     check("a spell link is not taken by the item field",
-          lua.eval("SimpleBuffTrackerDB.buffs[1].source.itemId") == 2683
-          and lua.eval("oilField.text") == "Crab Cake")
+          lua.eval("SimpleBuffTrackerDB.buffs[1].source.itemId") == 2683)
     lua.execute("ChatFrameUtil.InsertLink(...)", OIL_LINK)
     check("a shift-clicked item goes into the item field",
-          lua.eval("SimpleBuffTrackerDB.buffs[1].source.itemId") == 20749
-          and lua.eval("keyboardFocus") is None)
+          lua.eval("SimpleBuffTrackerDB.buffs[1].source.itemId") == 20749 and lua.eval("keyboardFocus") is None)
+    check("the oil goes on the main hand",
+          lua.eval("secureButtons[1].attributes.macrotext") == "/use item:20749\n/use 16")
 
-    lua.execute("Slash('add Fake Buff = spell'); FocusField('buff2', 'aura')")
+    lua.execute("FocusField('icon')")
+    lua.execute("ChatFrameUtil.InsertLink(...)", OIL_LINK)
+    check("the icon field takes an item too", lua.eval("SimpleBuffTrackerDB.buffs[1].icon") == 133000 + 20749)
+
+    lua.execute("Slash('add Fake Buff = spell')")
+    lua.execute("local row = Rows()[2]; row.scripts.OnClick(row); FocusField('aura')")
     lua.execute("ChatFrameUtil.InsertLink(...)", OIL_LINK)
     check("an item link is not taken by the buff field",
           lua.eval("SimpleBuffTrackerDB.buffs[2].target.name") == "Fake Buff")
     lua.execute("ChatFrameUtil.InsertLink(...)", SPELL_LINK)
-    check("a spellbook link goes into the buff field",
-          lua.eval("SimpleBuffTrackerDB.buffs[2].target.spellId") == 1459)
-
+    check("a spellbook link goes into the buff field", lua.eval("SimpleBuffTrackerDB.buffs[2].target.spellId") == 1459)
     lua.execute("keyboardFocus = nil")
     lua.execute("ChatFrameUtil.InsertLink(...)", OIL_LINK)
     check("no field in focus: links go to the chat as usual", lua.eval("#SimpleBuffTrackerDB.buffs") == 2)
@@ -579,7 +630,7 @@ def test_icons():
     lua = new_runtime()
     lua.execute("Slash('add Well Fed')")
     check("a typed buff the client does not know: question mark",
-          lua.eval("Options('SimpleBuffTracker_Buffs').args.buff1.icon") == 134400)
+          lua.eval("ns.Services.Buff.Icon(SimpleBuffTrackerDB.buffs[1])") == 134400)
     lua.execute("""
         auras = { { spellId = 19705, name = 'Well Fed', icon = 136000, expirationTime = clock + 900, duration = 900 } }
         Fire('UNIT_AURA', 'player')
@@ -587,7 +638,7 @@ def test_icons():
         Fire('UNIT_AURA', 'player')
     """)
     check("seen once on the player: its picture is kept",
-          lua.eval("Options('SimpleBuffTracker_Buffs').args.buff1.icon") == 136000
+          lua.eval("ns.Services.Buff.Icon(SimpleBuffTrackerDB.buffs[1])") == 136000
           and lua.eval("SimpleBuffTrackerDB.buffs[1].target.spellId") == 19705)
     lua.execute("""
         auras = { { spellId = 23697, name = 'Mana Regeneration', icon = 137000, expirationTime = 0, duration = 0 } }
@@ -595,19 +646,18 @@ def test_icons():
         Slash('add Mana Regeneration')
     """)
     check("typed while the buff is on: picture right away",
-          lua.eval("Options('SimpleBuffTracker_Buffs').args.buff2.icon") == 137000)
+          lua.eval("ns.Services.Buff.Icon(SimpleBuffTrackerDB.buffs[2])") == 137000)
 
 
 def test_learned_icon_redraws_window():
     lua = new_runtime()
-    lua.execute("Slash('add Well Fed'); notified = 0")
+    lua.execute("Slash('add Well Fed'); Slash('buffs')")
+    check("before: question mark in the list", lua.eval("Rows()[1].icon.texture") == 134400)
     lua.execute("""
         auras = { { spellId = 19705, name = 'Well Fed', icon = 136000, expirationTime = clock + 900, duration = 900 } }
         Fire('UNIT_AURA', 'player')
     """)
-    check("a learned picture redraws the buff window", lua.eval("notified") >= 1)
-    lua.execute("notified = 0; RunTickers()")
-    check("nothing new: no redraw every tick", lua.eval("notified") == 0)
+    check("a learned picture redraws the window", lua.eval("Rows()[1].icon.texture") == 136000)
 
 
 def test_debug():
@@ -625,34 +675,8 @@ def test_debug():
     check("debug shows the match of each buff", "found=Well Fed" in text)
 
 
-def test_icon_field():
-    lua = new_runtime()
-    lua.execute("Slash('add Well Fed = item 2683'); Slash('buffs')")
-    check("no picked icon: the food's picture", lua.eval("Options('SimpleBuffTracker_Buffs').args.buff1.icon") == 133000 + 2683)
-    lua.execute("Options('SimpleBuffTracker_Buffs').args.buff1.args.icon.set(nil, '1459')")
-    check("a spell id sets the picture", lua.eval("Options('SimpleBuffTracker_Buffs').args.buff1.icon") == 135932)
-    check("an unknown spell is refused",
-          lua.eval("Options('SimpleBuffTracker_Buffs').args.buff1.args.icon.validate(nil, 'Nothing at all')") != True)
-    lua.execute("FocusField('buff1', 'icon'); ChatFrameUtil.InsertLink(...)", OIL_LINK)
-    check("a shift-clicked item sets the picture", lua.eval("SimpleBuffTrackerDB.buffs[1].icon") == 133000 + 20749)
-    lua.execute("""
-        aurasByInstance[7] = { spellId = 1459, name = 'Arcane Intellect' }
-        FocusField('buff1', 'icon')
-        ShiftClickBuff(7)
-    """)
-    check("a shift-clicked buff sets the picture by its id",
-          lua.eval("SimpleBuffTrackerDB.buffs[1].iconText") == "1459")
-    lua.execute("""
-        auras = { { spellId = 19705, name = 'Well Fed', icon = 136000, expirationTime = clock + 900, duration = 900 } }
-        Fire('UNIT_AURA', 'player')
-    """)
-    check("a picked icon wins over the aura's", lua.eval("secureButtons[1].state.icon") == 135932)
-    lua.execute("Options('SimpleBuffTracker_Buffs').args.buff1.args.icon.set(nil, '')")
-    check("empty: automatic again", lua.eval("secureButtons[1].state.icon") == 136000)
-
-
-def labels(lua, query):
-    found = lua.eval("ns.Dataflows.IconSearch.Search(...)", query)
+def labels(lua, query, sources="ALL"):
+    found = lua.eval("ns.Dataflows.IconSearch.Search(..., ns.Dataflows.IconSearch.SOURCES.%s)" % sources, query)
     return [found[i].label for i in range(1, len(found) + 1)]
 
 
@@ -666,54 +690,56 @@ def test_icon_search():
     check("a buff on you is found", labels(lua, "well") == ["Well Fed"])
     check("a spellbook spell is found", labels(lua, "arcane") == ["Arcane Intellect"])
     check("a bag item is found", labels(lua, "crab") == ["Crab Cake"])
+    check("the item field searches only the bags", labels(lua, "arcane", "ITEMS") == [])
+    check("the buff field does not search the bags", labels(lua, "crab", "BUFFS") == [])
     check("names starting with the query come first", labels(lua, "ar")[0] == "Arcane Intellect"
           and "Frost Armor" in labels(lua, "ar"))
     check("one letter: no search", labels(lua, "a") == [])
     check("a number is an id, not a search", labels(lua, "1459") == [])
     lua.execute("C_Container.GetContainerNumSlots = function() error('broken bags') end")
     check("a failing source does not stop the others", labels(lua, "arcane") == ["Arcane Intellect"])
-    found = lua.eval("ns.Dataflows.IconSearch.Search('hidden')")
-    check("a buff without a plain spell id gives its picture id", found[1].text == "icon:136001")
-    check("the picture id is read back", lua.eval("ns.Dataflows.BuffParser.ParseIcon('icon:136001')") == 136001
+    check("picture ids are read back", lua.eval("ns.Dataflows.BuffParser.ParseIcon('icon:136001')") == 136001
           and lua.eval("ns.Dataflows.BuffParser.ParseIcon('item:2683')") == 133000 + 2683)
 
 
-def test_suggest_edit_box():
+def test_suggestions():
     lua = new_runtime()
+    lua.execute("Slash('add Well Fed = item 2683'); Slash('buffs')")
+    lua.execute("TypeInto(FindField('icon'), 'arc')")
+    check("typing shows suggestions", len(lua.eval("ShownSuggestions()")) == 1
+          and lua.eval("ShownSuggestions()[1].label.text") == "Arcane Intellect")
+    lua.execute("local row = ShownSuggestions()[1]; row.scripts.OnClick(row)")
+    check("a click saves the suggestion", lua.eval("SimpleBuffTrackerDB.buffs[1].iconText") == "1459"
+          and lua.eval("SimpleBuffTrackerDB.buffs[1].icon") == 135932)
+    check("and hides the list", len(lua.eval("ShownSuggestions()")) == 0)
+
+    lua.execute("TypeInto(FindField('sourceValue'), 'cra')")
+    check("the item field suggests bag items", lua.eval("ShownSuggestions()[1].label.text") == "Crab Cake")
     lua.execute("""
-        box = LibStub('AceGUI-3.0').WidgetRegistry[ns.UI.SUGGEST_EDIT_BOX]()
-        box:SetCustomData(ns.Dataflows.IconSearch.Search)
-        function ShownRows()
-            local rows = {}
-            for _, frame in ipairs(allFrames) do
-                local parent = rawget(frame, 'parent')
-                local isRow = parent and rawget(parent, 'strata') == 'TOOLTIP' and rawget(frame, 'label')
-                if isRow and frame.shown and frame.parent.shown then
-                    table.insert(rows, frame)
-                end
-            end
-            return rows
-        end
+        local input = FindField('sourceValue')
+        input.scripts.OnArrowPressed(input, 'DOWN')
+        input.scripts.OnEnterPressed(input)
     """)
-    check("the widget has its own type", lua.eval("box.type") == "SimpleBuffTrackerSuggestEditBox")
-    lua.execute("Slash('add Well Fed')")
-    check("the icon field uses it",
-          lua.eval("Options('SimpleBuffTracker_Buffs').args.buff1.args.icon.dialogControl")
-          == "SimpleBuffTrackerSuggestEditBox")
+    check("Down + Enter takes the highlighted row",
+          lua.eval("SimpleBuffTrackerDB.buffs[1].source.itemId") == 2683
+          and len(lua.eval("ShownSuggestions()")) == 0)
 
-    lua.execute("Type(box.editbox, 'arc')")
-    check("typing shows the list", lua.eval("#ShownRows()") == 1
-          and lua.eval("ShownRows()[1].label.text") == "Arcane Intellect")
-    lua.execute("ShownRows()[1].scripts.OnClick(ShownRows()[1])")
-    check("a click on a row saves its text like Enter",
-          lua.eval("box.fired[1]") == "1459" and lua.eval("box.editbox.value") == "1459")
-    check("and hides the list", lua.eval("#ShownRows()") == 0)
+    lua.execute("TypeInto(FindField('aura'), 'zzz')")
+    check("nothing found: no list", len(lua.eval("ShownSuggestions()")) == 0)
 
-    lua.execute("Type(box.editbox, 'zzz')")
-    check("nothing found: no list", lua.eval("#ShownRows()") == 0)
-    lua.execute("Type(box.editbox, 'crab'); box:OnRelease()")
-    check("release hides the list and forgets the search",
-          lua.eval("#ShownRows()") == 0 and lua.eval("box.search") is None)
+
+def test_action_bar_look():
+    lua = new_runtime()
+    lua.execute("Slash('add Arcane Intellect = spell')")
+    found = lua.eval("""(function()
+        for _, frame in ipairs(allFrames) do
+            if rawget(frame, 'parent') == secureButtons[1] and frame.template == 'ActionButtonTemplate' then
+                return true
+            end
+        end
+        return false
+    end)()""")
+    check("the icon is the action bar template inside the secure button", found is True)
 
 
 def test_russian():
@@ -725,15 +751,16 @@ def test_russian():
 def main():
     test_buffs()
     test_minimap()
-    test_settings()
+    test_window_editing()
+    test_warn_seconds()
     test_shift_click()
     test_item_link()
     test_icons()
     test_learned_icon_redraws_window()
     test_debug()
-    test_icon_field()
     test_icon_search()
-    test_suggest_edit_box()
+    test_suggestions()
+    test_action_bar_look()
     test_russian()
     if failures:
         print("\n%d failed" % len(failures))

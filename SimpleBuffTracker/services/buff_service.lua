@@ -7,6 +7,7 @@ ns.Services = ns.Services or {}
 local Buff = ns.Models.Buff
 local AuraScan = ns.Dataflows.AuraScan
 local WeaponEnchant = ns.Dataflows.WeaponEnchant
+local BuffParser = ns.Dataflows.BuffParser
 local Spell = ns.Utilities.Spell
 local Item = ns.Utilities.Item
 local SOURCE_KIND = ns.Constants.SOURCE_KIND
@@ -44,6 +45,104 @@ function BuffService.Move(index, offset)
     buffs[index] = buffs[otherIndex]
     buffs[otherIndex] = moved
     return true
+end
+
+-- Edits from the buff window. Each takes what the player typed (trimmed); the
+-- ones that can fail return nil and the key of the error text, else true.
+
+-- what is tracked: "aura" or a weapon slot (ns.Constants.WEAPON_SLOT)
+function BuffService.SetTargetKind(buff, kind)
+    if kind == "aura" then
+        if buff.target.weapon then
+            buff.target = {}
+        end
+        return
+    end
+    buff.target = { weapon = kind }
+end
+
+-- the aura: a name, a spell id or a spell link; empty -- none yet
+function BuffService.SetAuraText(buff, text)
+    if text == "" then
+        buff.target = {}
+        return
+    end
+    buff.target = BuffParser.ParseSpell(text)
+end
+
+-- how a click puts it back: "none", "spell" or "item"
+function BuffService.SetSourceKind(buff, kind)
+    local currentKind = buff.source and buff.source.kind
+    if kind == currentKind then
+        return
+    end
+    if kind == "none" then
+        buff.source = nil
+    elseif kind == SOURCE_KIND.SPELL and not buff.target.weapon then
+        -- most buffs are cast by the spell of the same name
+        buff.source = { kind = SOURCE_KIND.SPELL, spellId = buff.target.spellId, name = buff.target.name }
+    else
+        buff.source = { kind = kind }
+    end
+end
+
+-- the spell or item of the source, by the kind already chosen
+function BuffService.SetSourceText(buff, text)
+    local kind = buff.source and buff.source.kind
+    if not kind then
+        return true
+    end
+    if text == "" then
+        buff.source = { kind = kind }
+        return true
+    end
+    if kind == SOURCE_KIND.ITEM then
+        local itemId = BuffParser.ParseItemId(text)
+        if not itemId then
+            return nil, "messages.unknown_item"
+        end
+        buff.source = { kind = kind, itemId = itemId }
+        return true
+    end
+    local spell = BuffParser.ParseSpell(text)
+    buff.source = { kind = kind, spellId = spell.spellId, name = spell.name }
+    return true
+end
+
+-- a picture of its own; empty -- automatic again
+function BuffService.SetIconText(buff, text)
+    if text == "" then
+        buff.icon = nil
+        buff.iconText = nil
+        return true
+    end
+    local icon = BuffParser.ParseIcon(text)
+    if not icon then
+        return nil, "messages.unknown_icon"
+    end
+    buff.icon = icon
+    buff.iconText = text
+    return true
+end
+
+-- what the fields show: the aura, the spell or item of the source
+function BuffService.AuraText(buff)
+    local target = buff.target
+    return target.name or (target.spellId and tostring(target.spellId)) or ""
+end
+
+function BuffService.SourceText(buff)
+    local source = buff.source
+    if not source then
+        return ""
+    end
+    if source.kind == SOURCE_KIND.SPELL then
+        return source.name or (source.spellId and tostring(source.spellId)) or ""
+    end
+    if not source.itemId then
+        return ""
+    end
+    return Item.Name(source.itemId) or tostring(source.itemId)
 end
 
 local function TargetIcon(buff)
@@ -133,7 +232,9 @@ function BuffService.VisibleStates()
 
     local states = {}
     for index, buff in ipairs(ns.db.buffs) do
-        local state = Evaluate(buff, index, now, weapons, settings.warnSeconds)
+        -- a buff's own warning time, or the panel's
+        local warnSeconds = buff.warnSeconds or settings.warnSeconds
+        local state = Evaluate(buff, index, now, weapons, warnSeconds)
         local isNeeded = not state.isActive or state.isExpiring
         if not onlyMissing or isNeeded then
             table.insert(states, state)

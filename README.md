@@ -11,14 +11,20 @@ A World of Warcraft addon (Forever client, interface 16001): your buffs as icons
   stone or poison, put on the weapon right away. Without a source the buff is
   only tracked.
 
-## Settings
+## Window
 
-* **Buff window** (left click on the minimap button, or `/sbt buffs`): the buffs --
-  add, edit, reorder, delete. Drag a spell from the spellbook or an item from the
-  bags into a field, or shift-click a buff of yours (top right of the screen): into
-  the field you are typing in, or as a new buff.
-* **Panel settings** -- Options -> AddOns -> Simple Buff Tracker (shift + left click
-  on the minimap button, or `/sbt config`).
+Left click on the minimap button or `/sbt buffs`:
+
+* **Buffs** -- the tracked buffs on the left; on the right the chosen one: what is
+  tracked, how a click puts it back, its icon, how long before its end it shows up.
+  Every field suggests pictures and names while you type (your buffs, spellbook,
+  bags); while typing, shift-click an item in the bags, a spell in the spellbook or a
+  buff of yours (top right of the screen). With no field in focus a shift-clicked
+  buff of yours is added as a new one.
+* **Panel** (shift + left click, or `/sbt config`) -- the mode, icon size, icons in a
+  row, spacing, the warning time, unlock, the minimap button.
+
+The icons on the panel look like the buttons of the action bars.
 
 ## Commands
 

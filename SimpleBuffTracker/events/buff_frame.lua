@@ -1,5 +1,5 @@
 -- buff_frame.lua -- shift-click on a buff in the client's own buff frame (top
--- right): the buff goes into the buff window (components/settings_window.lua).
+-- right): the buff goes into the addon window (components/main_window.lua).
 --
 -- On Forever the buff buttons are AuraButtonMixin (Blizzard_BuffFrame/BuffFrame.lua):
 -- a click on a buff fires EventRegistry "BuffButton.OnClick" (button frame, mouse
@@ -35,7 +35,7 @@ local function OnBuffClick(_, buttonFrame, mouseButton)
     local spellId = Plain(aura.spellId)
     local name = Plain(aura.name)
     if spellId or name then
-        ns.Components.SettingsWindow.PickAura(spellId, name)
+        ns.Components.MainWindow.PickAura(spellId, name)
     end
 end
 
