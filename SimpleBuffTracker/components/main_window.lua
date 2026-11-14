@@ -94,6 +94,13 @@ local function Create()
 
     buffList = ns.Components.BuffList.Create(buffsTab, {
         onSelect = Select,
+        -- a dragged row: the buff keeps being the chosen one at its new place
+        onMove = function(fromIndex, toIndex)
+            if BuffService.MoveTo(fromIndex, toIndex) then
+                selectedIndex = toIndex
+            end
+            Changed()
+        end,
         onAdd = function()
             BuffService.Add(Buff.New({}, nil))
             selectedIndex = #BuffService.List()

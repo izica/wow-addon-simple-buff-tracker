@@ -80,7 +80,7 @@ function Frame:CreateFontString() return NewFrame() end
 function Frame:GetCountdownFontString() return NewFrame() end
 function Frame:GetText() return self.text end
 function Frame:GetWidth() return 300 end
-function Frame:IsMouseOver() return false end
+function Frame:IsMouseOver() return rawget(self, "mouseOver") == true end
 function Frame:SetChecked(value) self.checked = value end
 function Frame:GetChecked() return self.checked end
 function Frame:SetEnabled(value) self.enabled = value end
@@ -848,6 +848,40 @@ def icon_field_top(lua):
     return lua.eval("FindField('icon').points.TOPLEFT[5]")
 
 
+def names(lua):
+    count = int(lua.eval("#SimpleBuffTrackerDB.buffs"))
+    return [lua.eval("SimpleBuffTrackerDB.buffs[%d].target.name" % i) for i in range(1, count + 1)]
+
+
+def test_drag_order():
+    lua = new_runtime()
+    lua.execute("""
+        Slash('add Arcane Intellect')
+        Slash('add Well Fed')
+        Slash('add Trueshot Aura')
+        Slash('buffs')
+        function DragRow(from, to)
+            local rows = Rows()
+            local row = rows[from]
+            row.scripts.OnDragStart(row)
+            rows[to].mouseOver = true
+            frameUpdate = row
+            row.scripts.OnDragStop(row)
+            rows[to].mouseOver = false
+        end
+    """)
+    lua.execute("DragRow(1, 3)")
+    check("a row dragged down goes under the others",
+          names(lua) == ["Well Fed", "Trueshot Aura", "Arcane Intellect"])
+    check("the list and the panel follow", lua.eval("Rows()[3].label.text") == "Arcane Intellect"
+          and lua.eval("secureButtons[3].state.buff.target.name") == "Arcane Intellect")
+    check("the dragged buff stays chosen", lua.eval("Rows()[3].selection.shown") is True)
+    lua.execute("DragRow(3, 1)")
+    check("and back to the top", names(lua) == ["Arcane Intellect", "Well Fed", "Trueshot Aura"])
+    lua.execute("DragRow(2, 2)")
+    check("dropped on its own place: nothing changes", names(lua) == ["Arcane Intellect", "Well Fed", "Trueshot Aura"])
+
+
 def test_fields_stack():
     lua = new_runtime()
     lua.execute("Slash('add Arcane Intellect = item 2683'); Slash('buffs')")
@@ -911,6 +945,7 @@ def main():
     test_seen_buffs()
     test_suggestions()
     test_drag_and_previews()
+    test_drag_order()
     test_fields_stack()
     test_editor_fits()
     test_action_bar_look()

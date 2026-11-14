@@ -1,5 +1,7 @@
 -- buff_list.lua -- the left side of the Buffs tab: the tracked buffs as rows
 -- with a picture and a name, the chosen one highlighted, "Add buff" under them.
+-- A row dragged with the mouse goes to another place (the order of the panel):
+-- a gold line shows where it will land.
 
 local ADDON, ns = ...
 ns.Components = ns.Components or {}
@@ -21,8 +23,12 @@ local NOTE_ROOM = 44             -- the list ends above the note (up to three li
 local NOTE_COLOR = { 0.6, 0.6, 0.6 }
 local SELECTED_COLOR = { 1, 0.82, 0, 0.18 }
 local HIGHLIGHT_TEXTURE = "Interface\\QuestFrame\\UI-QuestTitleHighlight"
+local INSERT_LINE_HEIGHT = 2
+local INSERT_LINE_COLOR = { 1, 0.82, 0, 1 }
+local DRAGGED_ALPHA = 0.5
 
--- options: onSelect(index), onAdd(); returns the list frame, list:Refresh(selectedIndex)
+-- options: onSelect(index), onAdd(), onMove(fromIndex, toIndex) -- a row was
+-- dragged to another place; returns the list frame, list:Refresh(selectedIndex)
 function BuffList.Create(parent, options)
     local frame = ns.UI.InsetPanel(parent, {})
 
@@ -47,6 +53,70 @@ function BuffList.Create(parent, options)
     area:SetPoint("BOTTOMRIGHT", addButton, "TOPRIGHT", -ns.UI.SCROLL_AREA_BAR_SPACE, NOTE_ROOM)
 
     local rows = {}
+    local rowCount = 0       -- rows[1..rowCount] show buffs
+    local dragFrom = nil     -- the place of the row being dragged
+
+    -- where a dragged row goes in: the line above or under the row it will take
+    local insertLine = area.content:CreateTexture(nil, "OVERLAY")
+    insertLine:SetHeight(INSERT_LINE_HEIGHT)
+    insertLine:SetColorTexture(INSERT_LINE_COLOR[1], INSERT_LINE_COLOR[2], INSERT_LINE_COLOR[3], INSERT_LINE_COLOR[4])
+    insertLine:Hide()
+
+    -- the place under the mouse: the row it is over; above the rows -- the first,
+    -- under them -- the last
+    local function DropIndex()
+        for index = 1, rowCount do
+            if rows[index]:IsMouseOver() then
+                return index
+            end
+        end
+        local _, cursorY = GetCursorPosition()
+        local scale = frame:GetEffectiveScale()
+        local firstTop = rows[1] and rows[1]:GetTop()
+        local isAbove = firstTop ~= nil and cursorY / scale > firstTop
+        if isAbove then
+            return 1
+        end
+        return rowCount
+    end
+
+    local function ShowInsertLine()
+        local target = DropIndex()
+        if not dragFrom or target == dragFrom then
+            insertLine:Hide()
+            return
+        end
+        local row = rows[target]
+        local edge = "BOTTOM"
+        if target < dragFrom then
+            edge = "TOP"
+        end
+        insertLine:ClearAllPoints()
+        insertLine:SetPoint("LEFT", row, edge .. "LEFT")
+        insertLine:SetPoint("RIGHT", row, edge .. "RIGHT")
+        insertLine:Show()
+    end
+
+    local function StartDrag(row)
+        dragFrom = row.index
+        row:SetAlpha(DRAGGED_ALPHA)
+        frame:SetScript("OnUpdate", ShowInsertLine)
+    end
+
+    local function StopDrag(row)
+        frame:SetScript("OnUpdate", nil)
+        insertLine:Hide()
+        row:SetAlpha(1)
+        local from = dragFrom
+        dragFrom = nil
+        if not from then
+            return
+        end
+        local target = DropIndex()
+        if target ~= from then
+            options.onMove(from, target)
+        end
+    end
 
     local function GetRow(index)
         local row = rows[index]
@@ -77,6 +147,9 @@ function BuffList.Create(parent, options)
         row:SetScript("OnClick", function(self)
             options.onSelect(self.index)
         end)
+        row:RegisterForDrag("LeftButton")
+        row:SetScript("OnDragStart", StartDrag)
+        row:SetScript("OnDragStop", StopDrag)
         rows[index] = row
         return row
     end
@@ -94,6 +167,7 @@ function BuffList.Create(parent, options)
         for index = #buffs + 1, #rows do
             rows[index]:Hide()
         end
+        rowCount = #buffs
         area:SetContentHeight(#buffs * ROW_HEIGHT, true)
     end
 

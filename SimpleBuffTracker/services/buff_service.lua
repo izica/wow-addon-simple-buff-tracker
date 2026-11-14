@@ -47,6 +47,19 @@ function BuffService.Move(index, offset)
     return true
 end
 
+-- take the buff out of its place and put it at toIndex (the list dragged in
+-- the buff window); false -- no such places
+function BuffService.MoveTo(fromIndex, toIndex)
+    local buffs = ns.db.buffs
+    local isValid = buffs[fromIndex] ~= nil and toIndex >= 1 and toIndex <= #buffs
+    if not isValid or fromIndex == toIndex then
+        return false
+    end
+    local moved = table.remove(buffs, fromIndex)
+    table.insert(buffs, toIndex, moved)
+    return true
+end
+
 -- Edits from the buff window. Each takes what the player typed (trimmed); the
 -- ones that can fail return nil and the key of the error text, else true.
 
