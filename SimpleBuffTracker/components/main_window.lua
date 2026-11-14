@@ -14,7 +14,6 @@ ns.Components = ns.Components or {}
 local Text = ns.Localization.Text
 local Buff = ns.Models.Buff
 local BuffService = ns.Services.Buff
-local SOURCE_KIND = ns.Constants.SOURCE_KIND
 
 local MainWindow = {}
 ns.Components.MainWindow = MainWindow
@@ -187,20 +186,9 @@ function MainWindow.PickLink(link)
     if not MainWindow.IsOpen() then
         return
     end
-    local input, key, buff = buffEditor:FocusedField()
-    if not input then
-        return
-    end
-    local isItemLink = link:find("|Hitem:") ~= nil
-    local isSpellLink = link:find("|Hspell:") ~= nil
-    local isIconField = key == "icon"
-    local isItemField = key == "sourceValue" and buff.source ~= nil and buff.source.kind == SOURCE_KIND.ITEM
-    local isSpellField = not isIconField and not isItemField
-    local isTaken = (isIconField and (isItemLink or isSpellLink))
-        or (isItemField and isItemLink)
-        or (isSpellField and isSpellLink)
-    if isTaken then
-        input:Put(link)
+    local input = buffEditor:FocusedField()
+    if input then
+        buffEditor:TakeLink(input, link)
     end
 end
 
@@ -212,10 +200,10 @@ function MainWindow.PickAura(spellId, name)
     if not MainWindow.IsOpen() then
         return false
     end
-    local input, key, buff = buffEditor:FocusedField()
+    local input, key = buffEditor:FocusedField()
     if input then
-        local isItemField = key == "sourceValue" and buff.source ~= nil and buff.source.kind == SOURCE_KIND.ITEM
-        if isItemField then
+        -- a buff is a spell: only the fields that take spells
+        if not input.field.takes("spell") then
             return false
         end
         if key == "icon" and spellId then

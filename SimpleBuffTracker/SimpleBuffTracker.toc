@@ -3,7 +3,7 @@
 ## Notes: Your buffs as icons on one panel: all with timers or only the missing ones. Click an icon to put the buff back.
 ## IconTexture: Interface\Icons\Spell_Holy_WordFortitude
 ## Author: izica
-## Version: 0.8.2
+## Version: 0.8.3
 ## SavedVariablesPerCharacter: SimpleBuffTrackerDB
 
 libs\LibStub\LibStub.lua

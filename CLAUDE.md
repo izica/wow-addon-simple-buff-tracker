@@ -46,6 +46,10 @@ python tests/run_tests.py
   удалить (StaticPopup). Поле сохраняет по Enter и при потере фокуса, **только если текст
   изменился** (имя предмета не в сумках обратно не разберётся). Ошибка — красным под полями.
   Правки — `BuffService.SetTargetKind/SetAuraText/SetSourceKind/SetSourceText/SetIconText`.
+* У каждого поля одно описание (`AddInput` в редакторе): что читает/пишет, где ищет подсказки, какие
+  ссылки берёт (`takes("spell"|"item")`), текст в пустом поле (placeholder: «перетащи или shift-клик»),
+  картинка справа с тултипом игры (`SetItemByID` / `SetSpellByID`). Перетаскивание — `OnReceiveDrag` и клик
+  с предметом на курсоре (`GetCursorInfo`), шифт-клик — `MainWindow.PickLink`; оба через `editor:TakeLink`.
 * **Панель**: `components/panel_settings.lua` — режим, размер, ряд, отступ, порог, разблокировка,
   закрепить панель (галочка = закреплена), кнопка миникарты.
 * **Подсказки** во всех полях: `ui/suggestions.lua` (общий список под полем, страта TOOLTIP,

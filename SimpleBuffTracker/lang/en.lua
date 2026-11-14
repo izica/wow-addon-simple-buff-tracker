@@ -129,11 +129,15 @@ ns.Localization.Add("en", [==[
         "icon": "Icon (empty -- automatic)",
         "buff_warn": "Show before it runs out",
         "warn_default": "as the panel (%s)",
-        "edit_hint": "Type a name for suggestions. While typing in a field: shift-click an item in the bags, a spell in the spellbook or a buff of yours.",
+        "edit_hint": "Fields suggest names as you type. Shift-click works while a field is in focus; a shift-clicked buff of yours with no field in focus is added as a new one.",
         "move_up": "Up",
         "move_down": "Down",
         "remove": "Delete",
-        "remove_confirm": "Stop tracking %s?"
+        "remove_confirm": "Stop tracking %s?",
+        "aura_placeholder": "Type a name, or shift-click / drag a spell",
+        "spell_placeholder": "Drag a spell here or shift-click it",
+        "item_placeholder": "Drag an item here or shift-click it in the bags",
+        "icon_placeholder": "Empty: automatic. Type a name, drag or shift-click"
     }
 }
 ]==])

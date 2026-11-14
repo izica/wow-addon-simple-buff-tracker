@@ -4,14 +4,20 @@
 -- Text fields save on Enter or when they lose the focus, only if the text was
 -- changed (a name shown for an item may not parse back when the item is not in
 -- the bags). While typing, suggestions with pictures drop under a field
--- (ui/suggestions.lua, dataflows/icon_search.lua). An edit that fails shows its
--- reason in red in the button row.
+-- (ui/suggestions.lua, dataflows/icon_search.lua). A spell from the spellbook
+-- or an item from the bags can be dragged onto a field, or shift-clicked while
+-- the field is in focus (MainWindow.PickLink); an empty field says so. Right of
+-- the buff, spell and item fields stands their picture, with the game's tooltip
+-- of the spell or item on hover. An edit that fails shows its reason in red in
+-- the button row.
 
 local ADDON, ns = ...
 ns.Components = ns.Components or {}
 
 local Text = ns.Localization.Text
 local Trim = ns.Utilities.Trim
+local Spell = ns.Utilities.Spell
+local Item = ns.Utilities.Item
 local BuffService = ns.Services.Buff
 local IconSearch = ns.Dataflows.IconSearch
 local SOURCE_KIND = ns.Constants.SOURCE_KIND
@@ -24,10 +30,12 @@ local TARGET_AURA = "aura"
 local SOURCE_NONE = "none"
 
 local PADDING = 18
-local PREVIEW_SIZE = 32
+local PREVIEW_SIZE = 28
 local PREVIEW_GAP = 12
--- every control ends on one line; the icon preview stands right of it
+local PREVIEW_ART_GAP = 8     -- the field's art sticks out this far right of its frame
+-- every control ends on one line; the pictures stand right of it
 local RIGHT_INSET = PADDING + PREVIEW_SIZE + PREVIEW_GAP
+local ICON_CROP = 0.08
 local HINT_HEIGHT = 28
 local BUTTON_GAP = 10
 local BUTTON_WIDTH = 90
@@ -41,7 +49,7 @@ local WARN_STEPS = { WARN_DEFAULT, 0, 15, 30, 60, 120, 180, 300, 600, 900, 1200,
 local WARN_VALUE_WIDTH = 130
 
 -- what goes into a field for a picked suggestion
-local function AuraTextOf(suggestion)
+local function NameOf(suggestion)
     return suggestion.label
 end
 
@@ -62,13 +70,63 @@ local function IconTextOf(suggestion)
     return "icon:" .. suggestion.icon
 end
 
+-- What the cursor holds, as a link: a spell dragged from the spellbook or an
+-- item from the bags; nil -- nothing of that.
+local function CursorLink()
+    if not GetCursorInfo then
+        return nil
+    end
+    local kind, first, second, third = GetCursorInfo()
+    if kind == "item" then
+        return second or ("item:" .. tostring(first))
+    end
+    if kind == "spell" then
+        -- modern clients: "spell", slot, book, spellID
+        local spellId = third or first
+        local link = C_Spell and C_Spell.GetSpellLink and C_Spell.GetSpellLink(spellId)
+        return link or ("|Hspell:" .. tostring(spellId) .. "|h")
+    end
+    return nil
+end
+
+-- A picture with the game's tooltip on hover. getInfo() -> icon, showTooltip(tooltip) or nil.
+local function NewPreview(parent, getInfo)
+    local preview = CreateFrame("Button", nil, parent)
+    preview:SetSize(PREVIEW_SIZE, PREVIEW_SIZE)
+    local texture = preview:CreateTexture(nil, "ARTWORK")
+    texture:SetAllPoints()
+    texture:SetTexCoord(ICON_CROP, 1 - ICON_CROP, ICON_CROP, 1 - ICON_CROP)
+    preview.texture = texture
+
+    preview:SetScript("OnEnter", function(self)
+        local _, showTooltip = getInfo()
+        if not showTooltip then
+            return
+        end
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        showTooltip(GameTooltip)
+        GameTooltip:Show()
+    end)
+    preview:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+
+    function preview:Refresh()
+        local icon = getInfo()
+        self.texture:SetTexture(icon)
+        self:SetShown(icon ~= nil)
+    end
+    return preview
+end
+
 -- options: onChanged() -- after any edit; onMove(index, offset), onDelete(index)
 function BuffEditor.Create(parent, options)
     local frame = ns.UI.InsetPanel(parent, {})
     local buff = nil
     local buffIndex = nil
     local buffCount = 0
-    local inputs = {}   -- [field key] = input
+    local inputs = {}     -- [field key] = input
+    local previews = {}   -- pictures right of the fields
     local form = ns.UI.FormLayout(frame, { padding = PADDING, rightInset = RIGHT_INSET })
 
     local errorText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -81,6 +139,10 @@ function BuffEditor.Create(parent, options)
         else
             errorText:SetText("")
         end
+    end
+
+    local function IsItemSource()
+        return buff ~= nil and buff.source ~= nil and buff.source.kind == SOURCE_KIND.ITEM
     end
 
     local function AddSelect(textKey, choices, selected, onChange)
@@ -102,10 +164,11 @@ function BuffEditor.Create(parent, options)
         return select
     end
 
-    -- key -- the field name, for shift-clicks; read(buff) -> text;
-    -- save(buff, text) -> ok, errorKey; sources -- IconSearch.SOURCES or a function
-    -- returning them, textOf(suggestion) -> the text a picked suggestion puts in
-    local function AddInput(key, textKey, read, save, sources, textOf)
+    -- key -- the field name; field: read(buff) -> text, save(buff, text) -> ok, errorKey,
+    -- sources() -> IconSearch.SOURCES, textOf(suggestion) -> text,
+    -- takes(linkKind) -> whether a "spell" / "item" link fits, placeholder() -> text,
+    -- preview() -> icon, showTooltip(tooltip) -- the picture right of the field (optional)
+    local function AddInput(key, textKey, field)
         local label = form:Label(Text(textKey))
         local input = nil
 
@@ -117,7 +180,7 @@ function BuffEditor.Create(parent, options)
             if text == input.shownText then
                 return
             end
-            local _, errorKey = save(buff, text)
+            local _, errorKey = field.save(buff, text)
             ShowError(errorKey)
             if not errorKey then
                 options.onChanged()
@@ -127,6 +190,7 @@ function BuffEditor.Create(parent, options)
         input = ns.UI.Input(frame, {
             width = 100,   -- the form stretches it
             fontObject = "GameFontHighlight",   -- the same font as the dropdowns
+            placeholder = "",
             onEnter = function()
                 input:TakeHighlighted()
             end,
@@ -140,14 +204,10 @@ function BuffEditor.Create(parent, options)
 
         ns.UI.AttachSuggestions(input, {
             search = function(text)
-                local fieldSources = sources
-                if type(sources) == "function" then
-                    fieldSources = sources()
-                end
-                return IconSearch.Search(text, fieldSources)
+                return IconSearch.Search(text, field.sources())
             end,
             onChoose = function(suggestion)
-                local text = textOf(suggestion)
+                local text = field.textOf(suggestion)
                 input:SetText(text)
                 Save(text)
                 input:ClearFocus()
@@ -156,12 +216,34 @@ function BuffEditor.Create(parent, options)
 
         input.fieldKey = key
         input.label = label
-        input.read = read
-        -- put a text in as if typed and confirmed (shift-clicks)
+        input.field = field
+        -- put a text in as if typed and confirmed (shift-clicks, drops)
         function input:Put(text)
             self:SetText(text)
             Save(text)
             self:ClearFocus()
+        end
+
+        -- a spell or an item dropped on the field (or clicked onto it while carried)
+        local function Drop()
+            local link = CursorLink()
+            if link and frame:TakeLink(input, link) then
+                ClearCursor()
+            end
+        end
+        input:HookScript("OnReceiveDrag", Drop)
+        input:HookScript("OnMouseDown", function()
+            if GetCursorInfo and GetCursorInfo() then
+                Drop()
+            end
+        end)
+
+        if field.preview then
+            local preview = NewPreview(frame, field.preview)
+            -- right of the drawn edge of the field
+            preview:SetPoint("LEFT", input, "RIGHT", PREVIEW_ART_GAP + PREVIEW_GAP, 0)
+            input.preview = preview
+            table.insert(previews, preview)
         end
         inputs[key] = input
         return input
@@ -179,8 +261,33 @@ function BuffEditor.Create(parent, options)
         BuffService.SetTargetKind(buff, value)
     end)
 
-    local auraInput = AddInput("aura", "settings.aura", BuffService.AuraText,
-        BuffService.SetAuraText, IconSearch.SOURCES.BUFFS, AuraTextOf)
+    local auraInput = AddInput("aura", "settings.aura", {
+        read = BuffService.AuraText,
+        save = BuffService.SetAuraText,
+        sources = function()
+            return IconSearch.SOURCES.BUFFS
+        end,
+        textOf = NameOf,
+        takes = function(linkKind)
+            return linkKind == "spell"
+        end,
+        placeholder = function()
+            return Text("settings.aura_placeholder")
+        end,
+        preview = function()
+            if not buff then
+                return nil
+            end
+            local spellId = buff.target.spellId
+            local icon = buff.target.icon or Spell.Icon(spellId or buff.target.name)
+            if not spellId then
+                return icon
+            end
+            return icon, function(tooltip)
+                tooltip:SetSpellByID(spellId)
+            end
+        end,
+    })
 
     local sourceSelect = AddSelect("settings.source", function()
         return {
@@ -194,31 +301,78 @@ function BuffEditor.Create(parent, options)
         BuffService.SetSourceKind(buff, value)
     end)
 
-    -- the source field searches spells or bag items, by the kind chosen
-    local function IsItemSource()
-        return buff ~= nil and buff.source ~= nil and buff.source.kind == SOURCE_KIND.ITEM
-    end
-    local sourceInput = AddInput("sourceValue", "settings.source_spell_value", BuffService.SourceText,
-        BuffService.SetSourceText, function()
+    -- the source field: spells or bag items, by the kind chosen
+    local sourceInput = AddInput("sourceValue", "settings.source_spell_value", {
+        read = BuffService.SourceText,
+        save = BuffService.SetSourceText,
+        sources = function()
             if IsItemSource() then
                 return IconSearch.SOURCES.ITEMS
             end
             return IconSearch.SOURCES.SPELLS
-        end, function(suggestion)
+        end,
+        textOf = function(suggestion)
             if IsItemSource() then
                 return ItemTextOf(suggestion)
             end
-            return AuraTextOf(suggestion)
-        end)
+            return NameOf(suggestion)
+        end,
+        takes = function(linkKind)
+            if IsItemSource() then
+                return linkKind == "item"
+            end
+            return linkKind == "spell"
+        end,
+        placeholder = function()
+            if IsItemSource() then
+                return Text("settings.item_placeholder")
+            end
+            return Text("settings.spell_placeholder")
+        end,
+        preview = function()
+            local source = buff and buff.source
+            if not source then
+                return nil
+            end
+            if source.kind == SOURCE_KIND.ITEM then
+                local itemId = source.itemId
+                if not itemId then
+                    return nil
+                end
+                return Item.Icon(itemId), function(tooltip)
+                    tooltip:SetItemByID(itemId)
+                end
+            end
+            local spellId = source.spellId
+            local icon = Spell.Icon(spellId or source.name)
+            if not spellId then
+                return icon
+            end
+            return icon, function(tooltip)
+                tooltip:SetSpellByID(spellId)
+            end
+        end,
+    })
 
-    local iconInput = AddInput("icon", "settings.icon", function(edited)
-        return edited.iconText or ""
-    end, BuffService.SetIconText, IconSearch.SOURCES.ALL, IconTextOf)
-
-    local preview = frame:CreateTexture(nil, "ARTWORK")
-    preview:SetSize(PREVIEW_SIZE, PREVIEW_SIZE)
-    -- right of the drawn edge of the icon field (its art sticks out 8 pixels)
-    preview:SetPoint("LEFT", iconInput, "RIGHT", 8 + PREVIEW_GAP, 0)
+    local iconInput = AddInput("icon", "settings.icon", {
+        read = function(edited)
+            return edited.iconText or ""
+        end,
+        save = BuffService.SetIconText,
+        sources = function()
+            return IconSearch.SOURCES.ALL
+        end,
+        textOf = IconTextOf,
+        takes = function(linkKind)
+            return linkKind == "spell" or linkKind == "item"
+        end,
+        placeholder = function()
+            return Text("settings.icon_placeholder")
+        end,
+        preview = function()
+            return buff and BuffService.Icon(buff)
+        end,
+    })
 
     -- how long before the end the buff counts as missing: its own, or the panel's
     local warnLabel = form:Label(Text("settings.buff_warn"))
@@ -306,7 +460,7 @@ function BuffEditor.Create(parent, options)
 
     -- everything but the empty text: shown while a buff is chosen
     local parts = { targetSelect, targetSelect.label, auraInput, auraInput.label, sourceSelect,
-        sourceSelect.label, sourceInput, sourceInput.label, iconInput, iconInput.label, preview,
+        sourceSelect.label, sourceInput, sourceInput.label, iconInput, iconInput.label,
         warnLabel, warnSlider, hint, errorText, upButton, downButton, deleteButton }
 
     -- show a buff (nil -- none chosen); index and count -- its place in the list
@@ -320,6 +474,9 @@ function BuffEditor.Create(parent, options)
         end
         emptyText:SetShown(buff == nil)
         if not buff then
+            for _, preview in ipairs(previews) do
+                preview:Hide()
+            end
             return
         end
         if isNewBuff then
@@ -333,8 +490,7 @@ function BuffEditor.Create(parent, options)
         local hasSource = buff.source ~= nil
         sourceInput:SetShown(hasSource)
         sourceInput.label:SetShown(hasSource)
-        local isItemSource = hasSource and buff.source.kind == SOURCE_KIND.ITEM
-        if isItemSource then
+        if IsItemSource() then
             sourceInput.label:SetText(Text("settings.source_item_value"))
         else
             sourceInput.label:SetText(Text("settings.source_spell_value"))
@@ -342,13 +498,20 @@ function BuffEditor.Create(parent, options)
 
         for _, input in pairs(inputs) do
             if not input:HasFocus() then
-                input.shownText = input.read(buff)
+                input.shownText = input.field.read(buff)
                 input:SetText(input.shownText)
+            end
+            input.placeholder:SetText(input.field.placeholder())
+            input.placeholder:SetShown(input:GetText() == "")
+            if input.preview then
+                input.preview:Refresh()
+                if not input:IsShown() then
+                    input.preview:Hide()
+                end
             end
         end
         targetSelect:Refresh()
         sourceSelect:Refresh()
-        preview:SetTexture(BuffService.Icon(buff))
         warnSlider:SetValueOf(buff.warnSeconds or WARN_DEFAULT)
         upButton:SetEnabled(buffIndex > 1)
         downButton:SetEnabled(buffIndex < buffCount)
@@ -365,6 +528,26 @@ function BuffEditor.Create(parent, options)
             end
         end
         return nil
+    end
+
+    -- A spell or item link into a field, if the field takes that kind (the item
+    -- field items, the buff and spell fields spells, the icon field both).
+    -- Returns whether it was taken.
+    function frame:TakeLink(input, link)
+        if not buff then
+            return false
+        end
+        local linkKind = nil
+        if link:find("item:", 1, true) then
+            linkKind = "item"
+        elseif link:find("spell:", 1, true) then
+            linkKind = "spell"
+        end
+        if not (linkKind and input.field.takes(linkKind)) then
+            return false
+        end
+        input:Put(link)
+        return true
     end
 
     frame:Display(nil, nil, 0)

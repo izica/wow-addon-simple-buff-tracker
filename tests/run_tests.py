@@ -746,6 +746,64 @@ def test_suggestions():
     check("nothing found: no list", len(lua.eval("ShownSuggestions()")) == 0)
 
 
+def test_drag_and_previews():
+    lua = new_runtime()
+    lua.execute("""
+        cursor = nil
+        function GetCursorInfo() if cursor then return unpack(cursor) end end
+        function ClearCursor() cursor = nil end
+        function GameTooltip:SetItemByID(itemId) tooltipItem = itemId end
+        function GameTooltip:SetSpellByID(spellId) tooltipSpell = spellId end
+        Slash('add Arcane Intellect = item 2683')
+        Slash('buffs')
+    """)
+    check("the empty icon field says what it takes",
+          lua.eval("FindField('icon').placeholder.text") == "Empty: automatic. Type a name, drag or shift-click")
+    lua.execute("Enter('sourceValue', '')")
+    check("the empty item field says drag or shift-click",
+          lua.eval("FindField('sourceValue').placeholder.text") == "Drag an item here or shift-click it in the bags"
+          and lua.eval("FindField('sourceValue').placeholder.shown") is True)
+
+    # a spell dragged onto the item field: not taken, still on the cursor
+    lua.execute("""
+        cursor = { 'spell', 3, 'spell', 1459 }
+        local input = FindField('sourceValue')
+        input.scripts.OnReceiveDrag(input)
+    """)
+    check("a spell is not dropped into the item field",
+          lua.eval("cursor ~= nil") is True and lua.eval("SimpleBuffTrackerDB.buffs[1].source.itemId") is None)
+    lua.execute("""
+        cursor = { 'item', 20749, '|cff1eff00|Hitem:20749::::|h[Brilliant Wizard Oil]|h|r' }
+        local input = FindField('sourceValue')
+        input.scripts.OnReceiveDrag(input)
+    """)
+    check("an item dragged from the bags goes into the item field",
+          lua.eval("SimpleBuffTrackerDB.buffs[1].source.itemId") == 20749 and lua.eval("cursor") is None)
+    lua.execute("""
+        cursor = { 'item', 2683, '|cffffffff|Hitem:2683::::|h[Crab Cake]|h|r' }
+        local input = FindField('sourceValue')
+        input.scripts.OnMouseDown(input)
+    """)
+    check("a click with an item on the cursor drops it too",
+          lua.eval("SimpleBuffTrackerDB.buffs[1].source.itemId") == 2683)
+
+    lua.execute("""
+        cursor = { 'spell', 3, 'spell', 1459 }
+        local input = FindField('aura')
+        input.scripts.OnReceiveDrag(input)
+    """)
+    check("a spell dragged from the spellbook goes into the buff field",
+          lua.eval("SimpleBuffTrackerDB.buffs[1].target.spellId") == 1459)
+
+    preview = "FindField('sourceValue').preview"
+    check("the item's picture stands right of the item field",
+          lua.eval(preview + ".texture.texture") == 133000 + 2683 and lua.eval(preview + ".shown") is True)
+    lua.execute("local preview = %s; preview.scripts.OnEnter(preview)" % preview)
+    check("hovering it shows the item's tooltip", lua.eval("tooltipItem") == 2683)
+    lua.execute("local preview = FindField('aura').preview; preview.scripts.OnEnter(preview)")
+    check("hovering the buff's picture shows the spell's tooltip", lua.eval("tooltipSpell") == 1459)
+
+
 def test_editor_fits():
     lua = new_runtime()
     lua.execute("Slash('buffs')")
@@ -788,6 +846,7 @@ def main():
     test_debug()
     test_icon_search()
     test_suggestions()
+    test_drag_and_previews()
     test_editor_fits()
     test_action_bar_look()
     test_russian()
