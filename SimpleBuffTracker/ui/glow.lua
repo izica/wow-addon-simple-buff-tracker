@@ -1,7 +1,6 @@
--- glow.lua -- an effect around an icon that draws the eye, like the glows of
--- WeakAuras (ns.Constants.GLOW_EFFECT):
---   pixel     -- short lines running around the edge ("Pixel Glow");
---   autocast  -- sparkles circling the edge at different speeds ("Autocast Shine");
+-- glow.lua -- an effect around an icon that draws the eye (ns.Constants.GLOW_EFFECT):
+--   pixel     -- short lines running around the edge;
+--   autocast  -- sparkles circling the edge at different speeds, like a pet's autocast;
 --   proc      -- the client's own spell alert of the action bars
 --                (ActionButtonSpellAlertTemplate, the "proc" flash and loop);
 --                without the template -- the pixel lines;
@@ -17,7 +16,7 @@ ns.UI = ns.UI or {}
 
 local GLOW_EFFECT = ns.Constants.GLOW_EFFECT
 
-local GLOW_COLOR = { 0.95, 0.95, 0.32 }    -- the yellow of the WeakAuras glows
+local GLOW_COLOR = { 0.95, 0.95, 0.32 }    -- a soft yellow
 local PULSE_COLOR = { 1, 0.15, 0.1 }
 
 local PIXEL_LINES = 8

@@ -6,8 +6,8 @@
 --                  icon size: the same art, icon and cooldown as the buttons of
 --                  the action bars. Not drawn by hand: on Forever the art comes
 --                  from the template as it is (the Mainline UpdateButtonArt does
---                  not load there), a copy of its pieces looked wrong in the game
---                  (SimpleAuras, ui/aura_icon.lua). The template button is only a
+--                  not load there), a copy of its pieces looked wrong in the game.
+--                  The template button is only a
 --                  picture: no action, no mouse; the secure button takes the clicks.
 --   borderless  -- the same template with its frame art made invisible: the
 --                  icon keeps the template's rounded mask, no border around it;
@@ -171,7 +171,9 @@ function ns.UI.BuffButton(parent, options)
         local countdown = made.cooldown.GetCountdownFontString and made.cooldown:GetCountdownFontString()
         if countdown then
             made.countdown = countdown
-            made.countdownFont, _, made.countdownFlags = countdown:GetFont()
+            local font, _, flags = countdown:GetFont()   -- local _: a global one taints the game's code
+            made.countdownFont = font
+            made.countdownFlags = flags
         end
         textLayer:SetFrameLevel(math.max(textLayer:GetFrameLevel(), made.textLevel))
         return made

@@ -129,7 +129,7 @@ function PanelSettings.Create(parent, options)
         }
     end, "mode", false)
     AddSlider("settings.warn_seconds", "warnSeconds", WARN_STEPS, ns.Utilities.FormatSeconds)
-    -- how a missing buff draws the eye: a glow like in WeakAuras
+    -- how a missing buff draws the eye: a glow around its icon
     AddSelect("settings.missing_glow", function()
         local choices = {}
         for _, effect in ipairs(GLOW_ORDER) do

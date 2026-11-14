@@ -50,7 +50,7 @@ ns.Constants.ICON_TEMPLATE = {
     SQUARE = "square",             -- only the picture, square edges
 }
 
--- the effect around the icon of a missing buff (ui/glow.lua), like the glows of WeakAuras
+-- the effect around the icon of a missing buff (ui/glow.lua)
 ns.Constants.GLOW_EFFECT = {
     NONE = "none",
     PIXEL = "pixel",
