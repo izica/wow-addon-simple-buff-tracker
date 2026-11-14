@@ -73,6 +73,7 @@ function Frame:SetText(text) self.text = text end
 function Frame:SetFrameStrata(strata) self.strata = strata end
 function Frame:SetTexture(texture) self.texture = texture end
 function Frame:SetDesaturated(value) self.desaturated = value end
+function Frame:SetAlpha(value) self.alpha = value end
 function Frame:SetCooldown(start, duration) self.cooldown = { start, duration } end
 function Frame:Clear() self.cooldown = nil end
 function Frame:CreateTexture() return NewFrame() end
@@ -144,6 +145,10 @@ function CreateFrame(frameType, name, parent, template)
         frame.Count = NewFrame()
         frame.Name = NewFrame()
         frame.TextOverlayContainer = NewFrame()
+        frame.Border = NewFrame()
+        local normalTexture = NewFrame()
+        frame.normalTexture = normalTexture
+        function frame:GetNormalTexture() return normalTexture end
     end
     if template and template:find("SecureActionButtonTemplate") then
         frame.protected = true
@@ -1125,6 +1130,52 @@ def test_action_bar_look():
         return false
     end)()""")
     check("the icon is the action bar template inside the secure button", found is True)
+
+    lua.execute("""
+        -- the looks made inside the first button, by their kind
+        function Looks()
+            local looks = { templates = {}, squares = {} }
+            for _, frame in ipairs(allFrames) do
+                if rawget(frame, 'parent') == secureButtons[1] then
+                    if frame.template == 'ActionButtonTemplate' then
+                        table.insert(looks.templates, frame)
+                    elseif frame.template == nil and rawget(frame, 'points') == nil then
+                        table.insert(looks.squares, frame)
+                    end
+                end
+            end
+            return looks
+        end
+        SimpleBuffTrackerDB.settings.iconTemplate = 'borderless'
+        ns.Components.BuffPanel.Refresh()
+    """)
+    check("borderless: a second template, its frame art invisible",
+          lua.eval("#Looks().templates") == 2
+          and lua.eval("Looks().templates[2].Border.alpha") == 0
+          and lua.eval("Looks().templates[2].normalTexture.alpha") == 0)
+    check("borderless: the framed one hidden, the borderless one shown",
+          lua.eval("Looks().templates[1].shown") is False and lua.eval("Looks().templates[2].shown") is True)
+    check("the framed look keeps its frame", lua.eval("rawget(Looks().templates[1].Border, 'alpha')") is None)
+    check("the picture goes to the shown look",
+          lua.eval("Looks().templates[2].icon.texture") == 135932)
+
+    lua.execute("SimpleBuffTrackerDB.settings.iconTemplate = 'square'; ns.Components.BuffPanel.Refresh()")
+    check("square: both templates hidden", lua.eval("Looks().templates[1].shown") is False
+          and lua.eval("Looks().templates[2].shown") is False)
+    check("square: its icon has the picture", lua.eval("secureButtons[1].template") == "square")
+
+    lua.execute("SimpleBuffTrackerDB.settings.iconTemplate = 'action_bar'; ns.Components.BuffPanel.Refresh()")
+    check("back to the action bar: no new template made, the first shown again",
+          lua.eval("#Looks().templates") == 2 and lua.eval("Looks().templates[1].shown") is True)
+
+    lua.execute("Slash('config')")
+    lua.execute("""
+        inCombat = true
+        for _, frame in ipairs(allFrames) do
+            if frame.text == 'Icon look' then lookLabel = frame end
+        end
+    """)
+    check("the Panel tab has the icon look select", lua.eval("lookLabel ~= nil") is True)
 
 
 def test_russian():

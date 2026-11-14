@@ -42,3 +42,10 @@ ns.Constants.GROW_CORNER = {
     down = "TOPLEFT",
     up = "BOTTOMLEFT",
 }
+
+-- how an icon on the panel looks (ui/buff_button.lua)
+ns.Constants.ICON_TEMPLATE = {
+    ACTION_BAR = "action_bar",     -- like the buttons of the action bars
+    BORDERLESS = "borderless",     -- the same, without the frame around it
+    SQUARE = "square",             -- only the picture, square edges
+}

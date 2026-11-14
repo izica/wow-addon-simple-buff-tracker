@@ -1,25 +1,32 @@
 -- buff_button.lua -- a buff icon that is also a secure action button: a click
 -- casts the spell or uses the item set by SetAction.
 --
--- The look is the action bar's: the client's own ActionButtonTemplate inside,
--- scaled to the icon size -- the same art, icon and cooldown as the buttons of
--- the action bars. Not drawn by hand: on Forever the art comes from the template
--- as it is (the Mainline UpdateButtonArt does not load there), a copy of its
--- pieces looked wrong in the game (SimpleAuras, ui/aura_icon.lua). The template
--- button is only a picture: no action, no mouse; the secure button around it
--- takes the clicks. Without the template -- a picture in a thin dark edge.
+-- Looks (ns.Constants.ICON_TEMPLATE), switched by SetTemplate:
+--   action_bar  -- the client's own ActionButtonTemplate inside, scaled to the
+--                  icon size: the same art, icon and cooldown as the buttons of
+--                  the action bars. Not drawn by hand: on Forever the art comes
+--                  from the template as it is (the Mainline UpdateButtonArt does
+--                  not load there), a copy of its pieces looked wrong in the game
+--                  (SimpleAuras, ui/aura_icon.lua). The template button is only a
+--                  picture: no action, no mouse; the secure button takes the clicks.
+--   borderless  -- the same template with its frame art made invisible: the
+--                  icon keeps the template's rounded mask, no border around it;
+--   square      -- only the picture, square edges, no border.
+-- Each look is made the first time it is chosen and kept: switching shows one,
+-- hides the others. Without the template both template looks fall back to square.
 --
 -- Secure: in combat the client does not let addons move, show, hide or change
--- the action of it (SetAction, Show, Hide, SetPoint -- only out of combat).
--- The picture (icon, timer, count, tint) can change any time.
+-- the action of it (SetAction, Show, Hide, SetPoint -- only out of combat;
+-- SetTemplate and SetIconSize too). The picture (icon, timer, count, tint) can
+-- change any time.
 
 local ADDON, ns = ...
 ns.UI = ns.UI or {}
 
+local ICON_TEMPLATE = ns.Constants.ICON_TEMPLATE
+
 local ICON_CROP = 0.08            -- icon textures have a frame around the picture: cut it off
-local EDGE_SIZE = 1
-local EDGE_COLOR = { 0, 0, 0, 1 }
-local COUNTDOWN_FONT_SCALE = 0.36 -- the size of the timer numbers, part of the icon size (simple look)
+local COUNTDOWN_FONT_SCALE = 0.36 -- the size of the timer numbers, part of the icon size (square look)
 local MISSING_ALPHA = 0.9
 local ACTIVE_ALPHA = 1
 local NO_ITEMS_COLOR = { 1, 0.3, 0.3 }
@@ -30,15 +37,18 @@ local ACTION_BUTTON_TEMPLATE = "ActionButtonTemplate"
 local ACTION_BUTTON_SIZE = 45     -- the size of the template button
 -- above the template's own text overlay (frameLevel 500 in the template)
 local ACTION_BUTTON_TEXT_LEVEL_GAP = 10
+-- the frame art of the template, made invisible in the borderless look
+local ACTION_BUTTON_FRAME_PARTS = { "Border", "SlotArt", "SlotBackground", "FloatingBG", "NewActionTexture" }
 
 -- every attribute SetAction may set: the old ones are cleared first
 local ACTION_ATTRIBUTES = { "type", "spell", "item", "macrotext" }
 
--- Each Dress* puts a look on the button and returns { icon, cooldown,
--- textLevel -- the frame level above the look, resize(size) or nil,
--- count -- the font string for the item count or nil, scalesNumbers }.
+-- Each Dress* makes a look inside the button and returns { frame -- shown or
+-- hidden as a whole, icon, cooldown, textLevel -- the frame level above it,
+-- resize(size), scalesNumbers -- the numbers follow the size by themselves },
+-- or nil when it can not be made.
 
-local function DressActionBar(button, size)
+local function DressActionBar(button, size, isBorderless)
     local ok, look = pcall(CreateFrame, "CheckButton", nil, button, ACTION_BUTTON_TEMPLATE)
     local isComplete = ok and look and look.icon and look.cooldown
     if not isComplete then
@@ -52,73 +62,70 @@ local function DressActionBar(button, size)
     for _, text in ipairs({ look.HotKey, look.Count, look.Name }) do
         text:SetText("")
     end
-    local function Resize(newSize)
-        look:SetScale(newSize / ACTION_BUTTON_SIZE)
+    if isBorderless then
+        local normalTexture = look.GetNormalTexture and look:GetNormalTexture()
+        if normalTexture then
+            normalTexture:SetAlpha(0)
+        end
+        for _, partName in ipairs(ACTION_BUTTON_FRAME_PARTS) do
+            local part = look[partName]
+            if type(part) == "table" and part.SetAlpha then
+                part:SetAlpha(0)
+            end
+        end
     end
-    Resize(size)
 
     local textLevel = look:GetFrameLevel() + 1
     if look.TextOverlayContainer then
         textLevel = look.TextOverlayContainer:GetFrameLevel() + ACTION_BUTTON_TEXT_LEVEL_GAP
     end
     return {
+        frame = look,
         icon = look.icon,
         cooldown = look.cooldown,
         textLevel = textLevel,
-        resize = Resize,
-        count = look.Count,
+        resize = function(newSize)
+            look:SetScale(newSize / ACTION_BUTTON_SIZE)
+        end,
         scalesNumbers = true,
     }
 end
 
-local function DressSimple(button)
-    local edge = button:CreateTexture(nil, "BACKGROUND")
-    edge:SetAllPoints()
-    edge:SetColorTexture(EDGE_COLOR[1], EDGE_COLOR[2], EDGE_COLOR[3], EDGE_COLOR[4])
-
-    local icon = button:CreateTexture(nil, "ARTWORK")
-    icon:SetPoint("TOPLEFT", EDGE_SIZE, -EDGE_SIZE)
-    icon:SetPoint("BOTTOMRIGHT", -EDGE_SIZE, EDGE_SIZE)
+local function DressSquare(button)
+    local look = CreateFrame("Frame", nil, button)
+    look:SetAllPoints()
+    local icon = look:CreateTexture(nil, "ARTWORK")
+    icon:SetAllPoints()
     icon:SetTexCoord(ICON_CROP, 1 - ICON_CROP, ICON_CROP, 1 - ICON_CROP)
-
-    local cooldown = CreateFrame("Cooldown", nil, button, "CooldownFrameTemplate")
+    local cooldown = CreateFrame("Cooldown", nil, look, "CooldownFrameTemplate")
     cooldown:SetAllPoints(icon)
     cooldown:SetDrawEdge(false)
-    return { icon = icon, cooldown = cooldown, textLevel = cooldown:GetFrameLevel() + 1 }
+    return { frame = look, icon = icon, cooldown = cooldown, textLevel = cooldown:GetFrameLevel() + 1 }
+end
+
+local function Dress(button, template, size)
+    if template == ICON_TEMPLATE.SQUARE then
+        return DressSquare(button)
+    end
+    local isBorderless = template == ICON_TEMPLATE.BORDERLESS
+    return DressActionBar(button, size, isBorderless) or DressSquare(button)
 end
 
 -- options: name -- global frame name (secure buttons work best with one), size,
--- onEnter(button), onLeave(button)
+-- template -- ns.Constants.ICON_TEMPLATE, onEnter(button), onLeave(button)
 function ns.UI.BuffButton(parent, options)
     local button = CreateFrame("Button", options.name, parent, "SecureActionButtonTemplate")
     button:RegisterForClicks("AnyUp", "AnyDown")
 
-    local look = DressActionBar(button, options.size) or DressSimple(button)
-    local icon = look.icon
-    local cooldown = look.cooldown
+    local looks = {}        -- [template] = look, made on first use
+    local look = nil        -- the one shown
+    local size = options.size
 
-    -- the swipe shows the time left: full at the start, empty at the end
-    cooldown:SetReverse(true)
-    if cooldown.SetHideCountdownNumbers then
-        cooldown:SetHideCountdownNumbers(false)
-    end
-    local countdown = cooldown.GetCountdownFontString and cooldown:GetCountdownFontString()
-    local countdownFont = nil
-    local countdownFlags = nil
-    if countdown then
-        countdownFont, _, countdownFlags = countdown:GetFont()
-    end
-
-    -- above the look: the count of items in the bags and the mouse-over highlight
-    -- (the button's own highlight texture would be under the template)
+    -- above every look: the count of items in the bags and the mouse-over highlight
     local textLayer = CreateFrame("Frame", nil, button)
     textLayer:SetAllPoints()
-    textLayer:SetFrameLevel(look.textLevel)
-    local count = look.count
-    if not count then
-        count = textLayer:CreateFontString(nil, "OVERLAY", "NumberFontNormal")
-        count:SetPoint("BOTTOMRIGHT", -2, 2)
-    end
+    local count = textLayer:CreateFontString(nil, "OVERLAY", "NumberFontNormal")
+    count:SetPoint("BOTTOMRIGHT", -2, 2)
     local highlight = textLayer:CreateTexture(nil, "HIGHLIGHT")
     highlight:SetAllPoints()
     highlight:SetTexture(HIGHLIGHT_TEXTURE)
@@ -138,18 +145,54 @@ function ns.UI.BuffButton(parent, options)
         end
     end)
 
-    -- out of combat only
-    function button:SetIconSize(size)
-        self:SetSize(size, size)
-        if look.resize then
-            look.resize(size)
+    local function ApplySize(target)
+        if target.resize then
+            target.resize(size)
         end
-        -- the action bar look is scaled with its numbers; the simple one gets a font for its size
-        if countdown and countdownFont and not look.scalesNumbers then
-            countdown:SetFont(countdownFont, math.floor(size * COUNTDOWN_FONT_SCALE), countdownFlags or "OUTLINE")
+        -- the action bar look is scaled with its numbers; the square one gets a font for its size
+        if target.countdown and target.countdownFont and not target.scalesNumbers then
+            target.countdown:SetFont(target.countdownFont, math.floor(size * COUNTDOWN_FONT_SCALE),
+                target.countdownFlags or "OUTLINE")
         end
     end
-    button:SetIconSize(options.size)
+
+    local function MakeLook(template)
+        local made = Dress(button, template, size)
+        -- the swipe shows the time left: full at the start, empty at the end
+        made.cooldown:SetReverse(true)
+        if made.cooldown.SetHideCountdownNumbers then
+            made.cooldown:SetHideCountdownNumbers(false)
+        end
+        local countdown = made.cooldown.GetCountdownFontString and made.cooldown:GetCountdownFontString()
+        if countdown then
+            made.countdown = countdown
+            made.countdownFont, _, made.countdownFlags = countdown:GetFont()
+        end
+        textLayer:SetFrameLevel(math.max(textLayer:GetFrameLevel(), made.textLevel))
+        return made
+    end
+
+    -- out of combat only; the picture is set again by the caller (Paint)
+    function button:SetTemplate(template)
+        if not looks[template] then
+            looks[template] = MakeLook(template)
+        end
+        look = looks[template]
+        for _, other in pairs(looks) do
+            other.frame:SetShown(other == look)
+        end
+        ApplySize(look)
+        self.template = template
+    end
+
+    -- out of combat only
+    function button:SetIconSize(newSize)
+        size = newSize
+        self:SetSize(size, size)
+        if look then
+            ApplySize(look)
+        end
+    end
 
     -- attributes -- from ns.Models.Buff.Action, nil -- a click does nothing; out of combat only
     function button:SetAction(attributes)
@@ -165,26 +208,26 @@ function ns.UI.BuffButton(parent, options)
     end
 
     function button:SetIcon(texture)
-        icon:SetTexture(texture)
+        look.icon:SetTexture(texture)
     end
 
     -- plain numbers; duration 0 or expirationTime 0 -- no timer
     function button:SetTimer(expirationTime, duration)
         local hasTimer = expirationTime > 0 and duration > 0
         if hasTimer then
-            cooldown:SetCooldown(expirationTime - duration, duration)
+            look.cooldown:SetCooldown(expirationTime - duration, duration)
         else
-            cooldown:Clear()
+            look.cooldown:Clear()
         end
     end
 
     -- a missing buff: grey picture (the texture, not the secure button itself)
     function button:SetMissing(isMissing)
-        icon:SetDesaturated(isMissing)
+        look.icon:SetDesaturated(isMissing)
         if isMissing then
-            icon:SetAlpha(MISSING_ALPHA)
+            look.icon:SetAlpha(MISSING_ALPHA)
         else
-            icon:SetAlpha(ACTIVE_ALPHA)
+            look.icon:SetAlpha(ACTIVE_ALPHA)
         end
     end
 
@@ -202,5 +245,7 @@ function ns.UI.BuffButton(parent, options)
         count:SetTextColor(color[1], color[2], color[3])
     end
 
+    button:SetIconSize(size)
+    button:SetTemplate(options.template or ICON_TEMPLATE.ACTION_BAR)
     return button
 end

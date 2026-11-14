@@ -10,6 +10,8 @@ local Text = ns.Localization.Text
 local DISPLAY_MODE = ns.Constants.DISPLAY_MODE
 local GROW_DIRECTION = ns.Constants.GROW_DIRECTION
 local GROW_ORDER = { GROW_DIRECTION.RIGHT, GROW_DIRECTION.LEFT, GROW_DIRECTION.DOWN, GROW_DIRECTION.UP }
+local ICON_TEMPLATE = ns.Constants.ICON_TEMPLATE
+local TEMPLATE_ORDER = { ICON_TEMPLATE.ACTION_BAR, ICON_TEMPLATE.BORDERLESS, ICON_TEMPLATE.SQUARE }
 
 local PanelSettings = {}
 ns.Components.PanelSettings = PanelSettings
@@ -88,6 +90,35 @@ function PanelSettings.Create(parent, options)
     fieldForm:Field(growSelect)
     table.insert(refreshers, function()
         growSelect:Refresh()
+    end)
+
+    -- how the icons look: like the action bar, the same without the frame, square
+    fieldForm:Label(Text("settings.icon_template"))
+    local templateSelect = ns.UI.Select(frame, {
+        width = CONTROL_WIDTH,
+        choices = function()
+            local choices = {}
+            for _, template in ipairs(TEMPLATE_ORDER) do
+                table.insert(choices, { value = template, text = Text("icon_templates." .. template) })
+            end
+            return choices
+        end,
+        selected = function()
+            return Settings().iconTemplate
+        end,
+        onChange = function(value)
+            -- the icons are secure buttons: their look changes only out of combat
+            if InCombatLockdown() then
+                ns.Utilities.Print(Text("messages.in_combat"))
+                return
+            end
+            Settings().iconTemplate = value
+            options.onChanged()
+        end,
+    })
+    fieldForm:Field(templateSelect)
+    table.insert(refreshers, function()
+        templateSelect:Refresh()
     end)
 
     -- field -- the key in ns.db.settings; the slider with its arrows is as wide as the dropdown

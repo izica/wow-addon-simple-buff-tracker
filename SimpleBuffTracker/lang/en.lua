@@ -142,13 +142,19 @@ ns.Localization.Add("en", [==[
         "enchant": "Which enchant",
         "enchant_any": "Any temporary enchant",
         "enchant_note": "The enchants seen on your weapons. Not in the list? Put it on once (oil, Flametongue...).",
-        "grow": "Icons grow"
+        "grow": "Icons grow",
+        "icon_template": "Icon look"
     },
     "grow": {
         "right": "Right",
         "left": "Left",
         "down": "Down",
         "up": "Up"
+    },
+    "icon_templates": {
+        "action_bar": "Like the action bars",
+        "borderless": "The same, without the frame",
+        "square": "Square, without the frame"
     }
 }
 ]==])

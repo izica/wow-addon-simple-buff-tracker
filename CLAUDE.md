@@ -85,9 +85,15 @@ python tests/run_tests.py
 
 ## Иконка на панели
 
-`ui/buff_button.lua`: защищённая кнопка, внутри — `ActionButtonTemplate` игры как картинка
-(`SetScale(size / 45)`, `EnableMouse(false)`), как в SimpleAuras; подсветка — на слое над шаблоном.
-Нет шаблона — картинка в тонкой рамке.
+`ui/buff_button.lua`: защищённая кнопка, внутри — вид по `settings.iconTemplate` (`ICON_TEMPLATE`, селект
+«Вид иконок» на вкладке «Панель»):
+* `action_bar` — `ActionButtonTemplate` игры как картинка (`SetScale(size / 45)`, `EnableMouse(false)`), как
+  в SimpleAuras;
+* `borderless` — тот же шаблон, его рамка невидима (`GetNormalTexture`, `Border`, `SlotArt`, `SlotBackground`,
+  `FloatingBG` -> alpha 0), маска иконки (скругление) остаётся;
+* `square` — только картинка с обрезанной рамкой, квадратная.
+Каждый вид создаётся при первом выборе и хранится, `SetTemplate` показывает один (только вне боя, в бою
+селект отказывает). Счётчик предметов и подсветка — на слое над всеми видами. Нет шаблона — `square`.
 
 ## Миникарта
 

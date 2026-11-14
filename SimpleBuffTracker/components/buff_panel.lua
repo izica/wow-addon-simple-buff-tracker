@@ -168,6 +168,7 @@ local function GetButton(index)
         button = ns.UI.BuffButton(panel, {
             name = BUTTON_NAME_PREFIX .. index,
             size = ns.db.settings.iconSize,
+            template = ns.db.settings.iconTemplate,
             onEnter = ShowTooltip,
             onLeave = HideTooltip,
         })
@@ -220,6 +221,9 @@ local function Layout(states)
         local button = GetButton(index)
         local point, x, y = IconPlace(index, perLine, step, direction)
         button:SetIconSize(size)
+        if button.template ~= settings.iconTemplate then
+            button:SetTemplate(settings.iconTemplate)
+        end
         button:ClearAllPoints()
         button:SetPoint(point, panel, point, x, y)
         button:SetAction(state.action)
