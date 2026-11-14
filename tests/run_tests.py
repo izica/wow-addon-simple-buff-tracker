@@ -746,6 +746,16 @@ def test_suggestions():
     check("nothing found: no list", len(lua.eval("ShownSuggestions()")) == 0)
 
 
+def test_editor_fits():
+    lua = new_runtime()
+    lua.execute("Slash('buffs')")
+    form_height = lua.eval("FindFrames('formHeight')[1].formHeight")
+    button_row = lua.eval("FindFrames('formHeight')[1].buttonRowHeight")
+    content_height = lua.eval("ns.Components.MainWindow.CONTENT_HEIGHT")
+    check("the editor's fields and buttons fit in the window (%d + %d <= %d)"
+          % (form_height, button_row, content_height), form_height + button_row <= content_height)
+
+
 def test_action_bar_look():
     lua = new_runtime()
     lua.execute("Slash('add Arcane Intellect = spell')")
@@ -778,6 +788,7 @@ def main():
     test_debug()
     test_icon_search()
     test_suggestions()
+    test_editor_fits()
     test_action_bar_look()
     test_russian()
     if failures:

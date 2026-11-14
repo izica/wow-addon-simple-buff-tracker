@@ -22,7 +22,7 @@ ns.Components.MainWindow = MainWindow
 local WINDOW_NAME = "SimpleBuffTrackerWindow"
 local TAB_PREFIX = "SimpleBuffTrackerWindowTab"
 local WIDTH = 680
-local HEIGHT = 470
+local HEIGHT = 540
 local CONTENT_TOP = 30       -- under the title band
 local CONTENT_SIDE = 10
 local CONTENT_BOTTOM = 10
@@ -30,6 +30,8 @@ local LIST_WIDTH = 210
 local GAP = 6
 
 MainWindow.TAB = { BUFFS = "buffs", PANEL = "panel" }
+-- the height inside the window, under the title band (the tests check the editor fits)
+MainWindow.CONTENT_HEIGHT = HEIGHT - CONTENT_TOP - CONTENT_BOTTOM
 
 local window = nil
 local tabBar = nil

@@ -15,7 +15,7 @@ ns.UI = ns.UI or {}
 
 local LABEL_HEIGHT = 14
 local LABEL_GAP = 4           -- from a label down to the drawn top of its control
-local ROW_GAP = 12            -- from the drawn bottom of a control to the next label
+local ROW_GAP = 8             -- from the drawn bottom of a control to the next label
 local FIELD_HEIGHT = 25       -- dropdowns and inputs: the same text holder art
 local FIELD_ART_LEFT = 8
 local FIELD_ART_RIGHT = 8

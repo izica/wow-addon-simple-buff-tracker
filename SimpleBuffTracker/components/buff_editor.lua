@@ -5,7 +5,7 @@
 -- changed (a name shown for an item may not parse back when the item is not in
 -- the bags). While typing, suggestions with pictures drop under a field
 -- (ui/suggestions.lua, dataflows/icon_search.lua). An edit that fails shows its
--- reason in red under the fields.
+-- reason in red in the button row.
 
 local ADDON, ns = ...
 ns.Components = ns.Components or {}
@@ -28,7 +28,8 @@ local PREVIEW_SIZE = 32
 local PREVIEW_GAP = 12
 -- every control ends on one line; the icon preview stands right of it
 local RIGHT_INSET = PADDING + PREVIEW_SIZE + PREVIEW_GAP
-local HINT_HEIGHT = 30
+local HINT_HEIGHT = 28
+local BUTTON_GAP = 10
 local BUTTON_WIDTH = 90
 local BUTTON_HEIGHT = 24
 local ERROR_COLOR = { 1, 0.3, 0.3 }
@@ -250,7 +251,9 @@ function BuffEditor.Create(parent, options)
     hint:SetTextColor(HINT_COLOR[1], HINT_COLOR[2], HINT_COLOR[3])
     hint:SetText(Text("settings.edit_hint"))
     form:Text(hint, HINT_HEIGHT)
-    form:Text(errorText, HINT_HEIGHT)
+    -- how tall the fields are, and the button row under them: the window must hold both
+    frame.formHeight = -form.top
+    frame.buttonRowHeight = PADDING + BUTTON_HEIGHT + BUTTON_GAP
 
     local upButton = ns.UI.Button(frame, {
         text = Text("settings.move_up"),
@@ -279,6 +282,11 @@ function BuffEditor.Create(parent, options)
         end,
     })
     deleteButton:SetPoint("BOTTOMRIGHT", -PADDING, PADDING)
+
+    -- the reason an edit failed: one line in the button row, it takes no room in the form
+    errorText:SetPoint("LEFT", downButton, "RIGHT", BUTTON_GAP, 0)
+    errorText:SetPoint("RIGHT", deleteButton, "LEFT", -BUTTON_GAP, 0)
+    errorText:SetWordWrap(false)
 
     StaticPopupDialogs[DELETE_POPUP] = {
         text = Text("settings.remove_confirm"),
