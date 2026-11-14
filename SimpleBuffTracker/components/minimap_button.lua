@@ -1,6 +1,6 @@
--- minimap_button.lua -- minimap button on LibDBIcon: left click -- switch the
--- panel mode, right click -- unlock / lock the panel. The library stores the
--- position itself in settings.minimap.
+-- minimap_button.lua -- minimap button on LibDBIcon: left click -- the settings,
+-- right click -- switch the panel mode. The library stores the position itself
+-- in settings.minimap.
 
 local ADDON, ns = ...
 ns.Components = ns.Components or {}
@@ -20,9 +20,9 @@ local launcher = dataBroker and dataBroker:NewDataObject(NAME, {
     icon = ns.Constants.ADDON_ICON,
     OnClick = function(_, mouseButton)
         if mouseButton == "RightButton" then
-            ns.Commands.Run("move")
-        else
             ns.Commands.Run("mode")
+        else
+            ns.Commands.Run("config")
         end
     end,
     OnTooltipShow = function(tooltip)

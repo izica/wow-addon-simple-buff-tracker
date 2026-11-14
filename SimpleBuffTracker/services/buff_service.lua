@@ -33,6 +33,19 @@ function BuffService.Remove(index)
     return table.remove(ns.db.buffs, index)
 end
 
+-- swap the buff with its neighbour: offset -1 -- up the list, 1 -- down; false -- no neighbour
+function BuffService.Move(index, offset)
+    local buffs = ns.db.buffs
+    local otherIndex = index + offset
+    if not (buffs[index] and buffs[otherIndex]) then
+        return false
+    end
+    local moved = buffs[index]
+    buffs[index] = buffs[otherIndex]
+    buffs[otherIndex] = moved
+    return true
+end
+
 local function TargetIcon(buff)
     local target = buff.target
     if target.weapon then
@@ -40,6 +53,12 @@ local function TargetIcon(buff)
         return GetInventoryItemTexture and GetInventoryItemTexture("player", inventorySlot)
     end
     return Spell.Icon(target.spellId or target.name)
+end
+
+-- the picture of a buff that is not on the player: of its spell, of the
+-- weapon, of its source, or a question mark
+function BuffService.Icon(buff)
+    return TargetIcon(buff) or Buff.SourceIcon(buff) or QUESTION_MARK_ICON
 end
 
 -- The state of one buff now:
@@ -71,8 +90,8 @@ local function Evaluate(buff, index, now, weapons, warnSeconds)
         state.isExpiring = hasTimer and isLongerThanWarning and secondsLeft <= warnSeconds
     end
 
-    state.icon = (found and found.icon) or TargetIcon(buff) or Buff.SourceIcon(buff) or QUESTION_MARK_ICON
-    local isItemSource = buff.source and buff.source.kind == SOURCE_KIND.ITEM
+    state.icon = (found and found.icon) or BuffService.Icon(buff)
+    local isItemSource = Buff.HasCompleteSource(buff) and buff.source.kind == SOURCE_KIND.ITEM
     if isItemSource then
         state.itemCount = Item.Count(buff.source.itemId)
     end

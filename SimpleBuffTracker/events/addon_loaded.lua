@@ -10,6 +10,7 @@ end)
 
 ns.Events.On("PLAYER_LOGIN", function()
     ns.Components.MinimapButton.Setup()
+    ns.Components.SettingsWindow.Setup()
 end)
 
 ns.Events.On("PLAYER_ENTERING_WORLD", function()

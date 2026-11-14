@@ -7,7 +7,8 @@ ns.Localization.Add("en", [==[
 {
     "buff": {
         "mainhand": "Main hand enchant",
-        "offhand": "Off hand enchant"
+        "offhand": "Off hand enchant",
+        "new": "New buff"
     },
     "source": {
         "spell": "spell",
@@ -81,14 +82,50 @@ ns.Localization.Add("en", [==[
         },
         "minimap": {
             "help": "hide / show the minimap button"
+        },
+        "config": {
+            "help": "open / close the settings",
+            "binding": "Open the settings"
         }
     },
     "minimap": {
         "mode": "Panel: %s",
-        "left_click": "Left click: switch the mode",
-        "right_click": "Right click: unlock / lock the panel",
+        "left_click": "Left click: settings",
+        "right_click": "Right click: switch the mode",
         "drag": "Drag: move this button",
         "no_library": "no LibDBIcon: the minimap button is off"
+    },
+    "settings": {
+        "version": "version %s",
+        "summary": "Your buffs as icons on one panel. The buffs themselves are set on the Buffs page on the left.",
+        "mode": "Panel shows",
+        "warn_seconds": "Running out soon, seconds",
+        "warn_seconds_hint": "In the \"only missing\" mode a buff with this many seconds left or less shows up too",
+        "icon_size": "Icon size",
+        "icons_per_row": "Icons in a row",
+        "icon_spacing": "Space between icons",
+        "unlocked": "Unlock the panel to drag it",
+        "unlocked_hint": "A green frame covers the panel: drag it with the left mouse button. Not in combat.",
+        "minimap": "Minimap button",
+        "buffs_page": "Buffs",
+        "buffs_intro": "The buffs tracked on the panel, in its order. Pick one on the left to change it.",
+        "add": "Add buff",
+        "target": "What is tracked",
+        "target_aura": "A buff (aura)",
+        "aura": "Buff",
+        "aura_hint": "The buff name, its spell id or a spell link. The name covers every rank.",
+        "source": "Put back with a click",
+        "source_none": "No, only track",
+        "source_spell": "Cast a spell",
+        "source_item": "Use an item (food, scroll, oil...)",
+        "source_spell_value": "Spell",
+        "source_item_value": "Item",
+        "source_hint": "A name, an id or a link (shift-click). An item by name only if it is in the bags.",
+        "drag_hint": "|cff888888Drag a spell from the spellbook or an item from the bags into a field.|r",
+        "move_up": "Up",
+        "move_down": "Down",
+        "remove": "Delete",
+        "remove_confirm": "Stop tracking %s?"
     }
 }
 ]==])

@@ -177,6 +177,26 @@ function dbIcon:IsRegistered() return minimapRegistered end
 function dbIcon:Register(name, object, settings) minimapRegistered = true end
 function dbIcon:Hide() minimapShown = false end
 function dbIcon:Show() minimapShown = true end
+
+-- AceConfig: keeps the registered options; Options(name) builds the table as the dialog would
+local registry = LibStub:NewLibrary("AceConfigRegistry-3.0", 1)
+optionTables = {}
+notified = 0
+function registry:RegisterOptionsTable(name, options) optionTables[name] = options end
+function registry:NotifyChange() notified = notified + 1 end
+function Options(name)
+    local options = optionTables[name]
+    if type(options) == "function" then return options() end
+    return options
+end
+local dialog = LibStub:NewLibrary("AceConfigDialog-3.0", 1)
+blizzardPages = {}
+function dialog:AddToBlizOptions(name, title, parent)
+    table.insert(blizzardPages, { name = name, title = title, parent = parent })
+    return NewFrame(), #blizzardPages
+end
+function dialog:SelectGroup(name, key) selectedGroup = key end
+Settings = { OpenToCategory = function(id) openedCategory = id end }
 """
 
 
@@ -310,16 +330,74 @@ def test_minimap():
     lua = new_runtime()
     check("minimap button registered on login", lua.eval("minimapRegistered") is True)
     lua.execute("launcher.OnClick(nil, 'LeftButton')")
-    check("left click switches the mode", lua.eval("SimpleBuffTrackerDB.settings.mode") == "missing")
+    check("left click opens the settings", lua.eval("openedCategory") == 1)
     lua.execute("launcher.OnClick(nil, 'RightButton')")
-    check("right click unlocks the panel", lua.eval("SimpleBuffTrackerDB.settings.locked") is False)
-    lua.execute("launcher.OnClick(nil, 'RightButton')")
-    check("right click again locks it", lua.eval("SimpleBuffTrackerDB.settings.locked") is True)
+    check("right click switches the mode", lua.eval("SimpleBuffTrackerDB.settings.mode") == "missing")
+    lua.execute("Slash('move')")
+    check("/sbt move unlocks the panel", lua.eval("SimpleBuffTrackerDB.settings.locked") is False)
     lua.execute("launcher.OnTooltipShow(GameTooltip)")
     check("tooltip shows without errors", True)
     lua.execute("Slash('minimap')")
     check("/sbt minimap hides the button",
           lua.eval("SimpleBuffTrackerDB.settings.minimap.hide") is True and lua.eval("minimapShown") is False)
+
+
+def test_settings():
+    lua = new_runtime()
+    check("two pages in Options -> AddOns", lua.eval("#blizzardPages") == 2
+          and lua.eval("blizzardPages[2].parent") == "Simple Buff Tracker")
+
+    # the general page writes the settings and builds without errors
+    lua.execute("""
+        local general = Options('SimpleBuffTracker')
+        general.args.mode.set(nil, 'missing')
+        general.args.iconSize.set(nil, 40)
+        general.args.unlocked.set(nil, true)
+        general.args.minimap.set(nil, false)
+    """)
+    check("general page: mode", lua.eval("SimpleBuffTrackerDB.settings.mode") == "missing")
+    check("general page: icon size", lua.eval("SimpleBuffTrackerDB.settings.iconSize") == 40)
+    check("general page: unlock", lua.eval("SimpleBuffTrackerDB.settings.locked") is False)
+    check("general page: hide minimap button", lua.eval("SimpleBuffTrackerDB.settings.minimap.hide") is True)
+
+    # add a buff and fill it in, field by field, like a player would
+    lua.execute("Options('SimpleBuffTracker_Buffs').args.add.func()")
+    check("add makes an empty buff and selects it",
+          lua.eval("#SimpleBuffTrackerDB.buffs") == 1 and lua.eval("selectedGroup") == "buff1")
+    check("an empty buff is named 'New buff'", lua.eval("Options('SimpleBuffTracker_Buffs').args.buff1.name") == "New buff")
+    lua.execute("""
+        local page = Options('SimpleBuffTracker_Buffs').args.buff1.args
+        page.aura.set(nil, 'Arcane Intellect')
+    """)
+    lua.execute("Options('SimpleBuffTracker_Buffs').args.buff1.args.sourceKind.set(nil, 'spell')")
+    check("spell source takes the buff's own spell",
+          lua.eval("SimpleBuffTrackerDB.buffs[1].source.name") == "Arcane Intellect")
+    check("the page is named after the buff",
+          lua.eval("Options('SimpleBuffTracker_Buffs').args.buff1.name") == "Arcane Intellect")
+
+    lua.execute("Options('SimpleBuffTracker_Buffs').args.add.func()")
+    lua.execute("Options('SimpleBuffTracker_Buffs').args.buff2.args.target.set(nil, 'mainhand')")
+    lua.execute("Options('SimpleBuffTracker_Buffs').args.buff2.args.sourceKind.set(nil, 'item')")
+    check("a picked but empty item does nothing on click", lua.eval("secureButtons[2].attributes.type") is None)
+    check("unknown item is refused by the field",
+          lua.eval("Options('SimpleBuffTracker_Buffs').args.buff2.args.sourceValue.validate(nil, 'Nothing')")
+          == "unknown item: put it into the bags or give its id or link (shift-click)")
+    lua.execute("""Options('SimpleBuffTracker_Buffs').args.buff2.args.sourceValue.set(nil,
+        '|cff1eff00|Hitem:20749::::|h[Brilliant Wizard Oil]|h|r')""")
+    check("a dragged item link fills the oil in",
+          lua.eval("secureButtons[2].attributes.macrotext") == "/use item:20749\n/use 16")
+    check("the item field shows the item name",
+          lua.eval("Options('SimpleBuffTracker_Buffs').args.buff2.args.sourceValue.get()") == "Brilliant Wizard Oil")
+
+    lua.execute("Options('SimpleBuffTracker_Buffs').args.buff2.args.moveUp.func()")
+    check("move up swaps the buffs", lua.eval("SimpleBuffTrackerDB.buffs[1].target.weapon") == "mainhand"
+          and lua.eval("selectedGroup") == "buff1")
+    lua.execute("Options('SimpleBuffTracker_Buffs').args.buff1.args.remove.func()")
+    check("delete removes the buff", lua.eval("#SimpleBuffTrackerDB.buffs") == 1
+          and lua.eval("SimpleBuffTrackerDB.buffs[1].target.name") == "Arcane Intellect")
+    lua.execute("Slash('add Well Fed')")
+    check("a chat command redraws the settings", lua.eval("notified") > 0
+          and lua.eval("Options('SimpleBuffTracker_Buffs').args.buff2.name") == "Well Fed")
 
 
 def test_russian():
@@ -331,6 +409,7 @@ def test_russian():
 def main():
     test_buffs()
     test_minimap()
+    test_settings()
     test_russian()
     if failures:
         print("\n%d failed" % len(failures))

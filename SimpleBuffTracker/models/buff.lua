@@ -24,6 +24,19 @@ function Buff.New(target, source)
     return { target = target, source = source }
 end
 
+-- A source picked in the settings but not filled in yet (no spell, no item)
+-- does nothing: no label, no icon, no action.
+function Buff.HasCompleteSource(buff)
+    local source = buff.source
+    if not source then
+        return false
+    end
+    if source.kind == SOURCE_KIND.SPELL then
+        return source.name ~= nil or source.spellId ~= nil
+    end
+    return source.itemId ~= nil
+end
+
 -- the name of what is tracked, as players see it
 function Buff.TargetLabel(buff)
     local Text = ns.Localization.Text
@@ -31,15 +44,15 @@ function Buff.TargetLabel(buff)
     if target.weapon then
         return Text("buff." .. target.weapon)
     end
-    return target.name or (target.spellId and Spell.Name(target.spellId)) or "?"
+    return target.name or (target.spellId and Spell.Name(target.spellId)) or Text("buff.new")
 end
 
 -- the name of the spell or item that puts the buff back; nil -- no source
 function Buff.SourceLabel(buff)
-    local source = buff.source
-    if not source then
+    if not Buff.HasCompleteSource(buff) then
         return nil
     end
+    local source = buff.source
     if source.kind == SOURCE_KIND.SPELL then
         return source.name or Spell.Name(source.spellId) or "?"
     end
@@ -47,10 +60,10 @@ function Buff.SourceLabel(buff)
 end
 
 function Buff.SourceIcon(buff)
-    local source = buff.source
-    if not source then
+    if not Buff.HasCompleteSource(buff) then
         return nil
     end
+    local source = buff.source
     if source.kind == SOURCE_KIND.SPELL then
         return Spell.Icon(source.spellId or source.name)
     end
@@ -61,10 +74,10 @@ end
 -- click; nil -- no source. An item on a weapon buff is used and then put on
 -- the weapon slot by a macro: "/use 16" applies the pending item to the main hand.
 function Buff.Action(buff)
-    local source = buff.source
-    if not source then
+    if not Buff.HasCompleteSource(buff) then
         return nil
     end
+    local source = buff.source
     if source.kind == SOURCE_KIND.SPELL then
         return { type = "spell", spell = source.name or source.spellId }
     end

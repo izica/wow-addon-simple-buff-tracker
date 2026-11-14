@@ -29,6 +29,7 @@ ns.Commands.Add("add", {
         BuffService.Add(buff)
         Print(Text("messages.added", Describe(buff)))
         ns.Components.BuffPanel.Refresh()
+        ns.Components.SettingsWindow.Refresh()
     end,
     help = Text("commands.add.help"),
 })
@@ -43,6 +44,7 @@ ns.Commands.Add("remove", {
         end
         Print(Text("messages.removed", Describe(removed)))
         ns.Components.BuffPanel.Refresh()
+        ns.Components.SettingsWindow.Refresh()
     end,
     help = Text("commands.remove.help"),
 })

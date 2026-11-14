@@ -34,8 +34,9 @@ local function SpellIdFrom(text)
 end
 
 -- { spellId, name } of a spell by link, id or name; a name the client does not
--- know as a spell is kept as it is: auras like "Well Fed" are found by name
-local function ParseSpell(text)
+-- know as a spell is kept as it is: auras like "Well Fed" are found by name.
+-- Also used by the settings window.
+function BuffParser.ParseSpell(text)
     local spellId = SpellIdFrom(text)
     if spellId then
         return { spellId = spellId, name = Spell.Name(spellId) }
@@ -55,7 +56,12 @@ local function ParseTarget(text)
     if text:find("|Hitem:") then
         return nil
     end
-    return ParseSpell(text)
+    return BuffParser.ParseSpell(text)
+end
+
+-- an item id by id, link or name of an item the client has seen; nil -- unknown
+function BuffParser.ParseItemId(text)
+    return tonumber(text:match("^(%d+)$")) or Item.FindId(text)
 end
 
 -- source text -> source, or nil and the key of the error text
@@ -82,11 +88,11 @@ local function ParseSource(text, target)
             end
             return { kind = SOURCE_KIND.SPELL, spellId = target.spellId, name = target.name }
         end
-        local spell = ParseSpell(rest)
+        local spell = BuffParser.ParseSpell(rest)
         return { kind = SOURCE_KIND.SPELL, spellId = spell.spellId, name = spell.name }
     end
 
-    local itemId = tonumber(rest:match("^(%d+)$")) or Item.FindId(rest)
+    local itemId = BuffParser.ParseItemId(rest)
     if not itemId then
         return nil, "messages.unknown_item"
     end
