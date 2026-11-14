@@ -133,10 +133,10 @@ ns.Localization.Add("en", [==[
         "move_down": "Down",
         "remove": "Delete",
         "remove_confirm": "Stop tracking %s?",
-        "aura_note": "A name or a spell id. Shift-click a buff of yours (top right of the screen) or a spell in the spellbook, or drag a spell here.",
+        "aura_note": "Name or spell id. Suggests your spells and every buff you have had on you. Shift-click or drag a spell here.",
         "spell_note": "Drag a spell from the spellbook here, or shift-click it while this field is in focus.",
         "item_note": "Drag an item from the bags here, or shift-click it in the bags while this field is in focus.",
-        "icon_note": "Empty: the buff's own picture. Type a name for suggestions, or drag / shift-click a spell, item or buff.",
+        "icon_note": "Empty: the buff's own picture. Suggests your spells, bag items and buffs you have had. Drag or shift-click works too.",
         "add_note": "Or shift-click a buff of yours (top right of the screen) while this window is open."
     }
 }
