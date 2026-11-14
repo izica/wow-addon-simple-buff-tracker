@@ -412,19 +412,19 @@ def last_chat(lua):
 def test_buffs():
     lua = new_runtime()
     lua.execute("Slash('add Arcane Intellect = spell')")
-    check("add a spell buff with its own spell", "added: Arcane Intellect" in last_chat(lua))
+    check("add a spell buff with its own spell", "Now tracking: Arcane Intellect" in last_chat(lua))
     lua.execute("Slash('add Well Fed = item Crab Cake')")
     check("add food by item name", "Crab Cake" in last_chat(lua))
     lua.execute("Slash('add mainhand = item |cff1eff00|Hitem:20749::::|h[Brilliant Wizard Oil]|h|r')")
     check("add a weapon oil by link", "Brilliant Wizard Oil" in last_chat(lua))
     lua.execute("Slash('add Trueshot Aura')")
-    check("add a buff that is only tracked", last_chat(lua).endswith("added: Trueshot Aura"))
+    check("add a buff that is only tracked", last_chat(lua).endswith("Now tracking: Trueshot Aura."))
     lua.execute("Slash('add |cffffffff|Hitem:2683::::|h[Crab Cake]|h|r')")
     check("an item is not a buff", "not an item" in lua.eval("chat[#chat - 1]"))
     lua.execute("Slash('add Well Fed = eat it')")
-    check("a source needs spell or item", "write spell or item" in lua.eval("chat[#chat - 1]"))
+    check("a source needs spell or item", "type spell or item" in lua.eval("chat[#chat - 1]"))
     lua.execute("Slash('add Well Fed = item Unknown Thing')")
-    check("an unknown item is refused", "unknown item" in lua.eval("chat[#chat - 1]"))
+    check("an unknown item is refused", "Item not found" in lua.eval("chat[#chat - 1]"))
     check("four buffs in the list", lua.eval("#SimpleBuffTrackerDB.buffs") == 4)
 
     lua.execute("""
@@ -466,7 +466,7 @@ def test_buffs():
     """)
     check("in combat the icons stay where they were", shown_buttons(lua) == 2)
     lua.execute("Slash('mode all')")
-    check("mode does not change in combat", "not in combat" in last_chat(lua))
+    check("mode does not change in combat", "while in combat" in last_chat(lua))
 
     lua.execute("""
         inCombat = false
@@ -477,9 +477,9 @@ def test_buffs():
     check("after combat the missing buffs are laid out", shown_buttons(lua) == 3)
 
     lua.execute("Slash('remove 2')")
-    check("remove by number", "removed: Well Fed" in last_chat(lua))
+    check("remove by number", "No longer tracking: Well Fed" in last_chat(lua))
     lua.execute("Slash('remove 9')")
-    check("remove a number that is not there", "no buff with this number" in last_chat(lua))
+    check("remove a number that is not there", "No buff with that number" in last_chat(lua))
     lua.execute("Slash('list')")
     check("list numbers the buffs", "3. Trueshot Aura" in last_chat(lua))
 
@@ -524,10 +524,10 @@ def test_window_editing():
     check("Escape closes it", lua.eval("UISpecialFrames[1]") == "SimpleBuffTrackerWindow")
     check("no buffs: nothing to edit", lua.eval("FindField('aura') == nil") is True)
 
-    click_button(lua, "Add buff")
+    click_button(lua, "Add Buff")
     check("Add buff makes an empty buff and shows it",
           lua.eval("#SimpleBuffTrackerDB.buffs") == 1 and lua.eval("FindField('aura') ~= nil") is True)
-    check("the list shows it as New buff", lua.eval("Rows()[1].label.text") == "New buff")
+    check("the list shows it as New buff", lua.eval("Rows()[1].label.text") == "New Buff")
 
     lua.execute("Enter('aura', 'Arcane Intellect')")
     check("typing a name sets the buff", lua.eval("SimpleBuffTrackerDB.buffs[1].target.spellId") == 1459)
@@ -552,9 +552,9 @@ def test_window_editing():
     lua.execute("Enter('icon', '')")
     check("empty icon: automatic", lua.eval("SimpleBuffTrackerDB.buffs[1].icon") is None)
 
-    click_button(lua, "Add buff")
+    click_button(lua, "Add Buff")
     lua.execute("Enter('aura', 'Well Fed')")
-    click_button(lua, "Up")
+    click_button(lua, "Move Up")
     check("Up moves the buff", lua.eval("SimpleBuffTrackerDB.buffs[1].target.name") == "Well Fed"
           and lua.eval("Rows()[1].label.text") == "Well Fed")
     click_button(lua, "Delete")
@@ -585,7 +585,7 @@ def test_warn_seconds():
     check("500 s left, panel warns at 120: hidden",
           lua.eval("secureButtons[1] == nil or not secureButtons[1].shown") is True)
     lua.execute("Slash('buffs')")
-    lua.globals().warnSlider = find_slider(lua, "same as the panel (120 sec)")
+    lua.globals().warnSlider = find_slider(lua, "Panel default (120 sec)")
     check("the buff's slider starts at the panel's time", lua.eval("warnSlider ~= nil") is True)
     lua.execute("warnSlider.scripts.OnValueChanged(warnSlider, 9)")   # step 9: 600 seconds
     check("its own time is saved", lua.eval("SimpleBuffTrackerDB.buffs[1].warnSeconds") == 600)
@@ -607,7 +607,7 @@ def test_warn_seconds():
     lua.execute("""
         for _, frame in ipairs(allFrames) do
             local label = rawget(frame, 'label')
-            if label and label.text == 'Lock the panel' then lockBox = frame end
+            if label and label.text == 'Lock Panel' then lockBox = frame end
         end
     """)
     check("the lock checkbox is checked while the panel is locked", lua.eval("lockBox.checked") is True)
@@ -830,14 +830,14 @@ def test_drag_and_previews():
         Slash('buffs')
     """)
     check("a note under the icon field says what it takes",
-          lua.eval("FindField('icon').note.text").startswith("Empty: the buff's own picture")
+          lua.eval("FindField('icon').note.text").startswith("Leave empty to use the buff's own icon")
           and lua.eval("FindField('icon').note.shown") is True)
     lua.execute("Enter('sourceValue', '')")
     check("the note under the item field says drag or shift-click",
-          lua.eval("FindField('sourceValue').note.text").startswith("Drag an item from the bags here"))
+          lua.eval("FindField('sourceValue').note.text").startswith("Drag an item here from your bags"))
     lua.execute("ns.Services.Buff.SetSourceKind(SimpleBuffTrackerDB.buffs[1], 'spell'); Window().Refresh()")
     check("with a spell source the note talks of spells",
-          lua.eval("FindField('sourceValue').note.text").startswith("Drag a spell from the spellbook"))
+          lua.eval("FindField('sourceValue').note.text").startswith("Drag a spell here from your spellbook"))
     lua.execute("ns.Services.Buff.SetSourceKind(SimpleBuffTrackerDB.buffs[1], 'none'); Window().Refresh()")
     check("no source: no field and no note", lua.eval("FindField('sourceValue') == nil") is True)
     lua.execute("ns.Services.Buff.SetSourceKind(SimpleBuffTrackerDB.buffs[1], 'item'); Window().Refresh()")
@@ -940,7 +940,7 @@ def test_grow_direction():
     lua.execute("""
         Slash('config')
         for _, frame in ipairs(allFrames) do
-            if frame.text == 'Icons grow' then growLabel = frame end
+            if frame.text == 'Growth Direction' then growLabel = frame end
         end
     """)
     check("the Panel tab has the grow select", lua.eval("growLabel ~= nil") is True)
@@ -975,7 +975,7 @@ def test_weapon_enchants():
     check("Flametongue on: the Flametongue buff is on, the oil buff missing",
           lua.eval("secureButtons[2].state.isActive") is True and lua.eval("secureButtons[1].state.isActive") is False)
     check("the buff is named after its enchant",
-          lua.eval("ns.Models.Buff.TargetLabel(SimpleBuffTrackerDB.buffs[2])") == "Main hand enchant: Flametongue 3")
+          lua.eval("ns.Models.Buff.TargetLabel(SimpleBuffTrackerDB.buffs[2])") == "Main Hand Enchant: Flametongue 3")
 
     lua.execute("""
         weaponTooltips[16] = { { 'Sharpened (2 hrs)', 0, 1, 0 } }
@@ -998,7 +998,7 @@ def test_weapon_enchants():
     lua.execute("Slash('buffs')")
     lua.execute("""
         for _, frame in ipairs(allFrames) do
-            if rawget(frame, 'label') and rawget(frame, 'group') and frame.label.text == 'Which enchant' then
+            if rawget(frame, 'label') and rawget(frame, 'group') and frame.label.text == 'Enchant' then
                 enchantSelect = frame
             end
         end
@@ -1037,7 +1037,7 @@ def test_oil_with_flametongue():
     check("both on: the oil buff is on too, though the API gives only Flametongue",
           lua.eval("secureButtons[2].state.isActive") is True)
     check("the old buff is named right now",
-          lua.eval("ns.Models.Buff.TargetLabel(SimpleBuffTrackerDB.buffs[1])") == "Main hand enchant: Flametongue 5")
+          lua.eval("ns.Models.Buff.TargetLabel(SimpleBuffTrackerDB.buffs[1])") == "Main Hand Enchant: Flametongue 5")
 
     lua.execute("""
         -- Flametongue cancelled: only the oil, the API gives the oil now
@@ -1176,7 +1176,7 @@ def test_action_bar_look():
     lua.execute("""
         inCombat = true
         for _, frame in ipairs(allFrames) do
-            if frame.text == 'Icon look' then lookLabel = frame end
+            if frame.text == 'Icon Style' then lookLabel = frame end
         end
     """)
     check("the Panel tab has the icon look select", lua.eval("lookLabel ~= nil") is True)
@@ -1228,7 +1228,34 @@ def test_shift_drag():
 def test_russian():
     lua = new_runtime("ruRU")
     lua.execute("Slash('list')")
-    check("russian texts load", "бафов пока нет" in last_chat(lua))
+    check("russian texts load", "Нет отслеживаемых бафов" in last_chat(lua))
+
+
+def test_wording():
+    lua = new_runtime()
+    lua.execute("Slash('')")
+    lua.execute("""
+        helpLines = {}
+        for _, line in ipairs(chat) do helpLines[#helpLines + 1] = line end
+    """)
+    lines = list(lua.eval("helpLines").values())
+    check("help: a command with arguments has them right after its name",
+          any("/sbt add <buff> [= spell|item <source>] - Track a buff." in line for line in lines))
+    check("help: a command without arguments gets a dash",
+          any("/sbt list - List the tracked buffs." in line for line in lines))
+    lua.execute("""
+        tooltipLines = {}
+        function GameTooltip:AddLine(text) tooltipLines[#tooltipLines + 1] = text end
+        Slash('add Arcane Intellect = spell Arcane Intellect')
+        Slash('add Well Fed = item 20749')
+        RunTickers()
+        secureButtons[1].scripts.OnEnter(secureButtons[1])
+        secureButtons[2].scripts.OnEnter(secureButtons[2])
+        tooltipText = table.concat(tooltipLines, '|')
+    """)
+    text = lua.eval("tooltipText")
+    check("the icon tooltip says Click to cast for a spell", "Click to cast Arcane Intellect" in text)
+    check("and Click to use for an item", "Click to use " in text)
 
 
 def main():
@@ -1254,6 +1281,7 @@ def main():
     test_action_bar_look()
     test_shift_drag()
     test_russian()
+    test_wording()
     if failures:
         print("\n%d failed" % len(failures))
         sys.exit(1)

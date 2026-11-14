@@ -63,7 +63,8 @@ local function ShowTooltip(button)
     local sourceLabel = Buff.SourceLabel(state.buff)
     local hint = Text("tooltip.no_source")
     if sourceLabel then
-        hint = Text("tooltip.click", sourceLabel)
+        -- "Click to cast X" / "Click to use X", as the game's own tooltips say it
+        hint = Text("tooltip.click_" .. state.buff.source.kind, sourceLabel)
     end
     GameTooltip:AddLine(hint, TOOLTIP_HINT_COLOR[1], TOOLTIP_HINT_COLOR[2], TOOLTIP_HINT_COLOR[3])
     if state.itemCount then

@@ -18,7 +18,14 @@ end
 
 function ns.Commands.PrintHelp()
     for _, commandName in ipairs(order) do
-        ns.Utilities.Print("/sbt " .. commandName .. " -- " .. (routes[commandName].help or ""))
+        -- "/sbt add <buff> - Track a buff." -- the arguments are part of the help text;
+        -- "/sbt list - List the tracked buffs." -- a command without arguments
+        local help = routes[commandName].help or ""
+        local separator = " - "
+        if help:find("^[<%[]") then
+            separator = " "
+        end
+        ns.Utilities.Print("/sbt " .. commandName .. separator .. help)
     end
 end
 
