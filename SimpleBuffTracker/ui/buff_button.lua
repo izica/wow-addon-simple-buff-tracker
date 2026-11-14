@@ -15,6 +15,8 @@
 -- Each look is made the first time it is chosen and kept: switching shows one,
 -- hides the others. Without the template both template looks fall back to square.
 --
+-- SetGlow(effect) puts an effect around the icon (ui/glow.lua), over every look.
+--
 -- Secure: in combat the client does not let addons move, show, hide or change
 -- the action of it (SetAction, Show, Hide, SetPoint -- only out of combat;
 -- SetTemplate and SetIconSize too). The picture (icon, timer, count, tint) can
@@ -132,6 +134,9 @@ function ns.UI.BuffButton(parent, options)
     highlight:SetBlendMode("ADD")
     highlight:Hide()
 
+    -- the effect around a missing buff, above the looks and the text layer
+    local glow = ns.UI.Glow(button)
+
     button:SetScript("OnEnter", function(self)
         highlight:Show()
         if options.onEnter then
@@ -182,6 +187,7 @@ function ns.UI.BuffButton(parent, options)
             other.frame:SetShown(other == look)
         end
         ApplySize(look)
+        glow:SetFrameLevel(textLayer:GetFrameLevel() + 1)
         self.template = template
     end
 
@@ -229,6 +235,11 @@ function ns.UI.BuffButton(parent, options)
         else
             look.icon:SetAlpha(ACTIVE_ALPHA)
         end
+    end
+
+    -- effect -- ns.Constants.GLOW_EFFECT, nil -- none; any time, in combat too
+    function button:SetGlow(effect)
+        glow:Set(effect)
     end
 
     -- itemCount -- nil for a buff without an item: no number

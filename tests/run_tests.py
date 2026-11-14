@@ -1225,6 +1225,45 @@ def test_shift_drag():
           and lua.eval("mover.shown") is False)
 
 
+def test_missing_glow():
+    lua = new_runtime()
+    lua.execute("""
+        Slash('add Arcane Intellect = spell Arcane Intellect')
+        RunTickers()
+        button = secureButtons[1]
+        -- the glow holder: the child of the icon that runs OnUpdate
+        for _, frame in ipairs(allFrames) do
+            if rawget(frame, 'parent') == button and rawget(frame.scripts, 'OnUpdate') then glowHolder = frame end
+        end
+    """)
+    check("a missing buff has no glow by default", lua.eval("glowHolder.shown") is False)
+    for effect in ("pixel", "autocast", "proc", "pulse"):
+        lua.execute("SimpleBuffTrackerDB.settings.missingGlow = '%s'; ns.Core.Refresh()" % effect)
+        check("the %s glow shows on a missing buff" % effect, lua.eval("glowHolder.shown") is True)
+        lua.execute("""
+            -- give the effect frames a size: the lines and sparkles are laid out along it
+            for _, frame in ipairs(allFrames) do
+                if rawget(frame, 'parent') == glowHolder then
+                    function frame:GetWidth() return 36 end
+                    function frame:GetHeight() return 36 end
+                end
+            end
+            for step = 1, 50 do glowHolder.scripts.OnUpdate(glowHolder, 0.37) end
+        """)
+    lua.execute("""
+        auras = { { spellId = 1459, name = 'Arcane Intellect', icon = 135932,
+                    expirationTime = clock + 1500, duration = 1800 } }
+        Fire('UNIT_AURA', 'player')
+    """)
+    check("the buff is back: no glow", lua.eval("glowHolder.shown") is False)
+    lua.execute("""
+        auras = {}
+        inCombat = true
+        Fire('UNIT_AURA', 'player')
+    """)
+    check("in combat the glow still comes up", lua.eval("glowHolder.shown") is True)
+
+
 def test_russian():
     lua = new_runtime("ruRU")
     lua.execute("Slash('list')")
@@ -1280,6 +1319,7 @@ def main():
     test_editor_fits()
     test_action_bar_look()
     test_shift_drag()
+    test_missing_glow()
     test_russian()
     test_wording()
     if failures:

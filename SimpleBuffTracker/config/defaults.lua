@@ -13,6 +13,8 @@ ns.Config.defaults = {
         growDirection = ns.Constants.GROW_DIRECTION.RIGHT,
         iconTemplate = ns.Constants.ICON_TEMPLATE.ACTION_BAR,
         iconSpacing = 4,
+        -- the effect around the icon of a missing buff (ns.Constants.GLOW_EFFECT)
+        missingGlow = ns.Constants.GLOW_EFFECT.NONE,
         locked = true,
         -- a buff with this many seconds left or less counts as missing in the "missing" mode
         warnSeconds = 120,

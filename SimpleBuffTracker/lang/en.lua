@@ -147,6 +147,7 @@ ns.Localization.Add("en", [==[
         "enchant_any": "Any temporary enchant",
         "enchant_note": "Enchants seen on your weapons. Not listed? Apply it once (oil, Flametongue...).",
         "grow": "Growth Direction",
+        "missing_glow": "Missing Buff Glow",
         "icon_template": "Icon Style"
     },
     "grow": {
@@ -159,6 +160,13 @@ ns.Localization.Add("en", [==[
         "action_bar": "Action Bar",
         "borderless": "Action Bar (no border)",
         "square": "Square (no border)"
+    },
+    "glow": {
+        "none": "None",
+        "pixel": "Pixel Glow",
+        "autocast": "Autocast Shine",
+        "proc": "Action Button Glow",
+        "pulse": "Red Pulse"
     }
 }
 ]==])

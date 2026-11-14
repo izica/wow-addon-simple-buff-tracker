@@ -1,5 +1,5 @@
 -- panel_settings.lua -- the Panel tab of the window: lock, what the panel shows
--- and how early, which way the icons grow, their look, size, line and spacing,
+-- and how early, the glow of a missing buff, which way the icons grow, their look, size, line and spacing,
 -- the minimap button. Applied at once.
 -- Laid out by ui/form_layout.lua: one drawn width for every control.
 
@@ -12,6 +12,8 @@ local GROW_DIRECTION = ns.Constants.GROW_DIRECTION
 local GROW_ORDER = { GROW_DIRECTION.RIGHT, GROW_DIRECTION.LEFT, GROW_DIRECTION.DOWN, GROW_DIRECTION.UP }
 local ICON_TEMPLATE = ns.Constants.ICON_TEMPLATE
 local TEMPLATE_ORDER = { ICON_TEMPLATE.ACTION_BAR, ICON_TEMPLATE.BORDERLESS, ICON_TEMPLATE.SQUARE }
+local GLOW_EFFECT = ns.Constants.GLOW_EFFECT
+local GLOW_ORDER = { GLOW_EFFECT.NONE, GLOW_EFFECT.PIXEL, GLOW_EFFECT.AUTOCAST, GLOW_EFFECT.PROC, GLOW_EFFECT.PULSE }
 
 local PanelSettings = {}
 ns.Components.PanelSettings = PanelSettings
@@ -127,6 +129,14 @@ function PanelSettings.Create(parent, options)
         }
     end, "mode", false)
     AddSlider("settings.warn_seconds", "warnSeconds", WARN_STEPS, ns.Utilities.FormatSeconds)
+    -- how a missing buff draws the eye: a glow like in WeakAuras
+    AddSelect("settings.missing_glow", function()
+        local choices = {}
+        for _, effect in ipairs(GLOW_ORDER) do
+            table.insert(choices, { value = effect, text = Text("glow." .. effect) })
+        end
+        return choices
+    end, "missingGlow", false)
 
     -- how it looks: which way the icons go (the panel stays held by the corner
     -- they start from), their look, size, line and spacing

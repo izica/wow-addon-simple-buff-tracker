@@ -241,8 +241,11 @@ local function Paint(button, state)
     button:SetMissing(not state.isActive)
     if state.isActive then
         button:SetTimer(state.expirationTime, state.duration)
+        button:SetGlow(nil)
     else
         button:SetTimer(0, 0)
+        -- a missing buff draws the eye with the effect chosen on the Panel tab
+        button:SetGlow(ns.db.settings.missingGlow)
     end
     button:SetItemCount(state.itemCount)
 end
@@ -290,6 +293,7 @@ local function Layout(states)
     end
     for index = #states + 1, #buttons do
         buttons[index].state = nil
+        buttons[index]:SetGlow(nil)
         buttons[index]:Hide()
     end
     shownCount = #states

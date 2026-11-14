@@ -100,6 +100,12 @@ python tests/run_tests.py
 Каждый вид создаётся при первом выборе и хранится, `SetTemplate` показывает один (только вне боя, в бою
 селект отказывает). Счётчик предметов и подсветка — на слое над всеми видами. Нет шаблона — `square`.
 
+Подсветка отсутствующего бафа — `ui/glow.lua` (`settings.missingGlow`, `GLOW_EFFECT`, селект «Подсветка
+отсутствующего бафа»): `pixel` (линии бегут по краю), `autocast` (искры `Interface\Cooldown\star4`),
+`proc` (`ActionButtonSpellAlertTemplate` клиента из Blizzard_ActionBar/Shared; нет шаблона — `pixel`),
+`pulse` (красная рамка мигает). Всё рисуется текстурами в OnUpdate, без шаблонов анимаций. Рамка подсветки —
+обычный фрейм над кнопкой, не защищённый: показывается и в бою (`Paint` -> `SetGlow`).
+
 ## Миникарта
 
 `components/minimap_button.lua` на LibDBIcon (+ LibDataBroker, CallbackHandler в `libs/`):

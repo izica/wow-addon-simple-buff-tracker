@@ -3,7 +3,7 @@
 ## Notes: Tracks your buffs on a compact icon panel: all with timers, or only the missing ones. Click an icon to reapply the buff.
 ## IconTexture: Interface\AddOns\SimpleBuffTracker\media\icon
 ## Author: izica
-## Version: 0.9.9
+## Version: 0.10.0
 ## SavedVariablesPerCharacter: SimpleBuffTrackerDB
 
 libs\LibStub\LibStub.lua
@@ -41,6 +41,7 @@ ui\scroll_area.lua
 ui\tab_bar.lua
 ui\step_slider.lua
 ui\form_layout.lua
+ui\glow.lua
 ui\buff_button.lua
 components\buff_panel.lua
 components\minimap_button.lua
