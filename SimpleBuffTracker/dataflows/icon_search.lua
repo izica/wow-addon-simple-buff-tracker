@@ -1,6 +1,7 @@
 -- icon_search.lua -- suggestions for the fields of the buff window, found by
--- name as the player types: the buffs on the player, the spells of the
--- spellbook and the items in the bags. The client gives no names for the rest
+-- name as the player types: the buffs on the player, the buffs seen on the
+-- character before (AuraScan.Seen), the spells of the spellbook and the items
+-- in the bags. The client gives no names for the rest
 -- of its pictures, so only these are searched.
 --
 -- A suggestion: { label -- the name shown, icon -- the picture, kind -- "aura",
@@ -16,8 +17,8 @@ ns.Dataflows.IconSearch = IconSearch
 
 -- which sources a field searches
 IconSearch.SOURCES = {
-    ALL = { auras = true, spells = true, items = true },
-    BUFFS = { auras = true, spells = true },
+    ALL = { auras = true, seen = true, spells = true, items = true },
+    BUFFS = { auras = true, seen = true, spells = true },
     SPELLS = { spells = true, auras = true },
     ITEMS = { items = true },
 }
@@ -29,6 +30,13 @@ local LAST_BAG = 4
 
 local function AuraSuggestions(add)
     for _, aura in ipairs(AuraScan.All()) do
+        add({ label = aura.name, icon = aura.icon, kind = "aura", spellId = aura.spellId })
+    end
+end
+
+-- buffs seen on the character before (not on now): "Well Fed" without eating first
+local function SeenSuggestions(add)
+    for _, aura in ipairs(AuraScan.Seen()) do
         add({ label = aura.name, icon = aura.icon, kind = "aura", spellId = aura.spellId })
     end
 end
@@ -106,6 +114,9 @@ function IconSearch.Search(query, sources)
     -- every source on its own: one failing API must not take the others down
     if sources.auras then
         pcall(AuraSuggestions, add)
+    end
+    if sources.seen then
+        pcall(SeenSuggestions, add)
     end
     if sources.spells then
         pcall(SpellBookSuggestions, add)

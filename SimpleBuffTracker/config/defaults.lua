@@ -19,6 +19,8 @@ ns.Config.defaults = {
     },
     -- { target = { spellId, name, weapon }, source = { kind, spellId, name, itemId } or nil }
     buffs = {},
+    -- [lower name] = { spellId, name, icon }: every buff seen on the character, for the search
+    seenAuras = {},
 }
 
 ns.Config.TICK_SECONDS = 1             -- how often timers and the "missing" list are checked

@@ -67,6 +67,21 @@ end
 
 local lastError = nil   -- why the last reading failed, for /sbt debug
 
+-- Keeps every buff of a reading in ns.db.seenAuras[lower name] = { spellId, name,
+-- icon }: "Well Fed" is found by the search of the buff window when it is not on now.
+local function Remember(reading)
+    if not (ns.db and ns.db.seenAuras) then
+        return
+    end
+    for key, aura in pairs(reading.byName) do
+        local seen = ns.db.seenAuras[key]
+        local isNew = seen == nil or seen.spellId ~= aura.spellId or seen.icon ~= aura.icon
+        if isNew then
+            ns.db.seenAuras[key] = { spellId = aura.spellId, name = aura.name, icon = aura.icon }
+        end
+    end
+end
+
 -- every buff of the last reading that has a name: { spellId, name, icon, ... }
 function AuraScan.All()
     local result = {}
@@ -88,7 +103,29 @@ function AuraScan.Update()
     end
     lastError = nil
     current = result
+    Remember(result)
     return true
+end
+
+-- a buff seen on this character before, by name; nil -- never seen
+function AuraScan.FindSeen(name)
+    if not (ns.db and ns.db.seenAuras and name) then
+        return nil
+    end
+    return ns.db.seenAuras[name:lower()]
+end
+
+-- every buff ever seen on this character, for the search of the buff window:
+-- { spellId, name, icon }; the same name seen again keeps the newest
+function AuraScan.Seen()
+    local result = {}
+    if not (ns.db and ns.db.seenAuras) then
+        return result
+    end
+    for _, aura in pairs(ns.db.seenAuras) do
+        table.insert(result, aura)
+    end
+    return result
 end
 
 local function DescribeValue(value)

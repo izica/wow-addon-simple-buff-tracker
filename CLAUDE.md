@@ -11,7 +11,7 @@
 | исходник | `SimpleBuffTracker/` — **правим здесь** |
 | игра видит | `B:\World of Warcraft\_forever_\Interface\AddOns\SimpleBuffTracker` — junction на `SimpleBuffTracker/` |
 | клиент | WoW Forever, `_forever_`, `## Interface: 16001` |
-| база | `SimpleBuffTrackerDB` (**на персонажа**): `settings`, `buffs` |
+| база | `SimpleBuffTrackerDB` (**на персонажа**): `settings`, `buffs`, `seenAuras` (все бафы, виденные на персонаже) |
 
 Команда — `/sbt` (и `/simplebufftracker`), клавиши `SIMPLEBUFFTRACKER_*`, глобал для
 Bindings.xml — `SimpleBuffTracker_RunCommand`. Новый файл в `.toc` — только перезапуск клиента.
@@ -53,7 +53,8 @@ python tests/run_tests.py
 * **Панель**: `components/panel_settings.lua` — режим, размер, ряд, отступ, порог, разблокировка,
   закрепить панель (галочка = закреплена), кнопка миникарты.
 * **Подсказки** во всех полях: `ui/suggestions.lua` (общий список под полем, страта TOOLTIP,
-  ↑/↓ + Enter, клик) + `dataflows/icon_search.lua` (`SOURCES`: бафы на игроке, книга, сумки;
+  ↑/↓ + Enter, клик) + `dataflows/icon_search.lua` (`SOURCES`: бафы на игроке, виденные раньше
+  (`AuraScan.Seen`, `seenAuras` пишет `AuraScan.Update`), книга, сумки;
   поле предмета — только сумки). У остальных картинок клиента имён нет.
 * `/sbt buffs` (левый клик по миникарте) — вкладка «Бафы», `/sbt config` (shift + левый) — «Панель».
   Escape закрывает (`UISpecialFrames`). Чат-команды перерисовывают окно (`MainWindow.Refresh`).

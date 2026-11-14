@@ -720,6 +720,35 @@ def test_icon_search():
           and lua.eval("ns.Dataflows.BuffParser.ParseIcon('item:2683')") == 133000 + 2683)
 
 
+def test_seen_buffs():
+    lua = new_runtime()
+    lua.execute("""
+        auras = { { spellId = 19705, name = 'Well Fed', icon = 136000, expirationTime = clock + 900, duration = 900 } }
+        Fire('UNIT_AURA', 'player')
+        auras = {}
+        Fire('UNIT_AURA', 'player')
+    """)
+    check("a buff seen once is remembered", lua.eval("SimpleBuffTrackerDB.seenAuras['well fed'].spellId") == 19705)
+    check("the buff field finds it when it is gone", labels(lua, "well", "BUFFS") == ["Well Fed"])
+    check("the icon field too", labels(lua, "well") == ["Well Fed"])
+    check("the item field does not", labels(lua, "well", "ITEMS") == [])
+    lua.execute("Slash('add Well Fed')")
+    check("typing its name gives its id and picture right away",
+          lua.eval("SimpleBuffTrackerDB.buffs[1].target.spellId") == 19705
+          and lua.eval("ns.Services.Buff.Icon(SimpleBuffTrackerDB.buffs[1])") == 136000)
+    lua.execute("""
+        Slash('buffs')
+        TypeInto(FindField('aura'), 'fed')
+    """)
+    check("the buff field drops it in its list", lua.eval("ShownSuggestions()[1].label.text") == "Well Fed")
+    lua.execute("""
+        auras = { { spellId = SECRET, name = 'Hidden Thing', icon = 1, expirationTime = 0, duration = 0 } }
+        Fire('UNIT_AURA', 'player')
+    """)
+    check("a buff without a plain id is remembered by name",
+          lua.eval("SimpleBuffTrackerDB.seenAuras['hidden thing'].spellId") is None)
+
+
 def test_suggestions():
     lua = new_runtime()
     lua.execute("Slash('add Well Fed = item 2683'); Slash('buffs')")
@@ -851,6 +880,7 @@ def main():
     test_learned_icon_redraws_window()
     test_debug()
     test_icon_search()
+    test_seen_buffs()
     test_suggestions()
     test_drag_and_previews()
     test_editor_fits()

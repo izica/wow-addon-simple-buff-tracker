@@ -46,9 +46,9 @@ function BuffParser.ParseSpell(text)
     if found then
         return { spellId = found.spellId, name = found.name }
     end
-    -- not a spell of the character ("Well Fed"): maybe a buff on the player now --
-    -- then its spell id and picture are known
-    local aura = AuraScan.Find({ name = text }, GetTime())
+    -- not a spell of the character ("Well Fed"): maybe a buff on the player now or
+    -- seen on the character before -- then its spell id and picture are known
+    local aura = AuraScan.Find({ name = text }, GetTime()) or AuraScan.FindSeen(text)
     if aura then
         return { spellId = aura.spellId, name = aura.name, icon = aura.icon }
     end
