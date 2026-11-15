@@ -7,8 +7,10 @@ ns.OtherAddons.texts = ns.OtherAddons.texts or {}
 
 ns.OtherAddons.texts.en = {
     title = "Other Addons",
-    subtitle = "More addons by the same author for WoW Forever. Installed: %d of %d.",
-    footer = "Find them on CurseForge by name.",
+    subtitle = "More addons for WoW Forever. Installed: %d of %d.",
+    footer = "Copy a name and search for it on CurseForge.",
+    copy = "Copy Name",
+    copy_hint = "Ctrl+C to copy, Escape to close",
     state = {
         loaded = "Installed",
         disabled = "Installed, turned off",

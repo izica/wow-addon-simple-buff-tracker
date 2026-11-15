@@ -3,6 +3,10 @@
 -- features as points, and whether it is installed (installed / installed but
 -- turned off / not installed). The cards scroll when they do not fit.
 --
+-- "Copy Name" on a card: the game gives addons no clipboard, so the button opens
+-- a box over itself with the name selected -- Ctrl+C copies it; Escape, Enter
+-- or a click elsewhere closes it, typing does not change it.
+--
 -- A self-contained module, the same in every addon of the author: the folder
 -- shared/other_addons is copied whole and needs nothing of the addon it is in
 -- but the addon's namespace (ns.OtherAddons). Its files, in this order in .toc:
@@ -39,6 +43,13 @@ local ICON_CROP = 0.08
 local ICON_FRAME = 2
 local TEXT_GAP = 14              -- between the icon and the texts
 local STATUS_WIDTH = 150
+local COPY_BUTTON_WIDTH = 150
+local COPY_BUTTON_HEIGHT = 22
+local COPY_GAP = 8               -- between the status and the copy button
+local COPY_BOX_WIDTH = 280
+local COPY_BOX_HEIGHT = 22
+local COPY_BOX_LEVEL_GAP = 10
+local STATUS_HEIGHT = 14
 local STATUS_DOT_SIZE = 8
 local ACCENT_WIDTH = 3
 local LINE_GAP = 4               -- between the name, the line and the points
@@ -55,6 +66,7 @@ local SUBTITLE_COLOR = { 0.7, 0.7, 0.74 }
 local NOTES_COLOR = { 0.85, 0.85, 0.87 }
 local FEATURES_COLOR = { 0.68, 0.68, 0.72 }
 local FOOTER_COLOR = { 0.55, 0.55, 0.6 }
+local COPY_HINT_COLOR = { 1, 0.82, 0 }
 
 local STATE = {
     LOADED = "loaded",
@@ -162,7 +174,8 @@ local function Paint(textures, color)
     end
 end
 
-local function MakeCard(parent, addon, text)
+-- onCopy(card, button, title) -- the copy button was pressed
+local function MakeCard(parent, addon, text, onCopy)
     local card = CreateFrame("Frame", nil, parent)
     card:EnableMouse(true)
 
@@ -209,6 +222,16 @@ local function MakeCard(parent, addon, text)
         end
     end
 
+    -- under the status: copy the name, to search for it on CurseForge
+    local copyButton = CreateFrame("Button", nil, card, "UIPanelButtonTemplate")
+    copyButton:SetSize(COPY_BUTTON_WIDTH, COPY_BUTTON_HEIGHT)
+    copyButton:SetPoint("TOPRIGHT", card, "TOPRIGHT", -CARD_INSET, -(CARD_INSET + STATUS_HEIGHT + COPY_GAP))
+    copyButton:SetText(text("copy") or "")
+    copyButton:SetScript("OnClick", function(self)
+        onCopy(card, self, addon.title)
+    end)
+    card.copyButton = copyButton
+
     local name = card:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     name:SetPoint("TOPLEFT", iconFrame, "TOPRIGHT", TEXT_GAP, -2)
     name:SetJustifyH("LEFT")
@@ -223,7 +246,6 @@ local function MakeCard(parent, addon, text)
     notes:SetText(text("notes", addon.id) or "")
 
     local features = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    features:SetPoint("TOPLEFT", notes, "BOTTOMLEFT", 0, -FEATURES_GAP)
     features:SetJustifyH("LEFT")
     features:SetJustifyV("TOP")
     features:SetSpacing(FEATURE_SPACING)
@@ -239,16 +261,23 @@ local function MakeCard(parent, addon, text)
         Paint(border, BORDER_COLOR)
     end)
 
-    -- the texts wrap in the width of the card; the card is as tall as they are
+    -- The texts wrap in the width of the card; the card is as tall as they are.
+    -- The name and the line keep clear of the right column (status, copy button);
+    -- the points start under whichever of the two is lower, across the whole width.
     function card:Fit(width)
         local textLeft = CARD_INSET + ICON_SIZE + ICON_FRAME * 2 + TEXT_GAP
         local textWidth = math.max(1, width - textLeft - CARD_INSET)
-        name:SetWidth(math.max(1, textWidth - STATUS_WIDTH))
-        notes:SetWidth(textWidth)
+        local besideColumn = math.max(1, textWidth - STATUS_WIDTH - TEXT_GAP)
+        name:SetWidth(besideColumn)
+        notes:SetWidth(besideColumn)
         features:SetWidth(textWidth)
-        local textHeight = (name:GetStringHeight() or 0) + LINE_GAP + (notes:GetStringHeight() or 0)
-            + FEATURES_GAP + (features:GetStringHeight() or 0)
-        local height = math.max(ICON_SIZE + ICON_FRAME * 2, textHeight + 2) + CARD_INSET * 2
+        local headerHeight = math.max(
+            (name:GetStringHeight() or 0) + LINE_GAP + (notes:GetStringHeight() or 0),
+            STATUS_HEIGHT + COPY_GAP + COPY_BUTTON_HEIGHT)
+        features:ClearAllPoints()
+        features:SetPoint("TOPLEFT", card, "TOPLEFT", textLeft, -(CARD_INSET + 2 + headerHeight + FEATURES_GAP))
+        local textHeight = 2 + headerHeight + FEATURES_GAP + (features:GetStringHeight() or 0)
+        local height = math.max(ICON_SIZE + ICON_FRAME * 2, textHeight) + CARD_INSET * 2
         self:SetSize(width, height)
         return height
     end
@@ -301,10 +330,48 @@ function OtherAddons.CreatePage(parent, options)
     content:SetSize(1, 1)
     scroll:SetScrollChild(content)
 
+    -- one box for every card: over the pressed button, the name selected
+    local copyBox = CreateFrame("EditBox", nil, content, "InputBoxTemplate")
+    copyBox:SetSize(COPY_BOX_WIDTH, COPY_BOX_HEIGHT)
+    copyBox:SetAutoFocus(false)
+    copyBox:Hide()
+    local copyHint = copyBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    copyHint:SetPoint("TOPRIGHT", copyBox, "BOTTOMRIGHT", 0, -4)
+    copyHint:SetTextColor(COPY_HINT_COLOR[1], COPY_HINT_COLOR[2], COPY_HINT_COLOR[3])
+    copyHint:SetText(text("copy_hint") or "")
+    local copiedName = ""
+    local function CloseCopyBox()
+        copyBox:ClearFocus()
+        copyBox:Hide()
+    end
+    copyBox:SetScript("OnEscapePressed", CloseCopyBox)
+    copyBox:SetScript("OnEnterPressed", CloseCopyBox)
+    copyBox:SetScript("OnEditFocusLost", function(self)
+        self:Hide()
+    end)
+    -- read only: whatever is typed, the name comes back, selected
+    copyBox:SetScript("OnTextChanged", function(self, isUserInput)
+        if isUserInput then
+            self:SetText(copiedName)
+            self:HighlightText()
+        end
+    end)
+    local function ShowCopyBox(card, button, title)
+        copiedName = title
+        copyBox:ClearAllPoints()
+        copyBox:SetPoint("TOPRIGHT", button, "TOPRIGHT", 0, 0)
+        copyBox:SetFrameLevel(card:GetFrameLevel() + COPY_BOX_LEVEL_GAP)
+        copyBox:SetText(title)
+        copyBox:Show()
+        copyBox:SetFocus()
+        copyBox:HighlightText()
+    end
+    page.copyBox = copyBox
+
     local cards = {}
     for _, addon in ipairs(OtherAddons.list or {}) do
         if addon.folder ~= options.exclude then
-            table.insert(cards, MakeCard(content, addon, text))
+            table.insert(cards, MakeCard(content, addon, text, ShowCopyBox))
         end
     end
 
@@ -348,6 +415,7 @@ function OtherAddons.CreatePage(parent, options)
     page:SetScript("OnShow", function(self)
         self:Refresh()
     end)
+    page:SetScript("OnHide", CloseCopyBox)
     page:Refresh()
     return page
 end

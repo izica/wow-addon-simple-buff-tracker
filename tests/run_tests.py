@@ -1416,6 +1416,17 @@ def test_settings_pages():
     """)
     check("a CurseForge icon comes from the module's own folder",
           lua.eval("moduleIcon") == "Interface\\AddOns\\SimpleBuffTracker\\shared\\other_addons\\icons\\target_it")
+    lua.execute("""
+        local card = others.cards[2]
+        card.copyButton.scripts.OnClick(card.copyButton)
+        box = others.copyBox
+    """)
+    check("Copy Name opens a box with the name in it",
+          lua.eval("box.shown") is True and lua.eval("box.text") == "PRR: Professions, Recipes, Reagents")
+    lua.execute("box:SetText('PRR: Professions, Recipes, Reagentsx'); box.scripts.OnTextChanged(box, true)")
+    check("typing does not change the name", lua.eval("box.text") == "PRR: Professions, Recipes, Reagents")
+    lua.execute("box.scripts.OnEscapePressed(box)")
+    check("Escape closes the box", lua.eval("box.shown") is False)
     check("the module needs none of the addon's texts",
           lua.eval("ns.Localization.Text('other_addons.title')") == "other_addons.title")
     check("a card gets a height from its texts", (lua.eval("cardHeight") or 0) > 0)

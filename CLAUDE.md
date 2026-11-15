@@ -132,6 +132,7 @@ isCorner = true }` (`PinToAnchor` в `components/buff_panel.lua`; имя `isCorn
   `addons.lua` — список (папка, название, `picture` — иконка CurseForge внутри модуля `icons/<id>.tga`,
   или `icon` — иконка игры, у кого иконки CurseForge нет), `lang/en.lua` и `lang/ru.lua` — свои тексты
   (строка и фичи пунктами; язык по `GetLocale`, запасной английский), `other_addons_page.lua` — карточки
+  (кнопка «Копировать название» открывает поле с выделенным названием — Ctrl+C; буфера обмена у аддонов нет)
   (статус: установлен / установлен, выключен / не установлен — `C_AddOns.IsAddOnLoaded` / `DoesAddOnExist`;
   высота по тексту, страница прокручивается) и `ns.OtherAddons.Register(category, { exclude = ADDON })` —
   подстраница под категорией аддона, свой аддон не показывается. Порядок в `.toc`: addons, lang\en, lang\ru,
