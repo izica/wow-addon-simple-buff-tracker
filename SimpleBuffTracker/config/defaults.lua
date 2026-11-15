@@ -29,6 +29,8 @@ ns.Config.defaults = {
     seenEnchants = {},
     -- [name] = true: every temporary enchant name seen in the weapon tooltips
     seenEnchantNames = {},
+    -- what the shared Other Addons page keeps (shared/other_addons): its language
+    otherAddons = {},
 }
 
 ns.Config.TICK_SECONDS = 1             -- how often timers and the "missing" list are checked

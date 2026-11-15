@@ -31,6 +31,7 @@ function SettingsPages.Register()
     local about = ns.Components.AboutPage.Create(UIParent, { onOpen = OpenAddonWindow })
     about:Hide()
     category = Settings.RegisterCanvasLayoutCategory(about, ns.Constants.ADDON_TITLE)
-    ns.OtherAddons.Register(category, { exclude = ADDON })
+    -- saved: the module remembers the language chosen on its page there
+    ns.OtherAddons.Register(category, { exclude = ADDON, saved = ns.db.otherAddons })
     Settings.RegisterAddOnCategory(category)
 end

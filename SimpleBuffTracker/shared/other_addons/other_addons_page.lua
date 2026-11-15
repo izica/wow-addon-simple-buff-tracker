@@ -13,25 +13,50 @@
 -- but the addon's namespace (ns.OtherAddons). Its files, in this order in .toc:
 --   shared\other_addons\addons.lua           -- the list of the addons
 --   shared\other_addons\lang\en.lua          -- the texts (English is the fallback)
---   shared\other_addons\lang\ru.lua
+--   shared\other_addons\lang\de.lua, fr, es, it, pt, ru, zh
 --   shared\other_addons\other_addons_page.lua -- this file
 --
 -- Use:
---   ns.OtherAddons.Register(category, { exclude = ADDON })
+--   ns.OtherAddons.Register(category, { exclude = ADDON, saved = aTable })
 --     -- a subcategory "Other addons" under the addon's category in the game's
 --        settings (Settings.RegisterCanvasLayoutCategory); exclude -- the folder
 --        of the addon to leave out, the one the page is in;
---   ns.OtherAddons.CreatePage(parent, { exclude = ADDON }) -> frame
+--   ns.OtherAddons.CreatePage(parent, { exclude = ADDON, saved = aTable }) -> frame
 --     -- only the page, to put somewhere else.
--- The statuses are read again every time the page is shown. The language is the
--- client's (GetLocale), options.language overrides it.
+-- The statuses are read again every time the page is shown.
+--
+-- Languages: English, German, French, Spanish, Italian, Portuguese, Russian and
+-- Chinese (Chinese only on a Chinese client: the other clients' fonts have no
+-- Chinese letters). The page starts in the client's language; a select in its
+-- header changes it at once. saved -- optional: a table the addon keeps (its
+-- SavedVariables); the module writes saved.language there to remember the
+-- choice. Without it the choice lasts until /reload.
 
 local ADDON, ns = ...
 ns.OtherAddons = ns.OtherAddons or {}
 local OtherAddons = ns.OtherAddons
 
 local FALLBACK_LANGUAGE = "en"
-local CLIENT_LANGUAGES = { ruRU = "ru" }
+-- the client's locale -> the module's language
+local CLIENT_LANGUAGES = {
+    deDE = "de",
+    frFR = "fr",
+    esES = "es",
+    esMX = "es",
+    itIT = "it",
+    ptBR = "pt",
+    ptPT = "pt",
+    ruRU = "ru",
+    zhCN = "zh",
+    zhTW = "zh",
+}
+-- the order of the language select
+local LANGUAGE_ORDER = { "en", "de", "fr", "es", "it", "pt", "ru", "zh" }
+-- languages whose letters only their own client's fonts have
+local OWN_FONT_LANGUAGES = { zh = true }
+local LANGUAGE_SELECT_WIDTH = 170
+local LANGUAGE_SELECT_HEIGHT = 26
+local DROPDOWN_TEMPLATE = "WowStyle1DropdownTemplate"
 
 local PADDING = 24
 local HEADER_GAP = 6
@@ -56,7 +81,7 @@ local ACCENT_WIDTH = 3
 local LINE_GAP = 4               -- between the name, the line and the points
 local FEATURES_GAP = 8
 local FEATURE_SPACING = 3
-local BULLET = "\226\128\162 "   -- "• " in UTF-8
+local BULLET = "\226\128\162 "   -- a bullet and a space, in UTF-8
 
 local CARD_COLOR = { 0.07, 0.07, 0.09, 0.9 }
 local CARD_HOVER_COLOR = { 0.11, 0.11, 0.14, 0.95 }
@@ -116,7 +141,7 @@ local function AddonState(folder)
     return STATE.MISSING
 end
 
--- { "a", "b" } -> "• a\n• b"
+-- { "a", "b" } -> the points, a bullet before each, one per line
 local function Points(features)
     local lines = {}
     for _, feature in ipairs(features or {}) do
@@ -125,13 +150,49 @@ local function Points(features)
     return table.concat(lines, "\n")
 end
 
--- the client's language, or the one in options.language
-local function Language(options)
-    if options and options.language then
-        return options.language
-    end
+local function ClientLanguage()
     local locale = GetLocale and GetLocale() or ""
     return CLIENT_LANGUAGES[locale] or FALLBACK_LANGUAGE
+end
+
+-- a language the page can show here: its texts are loaded, and its letters are
+-- in this client's fonts
+local function IsOffered(language)
+    if not (OtherAddons.texts and OtherAddons.texts[language]) then
+        return false
+    end
+    if OWN_FONT_LANGUAGES[language] then
+        return ClientLanguage() == language
+    end
+    return true
+end
+
+-- the languages of the select, in order
+local function OfferedLanguages()
+    local languages = {}
+    for _, language in ipairs(LANGUAGE_ORDER) do
+        if IsOffered(language) then
+            table.insert(languages, language)
+        end
+    end
+    return languages
+end
+
+-- the language to start with: the one chosen before (saved), options.language,
+-- or the client's
+local function Language(options)
+    options = options or {}
+    local candidates = {
+        options.saved and options.saved.language,
+        options.language,
+        ClientLanguage(),
+    }
+    for index = 1, 3 do
+        if candidates[index] and IsOffered(candidates[index]) then
+            return candidates[index]
+        end
+    end
+    return FALLBACK_LANGUAGE
 end
 
 -- the text at a path ("state", "loaded") in the language, else in English; nil -- none
@@ -221,6 +282,11 @@ local function StyledButton(parent, label, width, height)
         caption:SetPoint("CENTER")
     end)
 
+    function button:SetLabel(newLabel)
+        label = newLabel
+        caption:SetText(label)
+    end
+
     local flashId = 0
     function button:Flash(flashLabel)
         flashId = flashId + 1
@@ -287,7 +353,7 @@ local function MakeCard(parent, addon, text, onCopy)
     end
 
     -- under the status: copy the name, to search for it on CurseForge
-    local copyButton = StyledButton(card, text("copy") or "", COPY_BUTTON_WIDTH, COPY_BUTTON_HEIGHT)
+    local copyButton = StyledButton(card, "", COPY_BUTTON_WIDTH, COPY_BUTTON_HEIGHT)
     copyButton:SetPoint("TOPRIGHT", card, "TOPRIGHT", -CARD_INSET, -(CARD_INSET + STATUS_HEIGHT + COPY_GAP))
     copyButton:SetScript("OnClick", function(self)
         onCopy(card, self, addon.title)
@@ -305,14 +371,20 @@ local function MakeCard(parent, addon, text, onCopy)
     notes:SetJustifyH("LEFT")
     notes:SetJustifyV("TOP")
     notes:SetTextColor(NOTES_COLOR[1], NOTES_COLOR[2], NOTES_COLOR[3])
-    notes:SetText(text("notes", addon.id) or "")
 
     local features = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     features:SetJustifyH("LEFT")
     features:SetJustifyV("TOP")
     features:SetSpacing(FEATURE_SPACING)
     features:SetTextColor(FEATURES_COLOR[1], FEATURES_COLOR[2], FEATURES_COLOR[3])
-    features:SetText(Points(text("features", addon.id)))
+
+    -- the texts in the page's language; again when the language changes
+    function card:ApplyTexts()
+        copyButton:SetLabel(text("copy") or "")
+        notes:SetText(text("notes", addon.id) or "")
+        features:SetText(Points(text("features", addon.id)))
+    end
+    card:ApplyTexts()
 
     card:SetScript("OnEnter", function()
         background:SetColorTexture(CARD_HOVER_COLOR[1], CARD_HOVER_COLOR[2], CARD_HOVER_COLOR[3], CARD_HOVER_COLOR[4])
@@ -370,13 +442,56 @@ function OtherAddons.CreatePage(parent, options)
 
     local title = page:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
     title:SetPoint("TOPLEFT", PADDING, -PADDING)
-    title:SetText(text("title") or "")
 
     local subtitle = page:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     subtitle:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -HEADER_GAP)
     subtitle:SetPoint("RIGHT", page, "RIGHT", -PADDING, 0)
     subtitle:SetJustifyH("LEFT")
     subtitle:SetTextColor(SUBTITLE_COLOR[1], SUBTITLE_COLOR[2], SUBTITLE_COLOR[3])
+
+    -- the language select at the top right, its label left of it
+    local applyLanguage    -- set below: changes the page's language
+    local function LanguageName(code)
+        return TextIn(code, "language_name") or code
+    end
+    local function IsLanguage(code)
+        return code == language
+    end
+    local function ChooseLanguage(code)
+        applyLanguage(code)
+    end
+    local function BuildLanguageMenu(_, root)
+        for _, code in ipairs(OfferedLanguages()) do
+            root:CreateRadio(LanguageName(code), IsLanguage, ChooseLanguage, code)
+        end
+    end
+    local ok, languageSelect = pcall(CreateFrame, "DropdownButton", nil, page, DROPDOWN_TEMPLATE)
+    if ok and languageSelect and languageSelect.SetupMenu then
+        languageSelect:SetSize(LANGUAGE_SELECT_WIDTH, LANGUAGE_SELECT_HEIGHT)
+        languageSelect:SetupMenu(BuildLanguageMenu)
+        function languageSelect:ShowLanguage()
+            self:GenerateMenu()
+        end
+    else
+        -- a client without the dropdown: a button that goes to the next language
+        languageSelect = StyledButton(page, "", LANGUAGE_SELECT_WIDTH, LANGUAGE_SELECT_HEIGHT)
+        languageSelect:SetScript("OnClick", function()
+            local languages = OfferedLanguages()
+            for index, code in ipairs(languages) do
+                if code == language then
+                    ChooseLanguage(languages[index % #languages + 1])
+                    return
+                end
+            end
+        end)
+        function languageSelect:ShowLanguage()
+            self:SetLabel(LanguageName(language))
+        end
+    end
+    languageSelect:SetPoint("TOPRIGHT", page, "TOPRIGHT", -PADDING, -PADDING)
+    page.languageSelect = languageSelect
+    local languageLabel = page:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    languageLabel:SetPoint("RIGHT", languageSelect, "LEFT", -10, 0)
 
     local divider = page:CreateTexture(nil, "ARTWORK")
     divider:SetHeight(1)
@@ -400,7 +515,6 @@ function OtherAddons.CreatePage(parent, options)
     local copyHint = copyBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     copyHint:SetPoint("TOPRIGHT", copyBox, "BOTTOMRIGHT", 0, -4)
     copyHint:SetTextColor(COPY_HINT_COLOR[1], COPY_HINT_COLOR[2], COPY_HINT_COLOR[3])
-    copyHint:SetText(text("copy_hint") or "")
     local copiedName = ""
     local copyOwner = nil     -- the button the box stands over
     local function CloseCopyBox()
@@ -456,7 +570,6 @@ function OtherAddons.CreatePage(parent, options)
     local footer = content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     footer:SetJustifyH("LEFT")
     footer:SetTextColor(FOOTER_COLOR[1], FOOTER_COLOR[2], FOOTER_COLOR[3])
-    footer:SetText(text("footer") or "")
 
     -- stack the cards in the width the scroll frame has now
     local function Layout()
@@ -488,6 +601,38 @@ function OtherAddons.CreatePage(parent, options)
         subtitle:SetText(string.format(text("subtitle") or "%d / %d", installed, #cards))
         Layout()
     end
+
+    -- every text of the page in its language
+    local function ApplyTexts()
+        title:SetText(text("title") or "")
+        languageLabel:SetText(text("language") or "")
+        copyHint:SetText(text("copy_hint") or "")
+        footer:SetText(text("footer") or "")
+        for _, card in ipairs(cards) do
+            card:ApplyTexts()
+        end
+        languageSelect:ShowLanguage()
+    end
+
+    applyLanguage = function(code)
+        if not IsOffered(code) then
+            return
+        end
+        language = code
+        if options.saved then
+            options.saved.language = code
+        end
+        CloseCopyBox()
+        ApplyTexts()
+        page:Refresh()
+    end
+    page.SetLanguage = function(_, code)
+        applyLanguage(code)
+    end
+    page.GetLanguage = function()
+        return language
+    end
+    ApplyTexts()
 
     page.cards = cards
     page:SetScript("OnShow", function(self)

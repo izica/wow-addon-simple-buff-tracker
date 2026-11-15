@@ -51,7 +51,13 @@ components\panel_settings.lua
 components\main_window.lua
 shared\other_addons\addons.lua
 shared\other_addons\lang\en.lua
+shared\other_addons\lang\de.lua
+shared\other_addons\lang\fr.lua
+shared\other_addons\lang\es.lua
+shared\other_addons\lang\it.lua
+shared\other_addons\lang\pt.lua
 shared\other_addons\lang\ru.lua
+shared\other_addons\lang\zh.lua
 shared\other_addons\other_addons_page.lua
 components\about_page.lua
 components\settings_pages.lua

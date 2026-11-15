@@ -1454,6 +1454,60 @@ def test_settings_pages():
     check("pressed again, the window stays open", lua.eval("Window().IsOpen()") is True)
 
 
+def test_other_addons_languages():
+    lua = new_runtime()
+    lua.execute("""
+        others = settingsCategories[1].subcategories[1].frame
+        function HasText(wanted)
+            for _, frame in ipairs(allFrames) do
+                if rawget(frame, 'text') == wanted then return true end
+            end
+            return false
+        end
+    """)
+    check("the page starts in the client's language", lua.eval("others:GetLanguage()") == "en")
+    lua.execute("others:SetLanguage('de')")
+    check("choosing German changes the texts at once",
+          lua.eval("HasText('Weitere Addons')") is True
+          and lua.eval("others.cards[1].copyButton.caption.text") == "Namen kopieren")
+    check("the choice is kept in the table the addon gave",
+          lua.eval("SimpleBuffTrackerDB.otherAddons.language") == "de")
+    lua.execute("others:SetLanguage('zh')")
+    check("Chinese is not offered on a client without Chinese letters", lua.eval("others:GetLanguage()") == "de")
+
+    # every language has every text, and as many points as English
+    lua.execute("""
+        problems = {}
+        local english = ns.OtherAddons.texts.en
+        local function Walk(reference, other, path, language)
+            for key, value in pairs(reference) do
+                local mine = other and other[key]
+                if type(value) == 'table' then
+                    if type(mine) ~= 'table' then
+                        table.insert(problems, language .. ': no ' .. path .. key)
+                    elseif #value > 0 and #mine ~= #value then
+                        table.insert(problems, language .. ': ' .. path .. key .. ' has ' .. #mine .. ' points')
+                    else
+                        Walk(value, mine, path .. key .. '.', language)
+                    end
+                elseif type(mine) ~= 'string' or mine == '' then
+                    table.insert(problems, language .. ': no ' .. path .. key)
+                end
+            end
+        end
+        for _, language in ipairs({ 'de', 'fr', 'es', 'it', 'pt', 'ru', 'zh' }) do
+            Walk(english, ns.OtherAddons.texts[language], '', language)
+        end
+        problemText = table.concat(problems, '; ')
+    """)
+    check("all 8 languages have every text (" + (lua.eval("problemText") or "") + ")",
+          lua.eval("#problems") == 0)
+
+    lua = new_runtime("zhCN")
+    lua.execute("others = settingsCategories[1].subcategories[1].frame")
+    check("a Chinese client starts in Chinese", lua.eval("others:GetLanguage()") == "zh")
+
+
 def test_russian():
     lua = new_runtime("ruRU")
     lua.execute("Slash('list')")
@@ -1515,6 +1569,7 @@ def main():
     test_panel_stays_on_its_corner()
     test_right_click_opens_settings()
     test_settings_pages()
+    test_other_addons_languages()
     test_russian()
     test_wording()
     if failures:
