@@ -26,7 +26,7 @@ ns.OtherAddons.list = {
         id = "prr",
         folder = "PRR",
         title = "PRR: Professions, Recipes, Reagents",
-        icon = "Interface\\Icons\\INV_Misc_Bag_10",
+        picture = "prr",
     },
     {
         id = "target_it",
