@@ -19,7 +19,7 @@ ns.OtherAddons.list = {
     {
         id = "purple_note",
         folder = "PurpleNote",
-        title = "Purple Note",
+        title = "PurpleNote",
         picture = "purple_note",
     },
     {
