@@ -186,6 +186,10 @@ buff = { target = { spellId, name } | { weapon = "mainhand"|"offhand" },
 
 ## Что нельзя сломать
 
+* Размер текста — только шрифтовым объектом игры (`GameFontHighlightSmall2` и т.п., `SetFontObject` /
+  шаблон в `CreateFontString`), **не** `SetFont(файл, размер)` с файлом из `GetFont()`: объект — семейство
+  с файлом на каждый алфавит, `SetFont` оставляет один латинский, и кириллица (и иероглифы) становятся
+  квадратами (так было на странице «Другие аддоны»). `SetFont` годится только для цифр (таймер на иконке).
 * Иконки — защищённые кнопки (`ui/buff_button.lua`, `SecureActionButtonTemplate`). В бою
   нельзя Show/Hide/SetPoint/SetSize/SetAttribute ни кнопок, ни панели (родитель):
   `components/buff_panel.lua` в бою только перекрашивает уже показанные иконки, раскладка —
