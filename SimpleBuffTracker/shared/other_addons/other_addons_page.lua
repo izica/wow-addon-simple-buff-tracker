@@ -81,6 +81,7 @@ local ACCENT_WIDTH = 3
 local LINE_GAP = 4               -- between the name, the line and the points
 local FEATURES_GAP = 8
 local FEATURE_SPACING = 3
+local FEATURE_FONT_GROWTH = 1    -- the points: this many sizes above the game's small font
 local BULLET = "\226\128\162 "   -- a bullet and a space, in UTF-8
 
 local CARD_COLOR = { 0.07, 0.07, 0.09, 0.9 }
@@ -527,6 +528,10 @@ local function MakeCard(parent, addon, text)
     notes:SetTextColor(NOTES_COLOR[1], NOTES_COLOR[2], NOTES_COLOR[3])
 
     local features = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    local fontPath, fontSize, fontFlags = features:GetFont()
+    if fontPath and fontSize then
+        features:SetFont(fontPath, fontSize + FEATURE_FONT_GROWTH, fontFlags)
+    end
     features:SetJustifyH("LEFT")
     features:SetJustifyV("TOP")
     features:SetSpacing(FEATURE_SPACING)
