@@ -186,19 +186,24 @@ function MainWindow.Toggle(tabId)
     ShowTab(tabId)
 end
 
--- Open the window on the Buffs tab with this buff chosen (a right click on its
--- icon on the panel); an open window stays open.
-function MainWindow.ShowBuff(buff)
+-- Open the window on that tab (MainWindow.TAB); an open window stays open.
+function MainWindow.Open(tabId)
     if not window then
         Create()
     end
+    window:Show()
+    ShowTab(tabId or MainWindow.TAB.BUFFS)
+end
+
+-- Open the window on the Buffs tab with this buff chosen (a right click on its
+-- icon on the panel); an open window stays open.
+function MainWindow.ShowBuff(buff)
     for index, tracked in ipairs(BuffService.List()) do
         if tracked == buff then
             selectedIndex = index
         end
     end
-    window:Show()
-    ShowTab(MainWindow.TAB.BUFFS)
+    MainWindow.Open(MainWindow.TAB.BUFFS)
 end
 
 -- A shift-clicked link (an item from the bags, a spell from the spellbook)

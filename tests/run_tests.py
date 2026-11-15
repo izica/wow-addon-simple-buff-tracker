@@ -233,6 +233,32 @@ C_Item = {
     GetItemCount = function(itemId) return itemCounts[itemId] or 0 end,
 }
 
+-- the game's settings: registered pages are kept to look at
+settingsCategories = {}
+Settings = {
+    RegisterCanvasLayoutCategory = function(frame, name)
+        local category = { frame = frame, name = name, subcategories = {} }
+        table.insert(settingsCategories, category)
+        return category
+    end,
+    RegisterCanvasLayoutSubcategory = function(parent, frame, name)
+        local category = { frame = frame, name = name }
+        table.insert(parent.subcategories, category)
+        return category
+    end,
+    RegisterAddOnCategory = function(category) category.isAddOn = true end,
+}
+SettingsPanel = NewFrame()
+SettingsPanel.shown = false
+function SettingsPanel:Close() self.shown = false end
+-- the AddOns folder: [folder] = "loaded" | "disabled"; missing ones are not there
+installedAddons = { SimpleBuffTracker = "loaded", PurpleNote = "loaded", PRR = "disabled" }
+C_AddOns = {
+    IsAddOnLoaded = function(folder) return installedAddons[folder] == "loaded" end,
+    DoesAddOnExist = function(folder) return installedAddons[folder] ~= nil end,
+    GetAddOnMetadata = function(addon, field) if field == "Version" then return "1.0.1" end end,
+}
+
 SlashCmdList = {}
 function Fire(event, ...)
     local handler = eventFrame.scripts.OnEvent
@@ -1343,6 +1369,33 @@ def test_right_click_opens_settings():
           and lua.eval("secureButtons[1].attributes.type") is None)
 
 
+def test_settings_pages():
+    lua = new_runtime()
+    check("one addon category in the game's settings", lua.eval("#settingsCategories") == 1
+          and lua.eval("settingsCategories[1].isAddOn") is True
+          and lua.eval("settingsCategories[1].name") == "Simple Buff Tracker")
+    check("the Other Addons page under it",
+          lua.eval("settingsCategories[1].subcategories[1].name") == "Other Addons")
+    lua.execute("""
+        others = settingsCategories[1].subcategories[1].frame
+        others.scripts.OnShow(others)
+        states = {}
+        for _, card in ipairs(others.cards) do states[#states + 1] = card:Refresh() end
+    """)
+    check("the page leaves out its own addon: three cards", lua.eval("#others.cards") == 3)
+    check("installed, turned off, not installed",
+          list(lua.eval("states").values()) == ["loaded", "disabled", "missing"])
+    lua.execute("""
+        about = settingsCategories[1].frame
+        SettingsPanel.shown = true
+        about.openButton.scripts.OnClick(about.openButton)
+    """)
+    check("the big button closes the game's settings and opens the addon window",
+          lua.eval("SettingsPanel.shown") is False and lua.eval("Window().IsOpen()") is True)
+    lua.execute("about.openButton.scripts.OnClick(about.openButton)")
+    check("pressed again, the window stays open", lua.eval("Window().IsOpen()") is True)
+
+
 def test_russian():
     lua = new_runtime("ruRU")
     lua.execute("Slash('list')")
@@ -1401,6 +1454,7 @@ def main():
     test_missing_glow()
     test_panel_stays_on_its_corner()
     test_right_click_opens_settings()
+    test_settings_pages()
     test_russian()
     test_wording()
     if failures:

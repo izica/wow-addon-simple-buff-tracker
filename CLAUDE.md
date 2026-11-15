@@ -119,6 +119,21 @@ isCorner = true }` (`PinToAnchor` в `components/buff_panel.lua`; имя `isCorn
 `pulse` (красная рамка мигает). Всё рисуется текстурами в OnUpdate, без шаблонов анимаций. Рамка подсветки —
 обычный фрейм над кнопкой, не защищённый: показывается и в бою (`Paint` -> `SetGlow`).
 
+## Страницы в «Настройки → Модификации»
+
+`components/settings_pages.lua` регистрирует на `PLAYER_LOGIN` (`Settings.RegisterCanvasLayoutCategory`,
+подкатегория `RegisterCanvasLayoutSubcategory`, `RegisterAddOnCategory`; нет API — страниц нет):
+* главная — `components/about_page.lua`: иконка, название, версия (`GetAddOnMetadata`), описание
+  (`about.description`), большая кнопка «Открыть настройки бафов» — закрывает настройки игры
+  (`SettingsPanel:Close(true)`) и открывает наше окно (`MainWindow.Open`);
+* «Другие аддоны» — `components/other_addons_page.lua`, **общий компонент для всех аддонов автора**:
+  карточки из `config/other_addons.lua` (иконка, название, описание `other_addons.notes.<id>`, статус:
+  установлен / установлен, выключен / не установлен — `C_AddOns.IsAddOnLoaded` / `DoesAddOnExist`),
+  статусы перечитываются при каждом показе. Свой аддон скрывается параметром `exclude` (папка).
+  В другой аддон копируются: этот файл, `config/other_addons.lua` и ключи `other_addons.*` из
+  `lang/*.json`; тексты компонент берёт через `options.text`. Свою картинку аддона (`Interface\AddOns\...`)
+  клиент видит только у установленного — для неустановленного `fallbackIcon` из иконок игры.
+
 ## Миникарта
 
 `components/minimap_button.lua` на LibDBIcon (+ LibDataBroker, CallbackHandler в `libs/`):
