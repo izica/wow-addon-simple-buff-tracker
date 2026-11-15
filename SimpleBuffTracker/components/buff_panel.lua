@@ -49,7 +49,7 @@ local ARROW_ROTATION = {
     left = math.pi,
     down = -math.pi / 2,
 }
--- the arrow's offset from the anchor mark, along the growth: x, y signs
+-- the way the icons grow as x, y signs (the anchor stands the other way, outside the panel)
 local ARROW_SHIFT = {
     right = { 1, 0 },
     left = { -1, 0 },
@@ -159,18 +159,22 @@ local function SavePosition()
     PinToAnchor()
 end
 
--- The anchor mark (an open padlock) on the point the panel is held by, the arrow
--- next to it, toward the growth.
+-- The anchor outside the panel, off the point it is held by, so it covers no
+-- icon: going away from the panel -- the arrow (pointing at the panel, the way the
+-- icons grow), then the open padlock. Growing right: padlock, arrow, | icons.
 local function PlaceAnchor()
     local direction = ns.db.settings.growDirection
     local anchor = GROW_ANCHOR[direction] or GROW_ANCHOR.right
-    anchorMark:ClearAllPoints()
-    anchorMark:SetPoint("CENTER", mover, anchor, 0, 0)
     local shift = ARROW_SHIFT[direction] or ARROW_SHIFT.right
-    local distance = ANCHOR_SIZE / 2 + ARROW_GAP + ARROW_SIZE / 2
+    local outX = -shift[1]
+    local outY = -shift[2]
+    local arrowDistance = ARROW_GAP + ARROW_SIZE / 2
+    local markDistance = ARROW_GAP + ARROW_SIZE + ARROW_GAP + ANCHOR_SIZE / 2
     anchorArrow:ClearAllPoints()
-    anchorArrow:SetPoint("CENTER", anchorMark, "CENTER", shift[1] * distance, shift[2] * distance)
+    anchorArrow:SetPoint("CENTER", mover, anchor, outX * arrowDistance, outY * arrowDistance)
     anchorArrow:SetRotation(ARROW_ROTATION[direction] or 0)
+    anchorMark:ClearAllPoints()
+    anchorMark:SetPoint("CENTER", mover, anchor, outX * markDistance, outY * markDistance)
 end
 
 -- Where the icon number index stands: the anchor point on the panel and the
