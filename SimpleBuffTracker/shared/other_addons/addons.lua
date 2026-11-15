@@ -20,7 +20,7 @@ ns.OtherAddons.list = {
         id = "purple_note",
         folder = "PurpleNote",
         title = "Purple Note",
-        icon = "Interface\\Icons\\INV_Misc_Note_01",
+        picture = "purple_note",
     },
     {
         id = "prr",

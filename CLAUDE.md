@@ -136,7 +136,7 @@ isCorner = true }` (`PinToAnchor` в `components/buff_panel.lua`; имя `isCorn
   высота по тексту, страница прокручивается) и `ns.OtherAddons.Register(category, { exclude = ADDON })` —
   подстраница под категорией аддона, свой аддон не показывается. Порядок в `.toc`: addons, lang\en, lang\ru,
   page. Иконки собирает `python scripts/other_addons_icons.py` из `media/curseforge_icon.png` соседних
-  репозиториев (сейчас нет у Purple Note — у него иконка игры). Кириллица модуля лежит в его `lang/`.
+  репозиториев. Кириллица модуля лежит в его `lang/`.
 
 ## Миникарта
 
