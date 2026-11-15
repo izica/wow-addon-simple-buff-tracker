@@ -76,7 +76,13 @@ function Frame:SetDesaturated(value) self.desaturated = value end
 function Frame:SetAlpha(value) self.alpha = value end
 function Frame:SetCooldown(start, duration) self.cooldown = { start, duration } end
 function Frame:Clear() self.cooldown = nil end
-function Frame:CreateTexture() return NewFrame() end
+-- every texture made, to look for pictures in the tests
+allTextures = {}
+function Frame:CreateTexture()
+    local texture = NewFrame()
+    table.insert(allTextures, texture)
+    return texture
+end
 function Frame:CreateFontString()
     local fontString = NewFrame()
     table.insert(allFrames, fontString)
@@ -1399,7 +1405,19 @@ def test_settings_pages():
     """)
     features = lua.eval("purpleFeatures") or ""
     check("the features are points, one per line",
-          features.startswith("• Write a note") and features.count("• ") == 5)
+          features.startswith("• Write a note") and features.count("• ") == 6)
+    lua.execute("""
+        for _, frame in ipairs(allTextures) do
+            local texture = rawget(frame, 'texture')
+            if type(texture) == 'string' and texture:find('target_it', 1, true) then
+                moduleIcon = texture
+            end
+        end
+    """)
+    check("a CurseForge icon comes from the module's own folder",
+          lua.eval("moduleIcon") == "Interface\\AddOns\\SimpleBuffTracker\\shared\\other_addons\\icons\\target_it")
+    check("the module needs none of the addon's texts",
+          lua.eval("ns.Localization.Text('other_addons.title')") == "other_addons.title")
     check("a card gets a height from its texts", (lua.eval("cardHeight") or 0) > 0)
     lua.execute("""
         about = settingsCategories[1].frame
@@ -1416,6 +1434,8 @@ def test_russian():
     lua = new_runtime("ruRU")
     lua.execute("Slash('list')")
     check("russian texts load", "Нет отслеживаемых бафов" in last_chat(lua))
+    check("the Other Addons page is in Russian on a Russian client",
+          lua.eval("settingsCategories[1].subcategories[1].name") == "Другие аддоны")
 
 
 def test_wording():

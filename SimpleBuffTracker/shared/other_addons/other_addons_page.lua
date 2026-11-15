@@ -3,25 +3,30 @@
 -- features as points, and whether it is installed (installed / installed but
 -- turned off / not installed). The cards scroll when they do not fit.
 --
--- Shared between the author's addons: the same file in each. It needs only the
--- game's API and what it is given: the list (config/other_addons.lua), the
--- texts (other_addons.* in lang/*.json, through options.text) and the addon to
--- leave out -- the one the page is in.
+-- A self-contained module, the same in every addon of the author: the folder
+-- shared/other_addons is copied whole and needs nothing of the addon it is in
+-- but the addon's namespace (ns.OtherAddons). Its files, in this order in .toc:
+--   shared\other_addons\addons.lua           -- the list of the addons
+--   shared\other_addons\lang\en.lua          -- the texts (English is the fallback)
+--   shared\other_addons\lang\ru.lua
+--   shared\other_addons\other_addons_page.lua -- this file
 --
---   ns.Components.OtherAddonsPage.Create(parent, {
---       addons = ns.Config.OTHER_ADDONS,
---       exclude = "SimpleBuffTracker",           -- folder of the addon to leave out
---       text = ns.Localization.Text,             -- text(key, ...) -> string
---   }) -> frame; the statuses are read again every time the page is shown.
---
--- Texts of an addon: other_addons.notes.<id> -- one line; other_addons.features.<id>
--- -- the features, one per line ("\n" between them): each becomes a point.
+-- Use:
+--   ns.OtherAddons.Register(category, { exclude = ADDON })
+--     -- a subcategory "Other addons" under the addon's category in the game's
+--        settings (Settings.RegisterCanvasLayoutCategory); exclude -- the folder
+--        of the addon to leave out, the one the page is in;
+--   ns.OtherAddons.CreatePage(parent, { exclude = ADDON }) -> frame
+--     -- only the page, to put somewhere else.
+-- The statuses are read again every time the page is shown. The language is the
+-- client's (GetLocale), options.language overrides it.
 
 local ADDON, ns = ...
-ns.Components = ns.Components or {}
+ns.OtherAddons = ns.OtherAddons or {}
+local OtherAddons = ns.OtherAddons
 
-local OtherAddonsPage = {}
-ns.Components.OtherAddonsPage = OtherAddonsPage
+local FALLBACK_LANGUAGE = "en"
+local CLIENT_LANGUAGES = { ruRU = "ru" }
 
 local PADDING = 24
 local HEADER_GAP = 6
@@ -62,6 +67,8 @@ local STATE_COLOR = {
     missing = { 0.55, 0.55, 0.6 },
 }
 local DOT_MASK = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
+-- the module's own icons, in the folder of the addon that carries it
+local PICTURE_FOLDER = "Interface\\AddOns\\" .. ADDON .. "\\shared\\other_addons\\icons\\"
 
 -- loaded -- installed and on; disabled -- installed, turned off (or not loaded);
 -- missing -- not in the AddOns folder
@@ -87,13 +94,42 @@ local function AddonState(folder)
     return STATE.MISSING
 end
 
--- "a\nb" -> "• a\n• b"
+-- { "a", "b" } -> "• a\n• b"
 local function Points(features)
     local lines = {}
-    for line in (features or ""):gmatch("[^\n]+") do
-        table.insert(lines, BULLET .. line)
+    for _, feature in ipairs(features or {}) do
+        table.insert(lines, BULLET .. feature)
     end
     return table.concat(lines, "\n")
+end
+
+-- the client's language, or the one in options.language
+local function Language(options)
+    if options and options.language then
+        return options.language
+    end
+    local locale = GetLocale and GetLocale() or ""
+    return CLIENT_LANGUAGES[locale] or FALLBACK_LANGUAGE
+end
+
+-- the text at a path ("state", "loaded") in the language, else in English; nil -- none
+local function TextIn(language, ...)
+    local all = OtherAddons.texts or {}
+    local sources = { all[language], all[FALLBACK_LANGUAGE] }
+    for sourceIndex = 1, 2 do
+        local value = sources[sourceIndex]
+        for index = 1, select("#", ...) do
+            if type(value) ~= "table" then
+                value = nil
+                break
+            end
+            value = value[(select(index, ...))]
+        end
+        if value ~= nil then
+            return value
+        end
+    end
+    return nil
 end
 
 -- a 1 pixel frame of four textures; returns them, to recolor
@@ -149,7 +185,13 @@ local function MakeCard(parent, addon, text)
     local icon = card:CreateTexture(nil, "OVERLAY")
     icon:SetSize(ICON_SIZE, ICON_SIZE)
     icon:SetPoint("CENTER", iconFrame, "CENTER")
-    icon:SetTexCoord(ICON_CROP, 1 - ICON_CROP, ICON_CROP, 1 - ICON_CROP)
+    -- a CurseForge icon whole; a game icon without its built-in edge
+    if addon.picture then
+        icon:SetTexture(PICTURE_FOLDER .. addon.picture)
+    else
+        icon:SetTexture(addon.icon)
+        icon:SetTexCoord(ICON_CROP, 1 - ICON_CROP, ICON_CROP, 1 - ICON_CROP)
+    end
 
     -- the status at the top right: a round dot and its word
     local status = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -178,7 +220,7 @@ local function MakeCard(parent, addon, text)
     notes:SetJustifyH("LEFT")
     notes:SetJustifyV("TOP")
     notes:SetTextColor(NOTES_COLOR[1], NOTES_COLOR[2], NOTES_COLOR[3])
-    notes:SetText(text("other_addons.notes." .. addon.id))
+    notes:SetText(text("notes", addon.id) or "")
 
     local features = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     features:SetPoint("TOPLEFT", notes, "BOTTOMLEFT", 0, -FEATURES_GAP)
@@ -186,7 +228,7 @@ local function MakeCard(parent, addon, text)
     features:SetJustifyV("TOP")
     features:SetSpacing(FEATURE_SPACING)
     features:SetTextColor(FEATURES_COLOR[1], FEATURES_COLOR[2], FEATURES_COLOR[3])
-    features:SetText(Points(text("other_addons.features." .. addon.id)))
+    features:SetText(Points(text("features", addon.id)))
 
     card:SetScript("OnEnter", function()
         background:SetColorTexture(CARD_HOVER_COLOR[1], CARD_HOVER_COLOR[2], CARD_HOVER_COLOR[3], CARD_HOVER_COLOR[4])
@@ -211,19 +253,14 @@ local function MakeCard(parent, addon, text)
         return height
     end
 
-    -- the status and the picture (an own picture only while installed)
+    -- the status; the picture of an addon not installed is grey
     function card:Refresh()
         local state = AddonState(addon.folder)
         local color = STATE_COLOR[state]
         accent:SetColorTexture(color[1], color[2], color[3], 1)
         dot:SetColorTexture(color[1], color[2], color[3], 1)
-        status:SetText(text("other_addons.state." .. state))
+        status:SetText(text("state", state) or "")
         status:SetTextColor(color[1], color[2], color[3])
-        local picture = addon.icon
-        if state == STATE.MISSING and addon.fallbackIcon then
-            picture = addon.fallbackIcon
-        end
-        icon:SetTexture(picture)
         icon:SetDesaturated(state == STATE.MISSING)
         icon:SetAlpha(state == STATE.MISSING and 0.7 or 1)
         return state
@@ -232,13 +269,17 @@ local function MakeCard(parent, addon, text)
     return card
 end
 
-function OtherAddonsPage.Create(parent, options)
-    local text = options.text
+function OtherAddons.CreatePage(parent, options)
+    options = options or {}
+    local language = Language(options)
+    local function text(...)
+        return TextIn(language, ...)
+    end
     local page = CreateFrame("Frame", nil, parent)
 
     local title = page:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
     title:SetPoint("TOPLEFT", PADDING, -PADDING)
-    title:SetText(text("other_addons.title"))
+    title:SetText(text("title") or "")
 
     local subtitle = page:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     subtitle:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -HEADER_GAP)
@@ -261,7 +302,7 @@ function OtherAddonsPage.Create(parent, options)
     scroll:SetScrollChild(content)
 
     local cards = {}
-    for _, addon in ipairs(options.addons) do
+    for _, addon in ipairs(OtherAddons.list or {}) do
         if addon.folder ~= options.exclude then
             table.insert(cards, MakeCard(content, addon, text))
         end
@@ -270,7 +311,7 @@ function OtherAddonsPage.Create(parent, options)
     local footer = content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     footer:SetJustifyH("LEFT")
     footer:SetTextColor(FOOTER_COLOR[1], FOOTER_COLOR[2], FOOTER_COLOR[3])
-    footer:SetText(text("other_addons.footer"))
+    footer:SetText(text("footer") or "")
 
     -- stack the cards in the width the scroll frame has now
     local function Layout()
@@ -299,7 +340,7 @@ function OtherAddonsPage.Create(parent, options)
                 installed = installed + 1
             end
         end
-        subtitle:SetText(text("other_addons.subtitle", installed, #cards))
+        subtitle:SetText(string.format(text("subtitle") or "%d / %d", installed, #cards))
         Layout()
     end
 
@@ -309,4 +350,17 @@ function OtherAddonsPage.Create(parent, options)
     end)
     page:Refresh()
     return page
+end
+
+-- "Other addons" under the addon's own category in the game's settings; nothing
+-- on a client without the settings API. category -- what
+-- Settings.RegisterCanvasLayoutCategory returned for the addon.
+function OtherAddons.Register(category, options)
+    local hasApi = Settings and Settings.RegisterCanvasLayoutSubcategory
+    if not (category and hasApi) then
+        return nil
+    end
+    local page = OtherAddons.CreatePage(UIParent, options)
+    page:Hide()
+    return Settings.RegisterCanvasLayoutSubcategory(category, page, TextIn(Language(options), "title"))
 end

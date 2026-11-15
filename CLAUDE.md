@@ -127,15 +127,16 @@ isCorner = true }` (`PinToAnchor` в `components/buff_panel.lua`; имя `isCorn
 * главная — `components/about_page.lua`: иконка, название, версия (`GetAddOnMetadata`), описание
   (`about.description`), большая кнопка «Открыть настройки бафов» — закрывает настройки игры
   (`SettingsPanel:Close(true)`) и открывает наше окно (`MainWindow.Open`);
-* «Другие аддоны» — `components/other_addons_page.lua`, **общий компонент для всех аддонов автора**:
-  карточки из `config/other_addons.lua` (иконка, название, строка `other_addons.notes.<id>`, фичи пунктами
-  `other_addons.features.<id>` — по строке на фичу через `
-`; высота карточки по тексту, страница прокручивается; статус:
-  установлен / установлен, выключен / не установлен — `C_AddOns.IsAddOnLoaded` / `DoesAddOnExist`),
-  статусы перечитываются при каждом показе. Свой аддон скрывается параметром `exclude` (папка).
-  В другой аддон копируются: этот файл, `config/other_addons.lua` и ключи `other_addons.*` из
-  `lang/*.json`; тексты компонент берёт через `options.text`. Свою картинку аддона (`Interface\AddOns\...`)
-  клиент видит только у установленного — для неустановленного `fallbackIcon` из иконок игры.
+* «Другие аддоны» — **самостоятельный модуль** `shared/other_addons/`, один и тот же во всех аддонах автора.
+  Копируется папкой целиком, от аддона берёт только `ns` (кладёт себя в `ns.OtherAddons`):
+  `addons.lua` — список (папка, название, `picture` — иконка CurseForge внутри модуля `icons/<id>.tga`,
+  или `icon` — иконка игры, у кого иконки CurseForge нет), `lang/en.lua` и `lang/ru.lua` — свои тексты
+  (строка и фичи пунктами; язык по `GetLocale`, запасной английский), `other_addons_page.lua` — карточки
+  (статус: установлен / установлен, выключен / не установлен — `C_AddOns.IsAddOnLoaded` / `DoesAddOnExist`;
+  высота по тексту, страница прокручивается) и `ns.OtherAddons.Register(category, { exclude = ADDON })` —
+  подстраница под категорией аддона, свой аддон не показывается. Порядок в `.toc`: addons, lang\en, lang\ru,
+  page. Иконки собирает `python scripts/other_addons_icons.py` из `media/curseforge_icon.png` соседних
+  репозиториев (сейчас нет у Purple Note и PRR — у них иконки игры). Кириллица модуля лежит в его `lang/`.
 
 ## Миникарта
 

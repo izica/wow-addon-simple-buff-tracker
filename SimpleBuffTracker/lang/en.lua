@@ -176,28 +176,6 @@ ns.Localization.Add("en", [==[
         "description": "Keeps an eye on your buffs: the ones you care about sit on one small panel of icons that look like action bar buttons. Show them all with their timers, or only the missing ones and the ones about to run out.\n\nGive a buff a source and a left-click on its icon puts it back: casts the spell, eats the food for Well Fed, drinks the elixir or applies the oil to your weapon.",
         "open": "Open Buff Settings",
         "hint": "Also: left-click the minimap button, type /sbt buffs, or right-click a buff on the panel."
-    },
-    "other_addons": {
-        "title": "Other Addons",
-        "subtitle": "More addons by the same author for WoW Forever. Installed: %d of %d.",
-        "footer": "Find them on CurseForge by name.",
-        "state": {
-            "loaded": "Installed",
-            "disabled": "Installed, turned off",
-            "missing": "Not installed"
-        },
-        "notes": {
-            "purple_note": "Notes on the players you meet: see them on nameplates, in tooltips and in chat.",
-            "prr": "What crafts an item and what it is a reagent for: in tooltips and in a recipe window.",
-            "target_it": "Action-bar buttons that target the nearest living NPC you picked: quest mobs first.",
-            "simple_buff_tracker": "Your buffs on one icon panel: all with timers or only the missing ones. A click puts a buff back."
-        },
-        "features": {
-            "purple_note": "Write a note on anyone in one click, from ready-made notes or your own\nSee your notes above nameplates, in chat and in tooltips\nA reminder with a sound when a noted player shows up nearby\nA window of the players around you and a searchable history of every meeting\nShare notes with your guild",
-            "prr": "\"Crafted by\" and \"Reagent for\" in every item tooltip\nA recipe window: Alt+click any item, follow the chain of reagents, keep favorites\nCraft planner: auction house prices, profit and the cheapest way to level a profession\nAbout 2,500 recipes of WoW Forever built in, nothing to scan",
-            "target_it": "Buttons in the action bar style: a click targets the nearest living NPC you picked\nYour quest mobs and quest givers come first; search over 10,000 NPCs\nA raid mark on the target, a key for every button\nAlt+click: a waypoint to the nearest spawn",
-            "simple_buff_tracker": "Your buffs on one panel of action bar style icons: with timers or only the missing ones\nA left-click puts a buff back: casts the spell, eats food for Well Fed, applies weapon oil\nWeapon enchants too, even an oil and Flametongue on one weapon\nA glow on missing buffs, three icon styles, any size and growth direction"
-        }
     }
 }
 ]==])

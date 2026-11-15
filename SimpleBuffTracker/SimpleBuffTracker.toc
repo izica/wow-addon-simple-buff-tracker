@@ -14,7 +14,6 @@ libs\json\json.lua
 constants\addon.lua
 constants\buff.lua
 config\defaults.lua
-config\other_addons.lua
 utilities\utilities.lua
 utilities\secrets.lua
 utilities\spell.lua
@@ -50,8 +49,11 @@ components\buff_list.lua
 components\buff_editor.lua
 components\panel_settings.lua
 components\main_window.lua
+shared\other_addons\addons.lua
+shared\other_addons\lang\en.lua
+shared\other_addons\lang\ru.lua
+shared\other_addons\other_addons_page.lua
 components\about_page.lua
-components\other_addons_page.lua
 components\settings_pages.lua
 core.lua
 commands\buffs.lua
