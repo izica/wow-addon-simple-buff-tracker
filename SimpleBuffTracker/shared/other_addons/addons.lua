@@ -31,7 +31,7 @@ ns.OtherAddons.list = {
     {
         id = "target_it",
         folder = "TargetIt",
-        title = "Target It: NPC Finder",
+        title = "TargetIt (NPC targeter and finder)",
         picture = "target_it",
     },
     {
