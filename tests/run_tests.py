@@ -1423,7 +1423,8 @@ def test_settings_pages():
     """)
     check("Copy Name turns the name into a box with the name in it",
           lua.eval("box.shown") is True and lua.eval("box.text") == "PRR: Professions, Recipes, Reagents")
-    check("the button says Ctrl+C meanwhile", lua.eval("others.cards[2].copyButton.caption.text") == "Ctrl+C to copy")
+    check("the copy control is an icon", lua.eval("others.cards[2].copyIcon.texture")
+          == "Interface\\AddOns\\SimpleBuffTracker\\shared\\other_addons\\icons\\copy")
     lua.execute("box:SetText('PRR: Professions, Recipes, Reagentsx'); box.scripts.OnTextChanged(box, true)")
     check("typing does not change the name", lua.eval("box.text") == "PRR: Professions, Recipes, Reagents")
     lua.execute("box.scripts.OnEscapePressed(box)")
@@ -1441,9 +1442,8 @@ def test_settings_pages():
     check("C alone does not close the box", lua.eval("box.shown") is True)
     lua.execute("controlDown = true; box.scripts.OnKeyDown(box, 'C'); controlDown = false")
     check("Ctrl+C copies and closes the box", lua.eval("box.shown") is False)
-    check("the copy button is drawn by the page, not the default one",
-          lua.eval("rawget(others.cards[2].copyButton, 'template')") is None
-          and lua.eval("others.cards[2].copyButton.caption.text") == "Copy Name")
+    check("the copy icon is drawn by the page, not a default button",
+          lua.eval("rawget(others.cards[2].copyButton, 'template')") is None)
     check("the module needs none of the addon's texts",
           lua.eval("ns.Localization.Text('other_addons.title')") == "other_addons.title")
     check("a card gets a height from its texts", (lua.eval("cardHeight") or 0) > 0)
@@ -1473,7 +1473,7 @@ def test_other_addons_languages():
     lua.execute("others:SetLanguage('de')")
     check("choosing German changes the texts at once",
           lua.eval("HasText('Weitere Addons')") is True
-          and lua.eval("others.cards[1].copyButton.caption.text") == "Namen kopieren")
+)
     check("the choice is kept in the table the addon gave",
           lua.eval("SimpleBuffTrackerDB.otherAddons.language") == "de")
     lua.execute("others:SetLanguage('zh')")

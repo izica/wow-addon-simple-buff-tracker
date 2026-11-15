@@ -12,7 +12,7 @@ Needs Pillow.
 
 import os
 
-from PIL import Image
+from PIL import Image, ImageChops, ImageDraw
 
 REPOSITORY = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GITHUB = os.path.dirname(REPOSITORY)
@@ -28,8 +28,44 @@ REPOSITORIES = {
 }
 
 
+GLYPH_SIZE = 32
+GLYPH_SCALE = 8      # drawn bigger, scaled down for smooth edges
+
+
+def draw_glyphs():
+    """White glyphs the page tints itself: copy.tga (two sheets) and check.tga (a tick)."""
+    canvas = GLYPH_SIZE * GLYPH_SCALE
+    unit = canvas / 32
+    white = (255, 255, 255, 255)
+
+    copy = Image.new("RGBA", (canvas, canvas), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(copy)
+    line = round(2.6 * unit)
+    radius = round(3 * unit)
+    # the sheet behind: only its outline shows past the front one
+    draw.rounded_rectangle((4 * unit, 3 * unit, 20 * unit, 22 * unit), radius=radius, outline=white, width=line)
+    # the sheet in front, solid, with a gap around it so the two read apart
+    draw.rounded_rectangle((9.5 * unit, 8.5 * unit, 28.5 * unit, 29.5 * unit), radius=radius, fill=(0, 0, 0, 0))
+    gap = Image.new("L", (canvas, canvas), 0)
+    ImageDraw.Draw(gap).rounded_rectangle((9.5 * unit, 8.5 * unit, 28.5 * unit, 29.5 * unit), radius=radius, fill=255)
+    copy.putalpha(ImageChops.subtract(copy.getchannel("A"), gap))
+    draw = ImageDraw.Draw(copy)
+    draw.rounded_rectangle((12 * unit, 11 * unit, 28 * unit, 29 * unit), radius=radius, fill=white)
+
+    check = Image.new("RGBA", (canvas, canvas), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(check)
+    draw.line([(6 * unit, 17 * unit), (13 * unit, 24 * unit), (26 * unit, 9 * unit)], fill=white,
+              width=round(4 * unit), joint="curve")
+
+    for name, image in (("copy", copy), ("check", check)):
+        target = os.path.join(OUTPUT, name + ".tga")
+        image.resize((GLYPH_SIZE, GLYPH_SIZE), Image.LANCZOS).save(target, compression=None)
+        print(target)
+
+
 def main():
     os.makedirs(OUTPUT, exist_ok=True)
+    draw_glyphs()
     missing = []
     for addon_id, folder in REPOSITORIES.items():
         source = os.path.join(GITHUB, folder, "media", "curseforge_icon.png")

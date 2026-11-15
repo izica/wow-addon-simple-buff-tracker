@@ -15,6 +15,7 @@ ns.OtherAddons.texts.zh = {
     footer = "复制名称，到 CurseForge 搜索。",
     copy = "复制名称",
     copy_hint = "Ctrl+C 复制",
+    copy_tooltip = "点击后按 Ctrl+C 复制名称。",
     copied = "已复制！",
     state = {
         loaded = "已安装",

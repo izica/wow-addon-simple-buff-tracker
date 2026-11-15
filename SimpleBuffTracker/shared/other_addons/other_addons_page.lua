@@ -3,11 +3,12 @@
 -- features as points, and whether it is installed (installed / installed but
 -- turned off / not installed). The cards scroll when they do not fit.
 --
--- Copying a name: the game gives addons no clipboard, so "Copy Name" (or a click
--- on the name) turns the name itself into a box, in place, with the name
--- selected and "Ctrl+C" on the button -- Ctrl+C copies it and turns it back into
--- the name (the button says "Copied!" for a moment); Escape, Enter or a click
--- elsewhere turns it back too, typing does not change it.
+-- Copying a name: the game gives addons no clipboard, so the copy icon right
+-- after the name (or a click on the name) turns the name itself into a box, in
+-- place, with the name selected and "Ctrl+C" in the icon's tooltip -- Ctrl+C
+-- copies it and turns it back into the name (the icon is a green tick for a
+-- moment); Escape, Enter or a click elsewhere turns it back too, typing does not
+-- change it.
 --
 -- A self-contained module, the same in every addon of the author: the folder
 -- shared/other_addons is copied whole and needs nothing of the addon it is in
@@ -70,9 +71,8 @@ local ICON_CROP = 0.08
 local ICON_FRAME = 2
 local TEXT_GAP = 14              -- between the icon and the texts
 local STATUS_WIDTH = 150
-local COPY_BUTTON_WIDTH = 150
-local COPY_BUTTON_HEIGHT = 22
-local COPY_GAP = 8               -- between the status and the copy button
+local COPY_ICON_SIZE = 16
+local COPY_ICON_GAP = 8          -- between the end of the name and the copy icon
 local NAME_BOX_PAD = 4           -- the name box reaches this far around the name
 local NAME_BOX_LEVEL_GAP = 5
 local STATUS_HEIGHT = 14
@@ -96,6 +96,10 @@ local NAME_BOX_COLOR = { 0, 0, 0, 0.6 }
 local NAME_BOX_LINE_COLOR = { 1, 0.82, 0, 0.8 }
 local NAME_HOVER_COLOR = { 1, 0.92, 0.5 }
 local NAME_COLOR = { 1, 0.82, 0 }
+local COPY_ICON_COLOR = { 0.75, 0.62, 0.3 }
+local COPY_ICON_HOVER_COLOR = { 1, 0.85, 0.35 }
+local COPY_DONE_COLOR = { 0.3, 0.9, 0.35 }
+local TOOLTIP_TEXT_COLOR = { 1, 1, 1 }
 -- the copy button: drawn here, in the look of the cards
 local BUTTON_COLOR = { 0.13, 0.11, 0.07, 0.95 }
 local BUTTON_HOVER_COLOR = { 0.2, 0.16, 0.08, 1 }
@@ -354,23 +358,26 @@ local function MakeCard(parent, addon, text)
         end
     end
 
-    -- under the status: copy the name, to search for it on CurseForge
-    local copyButton = StyledButton(card, "", COPY_BUTTON_WIDTH, COPY_BUTTON_HEIGHT)
-    copyButton:SetPoint("TOPRIGHT", card, "TOPRIGHT", -CARD_INSET, -(CARD_INSET + STATUS_HEIGHT + COPY_GAP))
-    card.copyButton = copyButton
-
     local name = card:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     name:SetPoint("TOPLEFT", iconFrame, "TOPRIGHT", TEXT_GAP, -2)
     name:SetJustifyH("LEFT")
     name:SetWordWrap(false)
     name:SetText(addon.title)
 
-    -- the name as a box, to copy it: the same font in place of the name
+    -- the copy icon right after the name (placed by Fit, where the name ends)
+    local copyButton = CreateFrame("Button", nil, card)
+    copyButton:SetSize(COPY_ICON_SIZE, COPY_ICON_SIZE)
+    local copyIcon = copyButton:CreateTexture(nil, "ARTWORK")
+    copyIcon:SetAllPoints()
+    card.copyButton = copyButton
+    card.copyIcon = copyIcon
+
+    -- the name as a box, to copy it: the same font in place of the name, up to the icon
     local nameBox = CreateFrame("EditBox", nil, card)
     nameBox:SetFontObject("GameFontNormalLarge")
     nameBox:SetAutoFocus(false)
     nameBox:SetPoint("TOPLEFT", name, "TOPLEFT", -NAME_BOX_PAD, NAME_BOX_PAD)
-    nameBox:SetPoint("BOTTOMRIGHT", name, "BOTTOMRIGHT", NAME_BOX_PAD, -NAME_BOX_PAD)
+    nameBox:SetPoint("RIGHT", copyButton, "LEFT", -2, 0)
     nameBox:SetTextInsets(NAME_BOX_PAD, NAME_BOX_PAD, 0, 0)
     nameBox:SetFrameLevel(card:GetFrameLevel() + NAME_BOX_LEVEL_GAP)
     local boxFace = nameBox:CreateTexture(nil, "BACKGROUND")
@@ -386,18 +393,60 @@ local function MakeCard(parent, addon, text)
     card.nameBox = nameBox
 
     local isCopying = false
-    -- back to the name; isCopied -- after Ctrl+C: "Copied!" on the button
+    local isHover = false
+    local doneId = 0          -- the last "copied" tick; an older one does not undo a newer
+    local isDone = false
+
+    local function PaintIcon()
+        local color = COPY_ICON_COLOR
+        local glyph = "copy"
+        if isDone then
+            color = COPY_DONE_COLOR
+            glyph = "check"
+        elseif isHover or isCopying then
+            color = COPY_ICON_HOVER_COLOR
+        end
+        copyIcon:SetTexture(PICTURE_FOLDER .. glyph)
+        copyIcon:SetVertexColor(color[1], color[2], color[3])
+    end
+
+    -- the icon's tooltip: what it does, or, while the name is a box, the key to press
+    local function ShowTooltip()
+        GameTooltip:SetOwner(copyButton, "ANCHOR_RIGHT")
+        if isCopying then
+            GameTooltip:AddLine(text("copy_hint") or "", TOOLTIP_TEXT_COLOR[1], TOOLTIP_TEXT_COLOR[2],
+                TOOLTIP_TEXT_COLOR[3])
+        else
+            GameTooltip:AddLine(text("copy") or "")
+            GameTooltip:AddLine(text("copy_tooltip") or "", TOOLTIP_TEXT_COLOR[1], TOOLTIP_TEXT_COLOR[2],
+                TOOLTIP_TEXT_COLOR[3], true)
+        end
+        GameTooltip:Show()
+    end
+
+    -- back to the name; isCopied -- after Ctrl+C: a green tick for a moment
     function card:StopCopy(isCopied)
         if isCopying then
             isCopying = false
             nameBox:ClearFocus()
             nameBox:Hide()
             name:Show()
-            copyButton:SetLabel(text("copy") or "")
+            if GameTooltip:IsOwned(copyButton) then
+                GameTooltip:Hide()
+            end
         end
         if isCopied then
-            copyButton:Flash(text("copied") or "")
+            doneId = doneId + 1
+            local myId = doneId
+            isDone = true
+            C_Timer.After(COPIED_SECONDS, function()
+                if myId == doneId then
+                    isDone = false
+                    PaintIcon()
+                end
+            end)
         end
+        PaintIcon()
     end
     function card:StartCopy()
         isCopying = true
@@ -406,7 +455,8 @@ local function MakeCard(parent, addon, text)
         nameBox:Show()
         nameBox:SetFocus()
         nameBox:HighlightText()
-        copyButton:SetLabel(text("copy_hint") or "")
+        PaintIcon()
+        ShowTooltip()
     end
     -- Ctrl+C (Cmd+C on a Mac): the box copies on this key press itself, so it
     -- turns back into the name on the next frame
@@ -442,6 +492,20 @@ local function MakeCard(parent, addon, text)
             card:StartCopy()
         end
     end)
+    copyButton:SetScript("OnEnter", function()
+        isHover = true
+        PaintIcon()
+        ShowTooltip()
+    end)
+    copyButton:SetScript("OnLeave", function()
+        isHover = false
+        PaintIcon()
+        if not isCopying then
+            GameTooltip:Hide()
+        end
+    end)
+    PaintIcon()
+
     -- the name itself is clickable too: lighter under the mouse
     local nameButton = CreateFrame("Button", nil, card)
     nameButton:SetAllPoints(name)
@@ -471,7 +535,6 @@ local function MakeCard(parent, addon, text)
     -- the texts in the page's language; again when the language changes
     function card:ApplyTexts()
         self:StopCopy(false)
-        copyButton:SetLabel(text("copy") or "")
         notes:SetText(text("notes", addon.id) or "")
         features:SetText(Points(text("features", addon.id)))
     end
@@ -493,12 +556,18 @@ local function MakeCard(parent, addon, text)
         local textLeft = CARD_INSET + ICON_SIZE + ICON_FRAME * 2 + TEXT_GAP
         local textWidth = math.max(1, width - textLeft - CARD_INSET)
         local besideColumn = math.max(1, textWidth - STATUS_WIDTH - TEXT_GAP)
-        name:SetWidth(besideColumn)
+        -- the name leaves room for the copy icon, which stands where the name ends
+        local nameWidth = math.max(1, besideColumn - COPY_ICON_GAP - COPY_ICON_SIZE)
+        name:SetWidth(nameWidth)
+        local nameEnd = math.min(name:GetStringWidth() or 0, nameWidth)
+        copyButton:ClearAllPoints()
+        copyButton:SetPoint("LEFT", name, "LEFT", nameEnd + COPY_ICON_GAP, 0)
+        nameBox:SetHeight((name:GetStringHeight() or 0) + NAME_BOX_PAD * 2)
         notes:SetWidth(besideColumn)
         features:SetWidth(textWidth)
         local headerHeight = math.max(
             (name:GetStringHeight() or 0) + LINE_GAP + (notes:GetStringHeight() or 0),
-            STATUS_HEIGHT + COPY_GAP + COPY_BUTTON_HEIGHT)
+            STATUS_HEIGHT)
         features:ClearAllPoints()
         features:SetPoint("TOPLEFT", card, "TOPLEFT", textLeft, -(CARD_INSET + 2 + headerHeight + FEATURES_GAP))
         local textHeight = 2 + headerHeight + FEATURES_GAP + (features:GetStringHeight() or 0)

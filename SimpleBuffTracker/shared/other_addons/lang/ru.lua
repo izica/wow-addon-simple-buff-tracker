@@ -13,6 +13,7 @@ ns.OtherAddons.texts.ru = {
     footer = "Скопируйте название и найдите аддон на CurseForge.",
     copy = "Копировать название",
     copy_hint = "Ctrl+C — скопировать",
+    copy_tooltip = "Щёлкните, затем нажмите Ctrl+C, чтобы скопировать название.",
     copied = "Скопировано!",
     state = {
         loaded = "Установлен",

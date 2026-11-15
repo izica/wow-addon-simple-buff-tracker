@@ -13,6 +13,7 @@ ns.OtherAddons.texts.en = {
     footer = "Copy a name and search for it on CurseForge.",
     copy = "Copy Name",
     copy_hint = "Ctrl+C to copy",
+    copy_tooltip = "Click, then press Ctrl+C to copy the name.",
     copied = "Copied!",
     state = {
         loaded = "Installed",
