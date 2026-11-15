@@ -1427,6 +1427,19 @@ def test_settings_pages():
     check("typing does not change the name", lua.eval("box.text") == "PRR: Professions, Recipes, Reagents")
     lua.execute("box.scripts.OnEscapePressed(box)")
     check("Escape closes the box", lua.eval("box.shown") is False)
+    lua.execute("""
+        controlDown = false
+        function IsControlKeyDown() return controlDown end
+        local card = others.cards[2]
+        card.copyButton.scripts.OnClick(card.copyButton)
+        box.scripts.OnKeyDown(box, 'C')
+    """)
+    check("C alone does not close the box", lua.eval("box.shown") is True)
+    lua.execute("controlDown = true; box.scripts.OnKeyDown(box, 'C'); controlDown = false")
+    check("Ctrl+C copies and closes the box", lua.eval("box.shown") is False)
+    check("the copy button is drawn by the page, not the default one",
+          lua.eval("rawget(others.cards[2].copyButton, 'template')") is None
+          and lua.eval("others.cards[2].copyButton.caption.text") == "Copy Name")
     check("the module needs none of the addon's texts",
           lua.eval("ns.Localization.Text('other_addons.title')") == "other_addons.title")
     check("a card gets a height from its texts", (lua.eval("cardHeight") or 0) > 0)

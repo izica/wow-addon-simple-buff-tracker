@@ -4,8 +4,9 @@
 -- turned off / not installed). The cards scroll when they do not fit.
 --
 -- "Copy Name" on a card: the game gives addons no clipboard, so the button opens
--- a box over itself with the name selected -- Ctrl+C copies it; Escape, Enter
--- or a click elsewhere closes it, typing does not change it.
+-- a box over itself with the name selected -- Ctrl+C copies it and closes the
+-- box (the button says "Copied!" for a moment); Escape, Enter or a click
+-- elsewhere closes it too, typing does not change it.
 --
 -- A self-contained module, the same in every addon of the author: the folder
 -- shared/other_addons is copied whole and needs nothing of the addon it is in
@@ -67,6 +68,15 @@ local NOTES_COLOR = { 0.85, 0.85, 0.87 }
 local FEATURES_COLOR = { 0.68, 0.68, 0.72 }
 local FOOTER_COLOR = { 0.55, 0.55, 0.6 }
 local COPY_HINT_COLOR = { 1, 0.82, 0 }
+-- the copy button: drawn here, in the look of the cards
+local BUTTON_COLOR = { 0.13, 0.11, 0.07, 0.95 }
+local BUTTON_HOVER_COLOR = { 0.2, 0.16, 0.08, 1 }
+local BUTTON_BORDER_COLOR = { 0.55, 0.42, 0.16, 1 }
+local BUTTON_HOVER_BORDER_COLOR = { 1, 0.82, 0, 1 }
+local BUTTON_TEXT_COLOR = { 1, 0.82, 0 }
+local BUTTON_DONE_COLOR = { 0.3, 0.9, 0.35 }
+local BUTTON_PRESS_SHIFT = 1
+local COPIED_SECONDS = 1.5
 
 local STATE = {
     LOADED = "loaded",
@@ -174,6 +184,60 @@ local function Paint(textures, color)
     end
 end
 
+-- A flat button in the look of the cards: a dark face, a thin bronze frame and
+-- gold text; the frame lights up under the mouse, the text sinks a pixel when
+-- pressed. button:Flash(label) shows another label (green) for a moment.
+local function StyledButton(parent, label, width, height)
+    local button = CreateFrame("Button", nil, parent)
+    button:SetSize(width, height)
+    local face = button:CreateTexture(nil, "BACKGROUND")
+    face:SetAllPoints()
+    face:SetColorTexture(BUTTON_COLOR[1], BUTTON_COLOR[2], BUTTON_COLOR[3], BUTTON_COLOR[4])
+    local border = PixelBorder(button, BUTTON_BORDER_COLOR)
+    local caption = button:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    caption:SetPoint("CENTER")
+    caption:SetText(label)
+    caption:SetTextColor(BUTTON_TEXT_COLOR[1], BUTTON_TEXT_COLOR[2], BUTTON_TEXT_COLOR[3])
+
+    local isHover = false
+    local function PaintState()
+        local faceColor = isHover and BUTTON_HOVER_COLOR or BUTTON_COLOR
+        face:SetColorTexture(faceColor[1], faceColor[2], faceColor[3], faceColor[4])
+        Paint(border, isHover and BUTTON_HOVER_BORDER_COLOR or BUTTON_BORDER_COLOR)
+    end
+    button:SetScript("OnEnter", function()
+        isHover = true
+        PaintState()
+    end)
+    button:SetScript("OnLeave", function()
+        isHover = false
+        PaintState()
+        caption:SetPoint("CENTER")
+    end)
+    button:SetScript("OnMouseDown", function()
+        caption:SetPoint("CENTER", BUTTON_PRESS_SHIFT, -BUTTON_PRESS_SHIFT)
+    end)
+    button:SetScript("OnMouseUp", function()
+        caption:SetPoint("CENTER")
+    end)
+
+    local flashId = 0
+    function button:Flash(flashLabel)
+        flashId = flashId + 1
+        local myFlash = flashId
+        caption:SetText(flashLabel)
+        caption:SetTextColor(BUTTON_DONE_COLOR[1], BUTTON_DONE_COLOR[2], BUTTON_DONE_COLOR[3])
+        C_Timer.After(COPIED_SECONDS, function()
+            if myFlash == flashId then
+                caption:SetText(label)
+                caption:SetTextColor(BUTTON_TEXT_COLOR[1], BUTTON_TEXT_COLOR[2], BUTTON_TEXT_COLOR[3])
+            end
+        end)
+    end
+    button.caption = caption
+    return button
+end
+
 -- onCopy(card, button, title) -- the copy button was pressed
 local function MakeCard(parent, addon, text, onCopy)
     local card = CreateFrame("Frame", nil, parent)
@@ -223,10 +287,8 @@ local function MakeCard(parent, addon, text, onCopy)
     end
 
     -- under the status: copy the name, to search for it on CurseForge
-    local copyButton = CreateFrame("Button", nil, card, "UIPanelButtonTemplate")
-    copyButton:SetSize(COPY_BUTTON_WIDTH, COPY_BUTTON_HEIGHT)
+    local copyButton = StyledButton(card, text("copy") or "", COPY_BUTTON_WIDTH, COPY_BUTTON_HEIGHT)
     copyButton:SetPoint("TOPRIGHT", card, "TOPRIGHT", -CARD_INSET, -(CARD_INSET + STATUS_HEIGHT + COPY_GAP))
-    copyButton:SetText(text("copy") or "")
     copyButton:SetScript("OnClick", function(self)
         onCopy(card, self, addon.title)
     end)
@@ -340,10 +402,25 @@ function OtherAddons.CreatePage(parent, options)
     copyHint:SetTextColor(COPY_HINT_COLOR[1], COPY_HINT_COLOR[2], COPY_HINT_COLOR[3])
     copyHint:SetText(text("copy_hint") or "")
     local copiedName = ""
+    local copyOwner = nil     -- the button the box stands over
     local function CloseCopyBox()
         copyBox:ClearFocus()
         copyBox:Hide()
     end
+    -- Ctrl+C (Cmd+C on a Mac): the box copies on this key press itself, so it
+    -- closes on the next frame, with "Copied!" on the button
+    copyBox:SetScript("OnKeyDown", function(_, key)
+        local isCopyKey = key == "C" and (IsControlKeyDown() or (IsMetaKeyDown and IsMetaKeyDown()))
+        if not isCopyKey then
+            return
+        end
+        C_Timer.After(0, function()
+            CloseCopyBox()
+            if copyOwner then
+                copyOwner:Flash(text("copied") or "")
+            end
+        end)
+    end)
     copyBox:SetScript("OnEscapePressed", CloseCopyBox)
     copyBox:SetScript("OnEnterPressed", CloseCopyBox)
     copyBox:SetScript("OnEditFocusLost", function(self)
@@ -358,6 +435,7 @@ function OtherAddons.CreatePage(parent, options)
     end)
     local function ShowCopyBox(card, button, title)
         copiedName = title
+        copyOwner = button
         copyBox:ClearAllPoints()
         copyBox:SetPoint("TOPRIGHT", button, "TOPRIGHT", 0, 0)
         copyBox:SetFrameLevel(card:GetFrameLevel() + COPY_BOX_LEVEL_GAP)
