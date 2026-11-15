@@ -32,7 +32,7 @@ ns.OtherAddons.list = {
         id = "loot_buddy",
         folder = "LootBuddy",
         title = "Loot Buddy",
-        icon = "Interface\\Icons\\INV_Misc_Bag_08",
+        picture = "loot_buddy",
     },
     {
         id = "target_it",
