@@ -1419,14 +1419,18 @@ def test_settings_pages():
     lua.execute("""
         local card = others.cards[2]
         card.copyButton.scripts.OnClick(card.copyButton)
-        box = others.copyBox
+        box = card.nameBox
     """)
-    check("Copy Name opens a box with the name in it",
+    check("Copy Name turns the name into a box with the name in it",
           lua.eval("box.shown") is True and lua.eval("box.text") == "PRR: Professions, Recipes, Reagents")
+    check("the button says Ctrl+C meanwhile", lua.eval("others.cards[2].copyButton.caption.text") == "Ctrl+C to copy")
     lua.execute("box:SetText('PRR: Professions, Recipes, Reagentsx'); box.scripts.OnTextChanged(box, true)")
     check("typing does not change the name", lua.eval("box.text") == "PRR: Professions, Recipes, Reagents")
     lua.execute("box.scripts.OnEscapePressed(box)")
     check("Escape closes the box", lua.eval("box.shown") is False)
+    lua.execute("others.cards[2].nameButton.scripts.OnClick(others.cards[2].nameButton)")
+    check("a click on the name opens the box too", lua.eval("box.shown") is True)
+    lua.execute("box.scripts.OnEscapePressed(box)")
     lua.execute("""
         controlDown = false
         function IsControlKeyDown() return controlDown end

@@ -3,10 +3,11 @@
 -- features as points, and whether it is installed (installed / installed but
 -- turned off / not installed). The cards scroll when they do not fit.
 --
--- "Copy Name" on a card: the game gives addons no clipboard, so the button opens
--- a box over itself with the name selected -- Ctrl+C copies it and closes the
--- box (the button says "Copied!" for a moment); Escape, Enter or a click
--- elsewhere closes it too, typing does not change it.
+-- Copying a name: the game gives addons no clipboard, so "Copy Name" (or a click
+-- on the name) turns the name itself into a box, in place, with the name
+-- selected and "Ctrl+C" on the button -- Ctrl+C copies it and turns it back into
+-- the name (the button says "Copied!" for a moment); Escape, Enter or a click
+-- elsewhere turns it back too, typing does not change it.
 --
 -- A self-contained module, the same in every addon of the author: the folder
 -- shared/other_addons is copied whole and needs nothing of the addon it is in
@@ -72,9 +73,8 @@ local STATUS_WIDTH = 150
 local COPY_BUTTON_WIDTH = 150
 local COPY_BUTTON_HEIGHT = 22
 local COPY_GAP = 8               -- between the status and the copy button
-local COPY_BOX_WIDTH = 280
-local COPY_BOX_HEIGHT = 22
-local COPY_BOX_LEVEL_GAP = 10
+local NAME_BOX_PAD = 4           -- the name box reaches this far around the name
+local NAME_BOX_LEVEL_GAP = 5
 local STATUS_HEIGHT = 14
 local STATUS_DOT_SIZE = 8
 local ACCENT_WIDTH = 3
@@ -92,7 +92,10 @@ local SUBTITLE_COLOR = { 0.7, 0.7, 0.74 }
 local NOTES_COLOR = { 0.85, 0.85, 0.87 }
 local FEATURES_COLOR = { 0.68, 0.68, 0.72 }
 local FOOTER_COLOR = { 0.55, 0.55, 0.6 }
-local COPY_HINT_COLOR = { 1, 0.82, 0 }
+local NAME_BOX_COLOR = { 0, 0, 0, 0.6 }
+local NAME_BOX_LINE_COLOR = { 1, 0.82, 0, 0.8 }
+local NAME_HOVER_COLOR = { 1, 0.92, 0.5 }
+local NAME_COLOR = { 1, 0.82, 0 }
 -- the copy button: drawn here, in the look of the cards
 local BUTTON_COLOR = { 0.13, 0.11, 0.07, 0.95 }
 local BUTTON_HOVER_COLOR = { 0.2, 0.16, 0.08, 1 }
@@ -304,8 +307,7 @@ local function StyledButton(parent, label, width, height)
     return button
 end
 
--- onCopy(card, button, title) -- the copy button was pressed
-local function MakeCard(parent, addon, text, onCopy)
+local function MakeCard(parent, addon, text)
     local card = CreateFrame("Frame", nil, parent)
     card:EnableMouse(true)
 
@@ -355,9 +357,6 @@ local function MakeCard(parent, addon, text, onCopy)
     -- under the status: copy the name, to search for it on CurseForge
     local copyButton = StyledButton(card, "", COPY_BUTTON_WIDTH, COPY_BUTTON_HEIGHT)
     copyButton:SetPoint("TOPRIGHT", card, "TOPRIGHT", -CARD_INSET, -(CARD_INSET + STATUS_HEIGHT + COPY_GAP))
-    copyButton:SetScript("OnClick", function(self)
-        onCopy(card, self, addon.title)
-    end)
     card.copyButton = copyButton
 
     local name = card:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
@@ -365,6 +364,97 @@ local function MakeCard(parent, addon, text, onCopy)
     name:SetJustifyH("LEFT")
     name:SetWordWrap(false)
     name:SetText(addon.title)
+
+    -- the name as a box, to copy it: the same font in place of the name
+    local nameBox = CreateFrame("EditBox", nil, card)
+    nameBox:SetFontObject("GameFontNormalLarge")
+    nameBox:SetAutoFocus(false)
+    nameBox:SetPoint("TOPLEFT", name, "TOPLEFT", -NAME_BOX_PAD, NAME_BOX_PAD)
+    nameBox:SetPoint("BOTTOMRIGHT", name, "BOTTOMRIGHT", NAME_BOX_PAD, -NAME_BOX_PAD)
+    nameBox:SetTextInsets(NAME_BOX_PAD, NAME_BOX_PAD, 0, 0)
+    nameBox:SetFrameLevel(card:GetFrameLevel() + NAME_BOX_LEVEL_GAP)
+    local boxFace = nameBox:CreateTexture(nil, "BACKGROUND")
+    boxFace:SetAllPoints()
+    boxFace:SetColorTexture(NAME_BOX_COLOR[1], NAME_BOX_COLOR[2], NAME_BOX_COLOR[3], NAME_BOX_COLOR[4])
+    local boxLine = nameBox:CreateTexture(nil, "BORDER")
+    boxLine:SetPoint("BOTTOMLEFT")
+    boxLine:SetPoint("BOTTOMRIGHT")
+    boxLine:SetHeight(1)
+    boxLine:SetColorTexture(NAME_BOX_LINE_COLOR[1], NAME_BOX_LINE_COLOR[2], NAME_BOX_LINE_COLOR[3],
+        NAME_BOX_LINE_COLOR[4])
+    nameBox:Hide()
+    card.nameBox = nameBox
+
+    local isCopying = false
+    -- back to the name; isCopied -- after Ctrl+C: "Copied!" on the button
+    function card:StopCopy(isCopied)
+        if isCopying then
+            isCopying = false
+            nameBox:ClearFocus()
+            nameBox:Hide()
+            name:Show()
+            copyButton:SetLabel(text("copy") or "")
+        end
+        if isCopied then
+            copyButton:Flash(text("copied") or "")
+        end
+    end
+    function card:StartCopy()
+        isCopying = true
+        name:Hide()
+        nameBox:SetText(addon.title)
+        nameBox:Show()
+        nameBox:SetFocus()
+        nameBox:HighlightText()
+        copyButton:SetLabel(text("copy_hint") or "")
+    end
+    -- Ctrl+C (Cmd+C on a Mac): the box copies on this key press itself, so it
+    -- turns back into the name on the next frame
+    nameBox:SetScript("OnKeyDown", function(_, key)
+        local isCopyKey = key == "C" and (IsControlKeyDown() or (IsMetaKeyDown and IsMetaKeyDown()))
+        if isCopyKey then
+            C_Timer.After(0, function()
+                card:StopCopy(true)
+            end)
+        end
+    end)
+    nameBox:SetScript("OnEscapePressed", function()
+        card:StopCopy(false)
+    end)
+    nameBox:SetScript("OnEnterPressed", function()
+        card:StopCopy(false)
+    end)
+    nameBox:SetScript("OnEditFocusLost", function()
+        card:StopCopy(false)
+    end)
+    -- read only: whatever is typed, the name comes back, selected
+    nameBox:SetScript("OnTextChanged", function(self, isUserInput)
+        if isUserInput then
+            self:SetText(addon.title)
+            self:HighlightText()
+        end
+    end)
+
+    copyButton:SetScript("OnClick", function()
+        if isCopying then
+            card:StopCopy(false)
+        else
+            card:StartCopy()
+        end
+    end)
+    -- the name itself is clickable too: lighter under the mouse
+    local nameButton = CreateFrame("Button", nil, card)
+    nameButton:SetAllPoints(name)
+    nameButton:SetScript("OnClick", function()
+        card:StartCopy()
+    end)
+    nameButton:SetScript("OnEnter", function()
+        name:SetTextColor(NAME_HOVER_COLOR[1], NAME_HOVER_COLOR[2], NAME_HOVER_COLOR[3])
+    end)
+    nameButton:SetScript("OnLeave", function()
+        name:SetTextColor(NAME_COLOR[1], NAME_COLOR[2], NAME_COLOR[3])
+    end)
+    card.nameButton = nameButton
 
     local notes = card:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     notes:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 0, -LINE_GAP)
@@ -380,6 +470,7 @@ local function MakeCard(parent, addon, text, onCopy)
 
     -- the texts in the page's language; again when the language changes
     function card:ApplyTexts()
+        self:StopCopy(false)
         copyButton:SetLabel(text("copy") or "")
         notes:SetText(text("notes", addon.id) or "")
         features:SetText(Points(text("features", addon.id)))
@@ -507,63 +598,10 @@ function OtherAddons.CreatePage(parent, options)
     content:SetSize(1, 1)
     scroll:SetScrollChild(content)
 
-    -- one box for every card: over the pressed button, the name selected
-    local copyBox = CreateFrame("EditBox", nil, content, "InputBoxTemplate")
-    copyBox:SetSize(COPY_BOX_WIDTH, COPY_BOX_HEIGHT)
-    copyBox:SetAutoFocus(false)
-    copyBox:Hide()
-    local copyHint = copyBox:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    copyHint:SetPoint("TOPRIGHT", copyBox, "BOTTOMRIGHT", 0, -4)
-    copyHint:SetTextColor(COPY_HINT_COLOR[1], COPY_HINT_COLOR[2], COPY_HINT_COLOR[3])
-    local copiedName = ""
-    local copyOwner = nil     -- the button the box stands over
-    local function CloseCopyBox()
-        copyBox:ClearFocus()
-        copyBox:Hide()
-    end
-    -- Ctrl+C (Cmd+C on a Mac): the box copies on this key press itself, so it
-    -- closes on the next frame, with "Copied!" on the button
-    copyBox:SetScript("OnKeyDown", function(_, key)
-        local isCopyKey = key == "C" and (IsControlKeyDown() or (IsMetaKeyDown and IsMetaKeyDown()))
-        if not isCopyKey then
-            return
-        end
-        C_Timer.After(0, function()
-            CloseCopyBox()
-            if copyOwner then
-                copyOwner:Flash(text("copied") or "")
-            end
-        end)
-    end)
-    copyBox:SetScript("OnEscapePressed", CloseCopyBox)
-    copyBox:SetScript("OnEnterPressed", CloseCopyBox)
-    copyBox:SetScript("OnEditFocusLost", function(self)
-        self:Hide()
-    end)
-    -- read only: whatever is typed, the name comes back, selected
-    copyBox:SetScript("OnTextChanged", function(self, isUserInput)
-        if isUserInput then
-            self:SetText(copiedName)
-            self:HighlightText()
-        end
-    end)
-    local function ShowCopyBox(card, button, title)
-        copiedName = title
-        copyOwner = button
-        copyBox:ClearAllPoints()
-        copyBox:SetPoint("TOPRIGHT", button, "TOPRIGHT", 0, 0)
-        copyBox:SetFrameLevel(card:GetFrameLevel() + COPY_BOX_LEVEL_GAP)
-        copyBox:SetText(title)
-        copyBox:Show()
-        copyBox:SetFocus()
-        copyBox:HighlightText()
-    end
-    page.copyBox = copyBox
-
     local cards = {}
     for _, addon in ipairs(OtherAddons.list or {}) do
         if addon.folder ~= options.exclude then
-            table.insert(cards, MakeCard(content, addon, text, ShowCopyBox))
+            table.insert(cards, MakeCard(content, addon, text))
         end
     end
 
@@ -606,7 +644,6 @@ function OtherAddons.CreatePage(parent, options)
     local function ApplyTexts()
         title:SetText(text("title") or "")
         languageLabel:SetText(text("language") or "")
-        copyHint:SetText(text("copy_hint") or "")
         footer:SetText(text("footer") or "")
         for _, card in ipairs(cards) do
             card:ApplyTexts()
@@ -622,7 +659,6 @@ function OtherAddons.CreatePage(parent, options)
         if options.saved then
             options.saved.language = code
         end
-        CloseCopyBox()
         ApplyTexts()
         page:Refresh()
     end
@@ -638,7 +674,12 @@ function OtherAddons.CreatePage(parent, options)
     page:SetScript("OnShow", function(self)
         self:Refresh()
     end)
-    page:SetScript("OnHide", CloseCopyBox)
+    -- a name being copied turns back when the page closes
+    page:SetScript("OnHide", function()
+        for _, card in ipairs(cards) do
+            card:StopCopy(false)
+        end
+    end)
     page:Refresh()
     return page
 end
