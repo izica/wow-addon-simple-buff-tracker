@@ -7,7 +7,15 @@
 -- set of icons waits for the end of combat (Refresh from events/auras.lua).
 --
 -- Unlocked, a green mover covers the panel and drags it, a right click on it
--- locks the panel; the place is saved in settings.position. Locked, the same mover (without the green) comes up
+-- locks the panel; the place is saved in settings.position. The mover shows the
+-- anchor: a gold mark on the corner the icons grow from and an arrow the way
+-- they grow -- the panel stays held by that corner.
+--
+-- The place is the addon's only: the client must not keep its own. A movable
+-- frame dragged with StartMoving is "user placed", and the client restores it
+-- after login by a point it picks itself (by the third of the screen: left,
+-- center or right) -- the panel then grew left or both ways. So the client is
+-- told not to save it, and every layout puts the panel back on its corner. Locked, the same mover (without the green) comes up
 -- while Shift is held with the mouse over the panel: Shift + drag moves it,
 -- and a Shift-click does not reach the icons. Out of combat only.
 
@@ -27,6 +35,26 @@ local PANEL_NAME = "SimpleBuffTrackerPanel"
 local BUTTON_NAME_PREFIX = "SimpleBuffTrackerButton"
 local MOVER_COLOR = { 0.2, 1, 0.2, 0.3 }
 local MOVER_FRAME_LEVEL_GAP = 20   -- above the icons and their timers
+local ANCHOR_COLOR = { 1, 0.82, 0 }
+local ANCHOR_SIZE = 10
+local ANCHOR_BORDER = 2
+local ARROW_TEXTURE = "Interface\\ChatFrame\\ChatFrameExpandArrow"   -- points right
+local ARROW_SIZE = 16
+local ARROW_GAP = 4                -- between the anchor mark and the arrow
+-- the arrow's turn for each direction, radians (counterclockwise)
+local ARROW_ROTATION = {
+    right = 0,
+    up = math.pi / 2,
+    left = math.pi,
+    down = -math.pi / 2,
+}
+-- the arrow's offset from the anchor mark, along the growth: x, y signs
+local ARROW_SHIFT = {
+    right = { 1, 0 },
+    left = { -1, 0 },
+    down = { 0, -1 },
+    up = { 0, 1 },
+}
 local TOOLTIP_TITLE_COLOR = { 1, 0.82, 0 }
 local TOOLTIP_ACTIVE_COLOR = { 0.3, 1, 0.3 }
 local TOOLTIP_MISSING_COLOR = { 1, 0.3, 0.3 }
@@ -35,6 +63,8 @@ local TOOLTIP_HINT_COLOR = { 0.8, 0.8, 0.8 }
 local panel = nil
 local mover = nil
 local moverTint = nil
+local anchorMark = nil      -- the gold mark on the corner the icons grow from
+local anchorArrow = nil     -- the arrow the way they grow
 local isDragging = false
 local buttons = {}          -- every button made so far, reused
 local shownCount = 0        -- buttons[1..shownCount] are shown
@@ -120,6 +150,19 @@ local function SavePosition()
     PinToCorner()
 end
 
+-- The anchor mark on the growth corner, the arrow next to it, toward the growth.
+local function PlaceAnchor()
+    local direction = ns.db.settings.growDirection
+    local corner = GROW_CORNER[direction] or GROW_CORNER.right
+    anchorMark:ClearAllPoints()
+    anchorMark:SetPoint("CENTER", mover, corner, 0, 0)
+    local shift = ARROW_SHIFT[direction] or ARROW_SHIFT.right
+    local distance = ANCHOR_SIZE / 2 + ARROW_GAP + ARROW_SIZE / 2
+    anchorArrow:ClearAllPoints()
+    anchorArrow:SetPoint("CENTER", anchorMark, "CENTER", shift[1] * distance, shift[2] * distance)
+    anchorArrow:SetRotation(ARROW_ROTATION[direction] or 0)
+end
+
 -- Where the icon number index stands: the anchor point on the panel and the
 -- offset from it. perLine -- icons in a row (growing right or left) or in a
 -- column (growing down or up); a full line starts the next one.
@@ -148,6 +191,7 @@ function BuffPanel.UpdateMover()
     local isShiftDrag = not InCombatLockdown() and IsShiftKeyDown() and panel:IsMouseOver()
     mover:SetShown(not isLocked or isDragging or isShiftDrag)
     moverTint:SetShown(not isLocked)
+    PlaceAnchor()
 end
 
 -- combat is about to start: a drag still going is ended while the panel can move
@@ -186,6 +230,7 @@ local function CreateMover()
         end
         isDragging = false
         panel:StopMovingOrSizing()
+        panel:SetUserPlaced(false)   -- the client does not keep its own copy of the place
         SavePosition()
         BuffPanel.UpdateMover()
     end)
@@ -202,12 +247,26 @@ local function CreateMover()
         GameTooltip:SetOwner(self, "ANCHOR_BOTTOMRIGHT")
         GameTooltip:AddLine(Text("tooltip.mover_drag"), TOOLTIP_HINT_COLOR[1], TOOLTIP_HINT_COLOR[2], TOOLTIP_HINT_COLOR[3])
         GameTooltip:AddLine(Text("tooltip.mover_lock"), TOOLTIP_HINT_COLOR[1], TOOLTIP_HINT_COLOR[2], TOOLTIP_HINT_COLOR[3])
+        GameTooltip:AddLine(Text("tooltip.mover_anchor"), TOOLTIP_HINT_COLOR[1], TOOLTIP_HINT_COLOR[2], TOOLTIP_HINT_COLOR[3])
         GameTooltip:Show()
     end)
     mover:SetScript("OnLeave", function()
         HideTooltip()
         BuffPanel.UpdateMover()
     end)
+
+    -- the anchor: a gold square with a dark edge, over everything on the mover
+    local markBorder = mover:CreateTexture(nil, "OVERLAY", nil, 6)
+    markBorder:SetColorTexture(0, 0, 0, 1)
+    markBorder:SetSize(ANCHOR_SIZE + ANCHOR_BORDER * 2, ANCHOR_SIZE + ANCHOR_BORDER * 2)
+    anchorMark = mover:CreateTexture(nil, "OVERLAY", nil, 7)
+    anchorMark:SetColorTexture(ANCHOR_COLOR[1], ANCHOR_COLOR[2], ANCHOR_COLOR[3], 1)
+    anchorMark:SetSize(ANCHOR_SIZE, ANCHOR_SIZE)
+    markBorder:SetPoint("CENTER", anchorMark, "CENTER")
+    anchorArrow = mover:CreateTexture(nil, "OVERLAY", nil, 7)
+    anchorArrow:SetTexture(ARROW_TEXTURE)
+    anchorArrow:SetVertexColor(ANCHOR_COLOR[1], ANCHOR_COLOR[2], ANCHOR_COLOR[3])
+    anchorArrow:SetSize(ARROW_SIZE, ARROW_SIZE)
     mover:Hide()
 end
 
@@ -215,6 +274,10 @@ function BuffPanel.Create()
     panel = CreateFrame("Frame", PANEL_NAME, UIParent)
     panel:SetMovable(true)
     panel:SetClampedToScreen(true)
+    -- the client must not restore the panel by a point of its own (see the top of the file)
+    if panel.SetDontSavePosition then
+        panel:SetDontSavePosition(true)
+    end
     panel:SetSize(ns.Config.EMPTY_PANEL_SIZE, ns.Config.EMPTY_PANEL_SIZE)
     PlacePanel()
     CreateMover()
@@ -273,9 +336,12 @@ local function Layout(states)
     local step = size + spacing
     local direction = settings.growDirection
 
-    -- another direction (or an older position): hold the panel by its new corner first
+    -- another direction (or an older position): hold the panel by its new corner first;
+    -- otherwise put it back on its corner -- whatever moved it, the corner is the place
     if settings.position.point ~= GROW_CORNER[direction] then
         PinToCorner()
+    else
+        PlacePanel()
     end
 
     for index, state in ipairs(states) do

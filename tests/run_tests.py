@@ -1264,6 +1264,43 @@ def test_missing_glow():
     check("in combat the glow still comes up", lua.eval("glowHolder.shown") is True)
 
 
+def test_panel_stays_on_its_corner():
+    lua = new_runtime()
+    lua.execute("""
+        local panel = SimpleBuffTrackerPanel
+        function panel:GetLeft() return 300 end
+        function panel:GetRight() return 400 end
+        function panel:GetTop() return 600 end
+        function panel:GetBottom() return 560 end
+        Slash('add Arcane Intellect')
+        RunTickers()
+        -- what the client did after login: put the panel back by a point of its own
+        SimpleBuffTrackerPanel:ClearAllPoints()
+        SimpleBuffTrackerPanel:SetPoint('CENTER', UIParent, 'CENTER', 0, 0)
+        ns.Core.Refresh()
+    """)
+    check("growing right, the panel is put back on its top left corner",
+          lua.eval("SimpleBuffTrackerPanel.point[1]") == "TOPLEFT"
+          and lua.eval("SimpleBuffTrackerPanel.point[3]") == "BOTTOMLEFT")
+    lua.execute("""
+        local panel = SimpleBuffTrackerPanel
+        function panel:GetLeft() return 300 end
+        function panel:GetRight() return 400 end
+        function panel:GetTop() return 600 end
+        function panel:GetBottom() return 560 end
+        Slash('unlock')
+        for _, direction in ipairs({ 'left', 'down', 'up', 'right' }) do
+            SimpleBuffTrackerDB.settings.growDirection = direction
+            ns.Core.Refresh()
+        end
+        SimpleBuffTrackerDB.settings.growDirection = 'left'
+        ns.Core.Refresh()
+    """)
+    check("growing left, it is held by its top right corner",
+          lua.eval("SimpleBuffTrackerPanel.point[1]") == "TOPRIGHT"
+          and lua.eval("SimpleBuffTrackerDB.settings.position.x") == 400)
+
+
 def test_russian():
     lua = new_runtime("ruRU")
     lua.execute("Slash('list')")
@@ -1320,6 +1357,7 @@ def main():
     test_action_bar_look()
     test_shift_drag()
     test_missing_glow()
+    test_panel_stays_on_its_corner()
     test_russian()
     test_wording()
     if failures:

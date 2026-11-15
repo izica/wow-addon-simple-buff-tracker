@@ -29,7 +29,8 @@ ns.Localization.Add("en", [==[
         "item_count": "In bags: %d",
         "shift_drag": "Shift-drag to move the panel",
         "mover_drag": "Drag to move the panel",
-        "mover_lock": "Right-click to lock the panel"
+        "mover_lock": "Right-click to lock the panel",
+        "mover_anchor": "The gold mark is the anchor: the icons grow from it the way the arrow points."
     },
     "messages": {
         "buff_with_source": "%s (%s: %s)",
