@@ -1278,6 +1278,11 @@ def test_panel_stays_on_its_corner():
         function panel:GetBottom() return 560 end
         Slash('add Arcane Intellect')
         RunTickers()
+        for _, frame in ipairs(allFrames) do
+            if rawget(frame, 'parent') == SimpleBuffTrackerPanel and rawget(frame.scripts, 'OnDragStart') then
+                mover = frame
+            end
+        end
         -- what the client did after login: put the panel back by a point of its own
         SimpleBuffTrackerPanel:ClearAllPoints()
         SimpleBuffTrackerPanel:SetPoint('CENTER', UIParent, 'CENTER', 0, 0)
@@ -1300,6 +1305,19 @@ def test_panel_stays_on_its_corner():
         SimpleBuffTrackerDB.settings.growDirection = 'left'
         ns.Core.Refresh()
     """)
+    lua.execute("""
+        Slash('unlock')
+        mover.scripts.OnDragStart(mover)
+        -- the mouse moved the panel: the client holds it somewhere else now
+        SimpleBuffTrackerPanel:ClearAllPoints()
+        SimpleBuffTrackerPanel:SetPoint('CENTER', UIParent, 'CENTER', 50, 50)
+        RunTickers()
+        Fire('UNIT_AURA', 'player')
+    """)
+    check("while dragged the panel is not put back (it jumped)",
+          lua.eval("SimpleBuffTrackerPanel.point[1]") == "CENTER")
+    lua.execute("mover.scripts.OnDragStop(mover)")
+    check("the drag ends: held by its corner again", lua.eval("SimpleBuffTrackerPanel.point[1]") == "TOPRIGHT")
     check("growing left, it is held by its top right corner",
           lua.eval("SimpleBuffTrackerPanel.point[1]") == "TOPRIGHT"
           and lua.eval("SimpleBuffTrackerDB.settings.position.x") == 400)

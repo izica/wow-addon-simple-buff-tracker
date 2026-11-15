@@ -345,11 +345,16 @@ local function Layout(states)
     local direction = settings.growDirection
 
     -- another direction (or an older position): hold the panel by its new corner first;
-    -- otherwise put it back on its corner -- whatever moved it, the corner is the place
-    if settings.position.point ~= GROW_CORNER[direction] then
-        PinToCorner()
-    else
-        PlacePanel()
+    -- otherwise put it back on its corner -- whatever moved it, the corner is the place.
+    -- Not while it is dragged: the mouse holds it then (the ticker and the aura
+    -- events lay out every second -- the panel jumped back under the mouse).
+    -- The place is saved when the drag ends.
+    if not isDragging then
+        if settings.position.point ~= GROW_CORNER[direction] then
+            PinToCorner()
+        else
+            PlacePanel()
+        end
     end
 
     for index, state in ipairs(states) do
