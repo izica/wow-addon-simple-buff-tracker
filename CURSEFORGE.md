@@ -65,7 +65,7 @@ Shift-click the minimap button (or `/sbt config`) – the **Panel** tab: lock, d
 
 Key bindings (*Options → Keybindings → AddOns → Simple Buff Tracker*): switch the display mode, open the buff window, open the panel settings, lock or unlock the panel.
 
-Minimap button: **left-click** – buffs, **Shift-click** – panel settings, **right-click** – switch the display mode.
+Minimap button: **left-click** – buffs, **Shift-click** – panel settings, **right-click** – lock or unlock the panel, **Shift-right-click** – switch the display mode.
 
 ## Feedback
 

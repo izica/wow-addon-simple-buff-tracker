@@ -99,7 +99,8 @@
     "minimap": {
         "mode": "Mode: %s",
         "left_click": "Left-click to open the buff window",
-        "right_click": "Right-click to toggle the display mode",
+        "right_click": "Right-click to lock or unlock the panel",
+        "shift_right_click": "Shift-right-click to toggle the display mode",
         "drag": "Drag to move this button",
         "no_library": "LibDBIcon not found. The minimap button is disabled.",
         "shift_click": "Shift-click to open the panel settings"

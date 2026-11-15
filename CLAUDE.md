@@ -115,7 +115,8 @@ python tests/run_tests.py
 ## Миникарта
 
 `components/minimap_button.lua` на LibDBIcon (+ LibDataBroker, CallbackHandler в `libs/`):
-левый клик — `/sbt buffs`, shift + левый — `/sbt config`, правый — `/sbt mode`.
+левый клик — `/sbt buffs`, shift + левый — `/sbt config`, правый — `/sbt move` (закрепить / разблокировать),
+shift + правый — `/sbt mode`.
 В тестах `.xml` из `.toc` не грузятся, LibDBIcon подменяет `FAKE_LIBRARIES`.
 
 Картинка кнопки (и `## IconTexture` в списке аддонов) — своя: `SimpleBuffTracker/media/icon.tga`,
