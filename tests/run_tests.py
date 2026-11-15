@@ -1386,6 +1386,22 @@ def test_settings_pages():
     check("installed, turned off, not installed",
           list(lua.eval("states").values()) == ["loaded", "disabled", "missing"])
     lua.execute("""
+        bulletLines = 0
+        for _, frame in ipairs(allFrames) do
+            local text = rawget(frame, 'text')
+            if type(text) == 'string' and text:find('Share notes with your guild', 1, true) then
+                purpleFeatures = text
+            end
+        end
+        -- a card is as tall as its texts: give the font strings a height and fit it
+        local card = others.cards[1]
+        cardHeight = card:Fit(500)
+    """)
+    features = lua.eval("purpleFeatures") or ""
+    check("the features are points, one per line",
+          features.startswith("• Write a note") and features.count("• ") == 5)
+    check("a card gets a height from its texts", (lua.eval("cardHeight") or 0) > 0)
+    lua.execute("""
         about = settingsCategories[1].frame
         SettingsPanel.shown = true
         about.openButton.scripts.OnClick(about.openButton)

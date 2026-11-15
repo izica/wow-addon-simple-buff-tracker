@@ -128,7 +128,9 @@ isCorner = true }` (`PinToAnchor` в `components/buff_panel.lua`; имя `isCorn
   (`about.description`), большая кнопка «Открыть настройки бафов» — закрывает настройки игры
   (`SettingsPanel:Close(true)`) и открывает наше окно (`MainWindow.Open`);
 * «Другие аддоны» — `components/other_addons_page.lua`, **общий компонент для всех аддонов автора**:
-  карточки из `config/other_addons.lua` (иконка, название, описание `other_addons.notes.<id>`, статус:
+  карточки из `config/other_addons.lua` (иконка, название, строка `other_addons.notes.<id>`, фичи пунктами
+  `other_addons.features.<id>` — по строке на фичу через `
+`; высота карточки по тексту, страница прокручивается; статус:
   установлен / установлен, выключен / не установлен — `C_AddOns.IsAddOnLoaded` / `DoesAddOnExist`),
   статусы перечитываются при каждом показе. Свой аддон скрывается параметром `exclude` (папка).
   В другой аддон копируются: этот файл, `config/other_addons.lua` и ключи `other_addons.*` из

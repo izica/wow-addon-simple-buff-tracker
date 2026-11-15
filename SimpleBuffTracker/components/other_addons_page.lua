@@ -1,6 +1,7 @@
 -- other_addons_page.lua -- the "Other addons" page of the settings: the
--- author's other addons as cards -- icon, name, description and whether it is
--- installed (installed / installed but turned off / not installed).
+-- author's other addons as cards -- icon, name, a line on what it is, its
+-- features as points, and whether it is installed (installed / installed but
+-- turned off / not installed). The cards scroll when they do not fit.
 --
 -- Shared between the author's addons: the same file in each. It needs only the
 -- game's API and what it is given: the list (config/other_addons.lua), the
@@ -12,6 +13,9 @@
 --       exclude = "SimpleBuffTracker",           -- folder of the addon to leave out
 --       text = ns.Localization.Text,             -- text(key, ...) -> string
 --   }) -> frame; the statuses are read again every time the page is shown.
+--
+-- Texts of an addon: other_addons.notes.<id> -- one line; other_addons.features.<id>
+-- -- the features, one per line ("\n" between them): each becomes a point.
 
 local ADDON, ns = ...
 ns.Components = ns.Components or {}
@@ -22,17 +26,20 @@ ns.Components.OtherAddonsPage = OtherAddonsPage
 local PADDING = 24
 local HEADER_GAP = 6
 local DIVIDER_GAP = 16
-local CARD_HEIGHT = 76
+local SCROLL_BAR_SPACE = 26      -- room for the scroll bar on the right of the cards
 local CARD_GAP = 10
+local CARD_INSET = 16            -- from the card edges to its content
 local ICON_SIZE = 46
-local ICON_INSET = 16
 local ICON_CROP = 0.08
 local ICON_FRAME = 2
-local TEXT_GAP = 14
+local TEXT_GAP = 14              -- between the icon and the texts
 local STATUS_WIDTH = 150
 local STATUS_DOT_SIZE = 8
 local ACCENT_WIDTH = 3
-local NOTES_LINES = 2
+local LINE_GAP = 4               -- between the name, the line and the points
+local FEATURES_GAP = 8
+local FEATURE_SPACING = 3
+local BULLET = "\226\128\162 "   -- "• " in UTF-8
 
 local CARD_COLOR = { 0.07, 0.07, 0.09, 0.9 }
 local CARD_HOVER_COLOR = { 0.11, 0.11, 0.14, 0.95 }
@@ -40,7 +47,8 @@ local BORDER_COLOR = { 0.24, 0.24, 0.28, 1 }
 local BORDER_HOVER_COLOR = { 0.45, 0.45, 0.52, 1 }
 local DIVIDER_COLOR = { 1, 0.82, 0, 0.35 }
 local SUBTITLE_COLOR = { 0.7, 0.7, 0.74 }
-local NOTES_COLOR = { 0.78, 0.78, 0.8 }
+local NOTES_COLOR = { 0.85, 0.85, 0.87 }
+local FEATURES_COLOR = { 0.68, 0.68, 0.72 }
 local FOOTER_COLOR = { 0.55, 0.55, 0.6 }
 
 local STATE = {
@@ -79,6 +87,15 @@ local function AddonState(folder)
     return STATE.MISSING
 end
 
+-- "a\nb" -> "• a\n• b"
+local function Points(features)
+    local lines = {}
+    for line in (features or ""):gmatch("[^\n]+") do
+        table.insert(lines, BULLET .. line)
+    end
+    return table.concat(lines, "\n")
+end
+
 -- a 1 pixel frame of four textures; returns them, to recolor
 local function PixelBorder(frame, color)
     local edges = {}
@@ -109,9 +126,8 @@ local function Paint(textures, color)
     end
 end
 
-local function MakeCard(page, addon, text)
-    local card = CreateFrame("Frame", nil, page)
-    card:SetHeight(CARD_HEIGHT)
+local function MakeCard(parent, addon, text)
+    local card = CreateFrame("Frame", nil, parent)
     card:EnableMouse(true)
 
     local background = card:CreateTexture(nil, "BACKGROUND")
@@ -125,19 +141,19 @@ local function MakeCard(page, addon, text)
     accent:SetPoint("BOTTOMLEFT", 1, 1)
     accent:SetWidth(ACCENT_WIDTH)
 
-    -- the icon in a dark frame
+    -- the icon in a dark frame, at the top left
     local iconFrame = card:CreateTexture(nil, "ARTWORK")
     iconFrame:SetColorTexture(0, 0, 0, 1)
     iconFrame:SetSize(ICON_SIZE + ICON_FRAME * 2, ICON_SIZE + ICON_FRAME * 2)
-    iconFrame:SetPoint("LEFT", ICON_INSET, 0)
+    iconFrame:SetPoint("TOPLEFT", CARD_INSET, -CARD_INSET)
     local icon = card:CreateTexture(nil, "OVERLAY")
     icon:SetSize(ICON_SIZE, ICON_SIZE)
     icon:SetPoint("CENTER", iconFrame, "CENTER")
     icon:SetTexCoord(ICON_CROP, 1 - ICON_CROP, ICON_CROP, 1 - ICON_CROP)
 
-    -- the status on the right: a round dot and its word
+    -- the status at the top right: a round dot and its word
     local status = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    status:SetPoint("RIGHT", -ICON_INSET, 0)
+    status:SetPoint("TOPRIGHT", -CARD_INSET, -CARD_INSET - 4)
     status:SetJustifyH("RIGHT")
     local dot = card:CreateTexture(nil, "OVERLAY")
     dot:SetSize(STATUS_DOT_SIZE, STATUS_DOT_SIZE)
@@ -153,21 +169,24 @@ local function MakeCard(page, addon, text)
 
     local name = card:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     name:SetPoint("TOPLEFT", iconFrame, "TOPRIGHT", TEXT_GAP, -2)
-    name:SetPoint("RIGHT", card, "RIGHT", -(ICON_INSET + STATUS_WIDTH), 0)
     name:SetJustifyH("LEFT")
     name:SetWordWrap(false)
     name:SetText(addon.title)
 
-    local notes = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    notes:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 0, -4)
-    notes:SetPoint("RIGHT", card, "RIGHT", -(ICON_INSET + STATUS_WIDTH), 0)
+    local notes = card:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    notes:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 0, -LINE_GAP)
     notes:SetJustifyH("LEFT")
     notes:SetJustifyV("TOP")
     notes:SetTextColor(NOTES_COLOR[1], NOTES_COLOR[2], NOTES_COLOR[3])
-    if notes.SetMaxLines then
-        notes:SetMaxLines(NOTES_LINES)
-    end
     notes:SetText(text("other_addons.notes." .. addon.id))
+
+    local features = card:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    features:SetPoint("TOPLEFT", notes, "BOTTOMLEFT", 0, -FEATURES_GAP)
+    features:SetJustifyH("LEFT")
+    features:SetJustifyV("TOP")
+    features:SetSpacing(FEATURE_SPACING)
+    features:SetTextColor(FEATURES_COLOR[1], FEATURES_COLOR[2], FEATURES_COLOR[3])
+    features:SetText(Points(text("other_addons.features." .. addon.id)))
 
     card:SetScript("OnEnter", function()
         background:SetColorTexture(CARD_HOVER_COLOR[1], CARD_HOVER_COLOR[2], CARD_HOVER_COLOR[3], CARD_HOVER_COLOR[4])
@@ -177,6 +196,20 @@ local function MakeCard(page, addon, text)
         background:SetColorTexture(CARD_COLOR[1], CARD_COLOR[2], CARD_COLOR[3], CARD_COLOR[4])
         Paint(border, BORDER_COLOR)
     end)
+
+    -- the texts wrap in the width of the card; the card is as tall as they are
+    function card:Fit(width)
+        local textLeft = CARD_INSET + ICON_SIZE + ICON_FRAME * 2 + TEXT_GAP
+        local textWidth = math.max(1, width - textLeft - CARD_INSET)
+        name:SetWidth(math.max(1, textWidth - STATUS_WIDTH))
+        notes:SetWidth(textWidth)
+        features:SetWidth(textWidth)
+        local textHeight = (name:GetStringHeight() or 0) + LINE_GAP + (notes:GetStringHeight() or 0)
+            + FEATURES_GAP + (features:GetStringHeight() or 0)
+        local height = math.max(ICON_SIZE + ICON_FRAME * 2, textHeight + 2) + CARD_INSET * 2
+        self:SetSize(width, height)
+        return height
+    end
 
     -- the status and the picture (an own picture only while installed)
     function card:Refresh()
@@ -219,28 +252,45 @@ function OtherAddonsPage.Create(parent, options)
     divider:SetPoint("RIGHT", page, "RIGHT", -PADDING, 0)
     divider:SetColorTexture(DIVIDER_COLOR[1], DIVIDER_COLOR[2], DIVIDER_COLOR[3], DIVIDER_COLOR[4])
 
+    -- the cards and the footer in a scroll frame under the header
+    local scroll = CreateFrame("ScrollFrame", nil, page, "UIPanelScrollFrameTemplate")
+    scroll:SetPoint("TOPLEFT", divider, "BOTTOMLEFT", 0, -DIVIDER_GAP)
+    scroll:SetPoint("BOTTOMRIGHT", page, "BOTTOMRIGHT", -(PADDING + SCROLL_BAR_SPACE), PADDING)
+    local content = CreateFrame("Frame", nil, scroll)
+    content:SetSize(1, 1)
+    scroll:SetScrollChild(content)
+
     local cards = {}
-    local previous = divider
     for _, addon in ipairs(options.addons) do
         if addon.folder ~= options.exclude then
-            local card = MakeCard(page, addon, text)
-            local gap = CARD_GAP
-            if previous == divider then
-                gap = DIVIDER_GAP
-            end
-            card:SetPoint("TOPLEFT", previous, "BOTTOMLEFT", 0, -gap)
-            card:SetPoint("RIGHT", page, "RIGHT", -PADDING, 0)
-            table.insert(cards, card)
-            previous = card
+            table.insert(cards, MakeCard(content, addon, text))
         end
     end
 
-    local footer = page:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    footer:SetPoint("TOPLEFT", previous, "BOTTOMLEFT", 0, -DIVIDER_GAP)
-    footer:SetPoint("RIGHT", page, "RIGHT", -PADDING, 0)
+    local footer = content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     footer:SetJustifyH("LEFT")
     footer:SetTextColor(FOOTER_COLOR[1], FOOTER_COLOR[2], FOOTER_COLOR[3])
     footer:SetText(text("other_addons.footer"))
+
+    -- stack the cards in the width the scroll frame has now
+    local function Layout()
+        local width = scroll:GetWidth() or 0
+        if width <= 1 then
+            return
+        end
+        content:SetWidth(width)
+        local top = 0
+        for _, card in ipairs(cards) do
+            card:ClearAllPoints()
+            card:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -top)
+            top = top + card:Fit(width) + CARD_GAP
+        end
+        footer:ClearAllPoints()
+        footer:SetPoint("TOPLEFT", content, "TOPLEFT", 0, -(top + DIVIDER_GAP / 2))
+        footer:SetWidth(width)
+        content:SetHeight(top + DIVIDER_GAP / 2 + (footer:GetStringHeight() or 0))
+    end
+    scroll:SetScript("OnSizeChanged", Layout)
 
     function page:Refresh()
         local installed = 0
@@ -250,6 +300,7 @@ function OtherAddonsPage.Create(parent, options)
             end
         end
         subtitle:SetText(text("other_addons.subtitle", installed, #cards))
+        Layout()
     end
 
     page.cards = cards
