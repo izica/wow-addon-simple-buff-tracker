@@ -35,12 +35,13 @@ ns.Constants.GROW_DIRECTION = {
     UP = "up",
 }
 
--- the corner of the panel the icons grow from: it stays in place as the panel grows
-ns.Constants.GROW_CORNER = {
-    right = "TOPLEFT",
-    left = "TOPRIGHT",
-    down = "TOPLEFT",
-    up = "BOTTOMLEFT",
+-- the point the panel is held by: the middle of the edge the icons grow from --
+-- it stays in place as the panel grows (more lines spread evenly to both sides)
+ns.Constants.GROW_ANCHOR = {
+    right = "LEFT",
+    left = "RIGHT",
+    down = "TOP",
+    up = "BOTTOM",
 }
 
 -- how an icon on the panel looks (ui/buff_button.lua)

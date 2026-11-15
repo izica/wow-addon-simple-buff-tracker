@@ -916,16 +916,16 @@ def test_grow_direction():
         Slash('add Trueshot Aura')
     """)
     # icon 36 + spacing 4 = a step of 40; two in a line
-    check("right: the old centered place is moved to the top left corner",
-          lua.eval("SimpleBuffTrackerDB.settings.position.point") == "TOPLEFT"
+    check("right: the old centered place is moved to the middle of the left edge",
+          lua.eval("SimpleBuffTrackerDB.settings.position.point") == "LEFT"
           and lua.eval("SimpleBuffTrackerDB.settings.position.x") == 100
-          and lua.eval("SimpleBuffTrackerDB.settings.position.y") == 500)
+          and lua.eval("SimpleBuffTrackerDB.settings.position.y") == 450)
     check("right: second icon right of the first, third on the next row",
           icon_place(lua, 2) == ("TOPLEFT", 40, 0) and icon_place(lua, 3) == ("TOPLEFT", 0, -40))
 
     lua.execute("SimpleBuffTrackerDB.settings.growDirection = 'left'; ns.Components.BuffPanel.Refresh()")
-    check("left: held by the top right corner",
-          lua.eval("SimpleBuffTrackerDB.settings.position.point") == "TOPRIGHT"
+    check("left: held by the middle of the right edge",
+          lua.eval("SimpleBuffTrackerDB.settings.position.point") == "RIGHT"
           and lua.eval("SimpleBuffTrackerDB.settings.position.x") == 300)
     check("left: second icon left of the first",
           icon_place(lua, 2) == ("TOPRIGHT", -40, 0) and icon_place(lua, 3) == ("TOPRIGHT", 0, -40))
@@ -935,8 +935,8 @@ def test_grow_direction():
           icon_place(lua, 2) == ("TOPLEFT", 0, -40) and icon_place(lua, 3) == ("TOPLEFT", 40, 0))
 
     lua.execute("SimpleBuffTrackerDB.settings.growDirection = 'up'; ns.Components.BuffPanel.Refresh()")
-    check("up: held by the bottom left corner",
-          lua.eval("SimpleBuffTrackerDB.settings.position.point") == "BOTTOMLEFT"
+    check("up: held by the middle of the bottom edge",
+          lua.eval("SimpleBuffTrackerDB.settings.position.point") == "BOTTOM"
           and lua.eval("SimpleBuffTrackerDB.settings.position.y") == 400)
     check("up: second icon above the first",
           icon_place(lua, 2) == ("BOTTOMLEFT", 0, 40) and icon_place(lua, 3) == ("BOTTOMLEFT", 40, 0))
@@ -1288,8 +1288,8 @@ def test_panel_stays_on_its_corner():
         SimpleBuffTrackerPanel:SetPoint('CENTER', UIParent, 'CENTER', 0, 0)
         ns.Core.Refresh()
     """)
-    check("growing right, the panel is put back on its top left corner",
-          lua.eval("SimpleBuffTrackerPanel.point[1]") == "TOPLEFT"
+    check("growing right, the panel is put back on the middle of its left edge",
+          lua.eval("SimpleBuffTrackerPanel.point[1]") == "LEFT"
           and lua.eval("SimpleBuffTrackerPanel.point[3]") == "BOTTOMLEFT")
     lua.execute("""
         local panel = SimpleBuffTrackerPanel
@@ -1317,9 +1317,9 @@ def test_panel_stays_on_its_corner():
     check("while dragged the panel is not put back (it jumped)",
           lua.eval("SimpleBuffTrackerPanel.point[1]") == "CENTER")
     lua.execute("mover.scripts.OnDragStop(mover)")
-    check("the drag ends: held by its corner again", lua.eval("SimpleBuffTrackerPanel.point[1]") == "TOPRIGHT")
-    check("growing left, it is held by its top right corner",
-          lua.eval("SimpleBuffTrackerPanel.point[1]") == "TOPRIGHT"
+    check("the drag ends: held by its anchor again", lua.eval("SimpleBuffTrackerPanel.point[1]") == "RIGHT")
+    check("growing left, it is held by the middle of its right edge",
+          lua.eval("SimpleBuffTrackerPanel.point[1]") == "RIGHT"
           and lua.eval("SimpleBuffTrackerDB.settings.position.x") == 400)
 
 

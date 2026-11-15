@@ -1,4 +1,4 @@
--- buff_panel.lua -- the panel of buff icons: in rows from the top left corner,
+-- buff_panel.lua -- the panel of buff icons: in lines the chosen way (settings.growDirection),
 -- the buffs of the current mode (all, or only the missing ones).
 --
 -- The icons are secure buttons (ui/buff_button.lua): which buff sits on which
@@ -8,14 +8,14 @@
 --
 -- Unlocked, a green mover covers the panel and drags it, a right click on it
 -- locks the panel; the place is saved in settings.position. The mover shows the
--- anchor: a gold mark on the corner the icons grow from and an arrow the way
--- they grow -- the panel stays held by that corner.
+-- anchor: an open padlock on the middle of the edge the icons grow from and an
+-- arrow the way they grow -- the panel stays held by that point.
 --
 -- The place is the addon's only: the client must not keep its own. A movable
 -- frame dragged with StartMoving is "user placed", and the client restores it
 -- after login by a point it picks itself (by the third of the screen: left,
 -- center or right) -- the panel then grew left or both ways. So the client is
--- told not to save it, and every layout puts the panel back on its corner. Locked, the same mover (without the green) comes up
+-- told not to save it, and every layout puts the panel back on its anchor. Locked, the same mover (without the green) comes up
 -- while Shift is held with the mouse over the panel: Shift + drag moves it,
 -- and a Shift-click does not reach the icons. Out of combat only.
 
@@ -26,7 +26,7 @@ local Text = ns.Localization.Text
 local Buff = ns.Models.Buff
 local BuffService = ns.Services.Buff
 local GROW_DIRECTION = ns.Constants.GROW_DIRECTION
-local GROW_CORNER = ns.Constants.GROW_CORNER
+local GROW_ANCHOR = ns.Constants.GROW_ANCHOR
 
 local BuffPanel = {}
 ns.Components.BuffPanel = BuffPanel
@@ -35,9 +35,10 @@ local PANEL_NAME = "SimpleBuffTrackerPanel"
 local BUTTON_NAME_PREFIX = "SimpleBuffTrackerButton"
 local MOVER_COLOR = { 0.2, 1, 0.2, 0.3 }
 local MOVER_FRAME_LEVEL_GAP = 20   -- above the icons and their timers
-local ANCHOR_COLOR = { 1, 0.82, 0 }
-local ANCHOR_SIZE = 10
-local ANCHOR_BORDER = 2
+local ANCHOR_COLOR = { 1, 0.82, 0 }   -- the arrow, gold like the padlock
+-- the anchor: an open padlock drawn for the addon (scripts/make_icon.py)
+local ANCHOR_TEXTURE = "Interface\\AddOns\\SimpleBuffTracker\\media\\lock_open"
+local ANCHOR_SIZE = 20
 local ARROW_TEXTURE = "Interface\\ChatFrame\\ChatFrameExpandArrow"   -- points right
 local ARROW_SIZE = 16
 local ARROW_GAP = 4                -- between the anchor mark and the arrow
@@ -63,7 +64,7 @@ local TOOLTIP_HINT_COLOR = { 0.8, 0.8, 0.8 }
 local panel = nil
 local mover = nil
 local moverTint = nil
-local anchorMark = nil      -- the gold mark on the corner the icons grow from
+local anchorMark = nil      -- the open padlock on the point the panel is held by
 local anchorArrow = nil     -- the arrow the way they grow
 local isDragging = false
 local buttons = {}          -- every button made so far, reused
@@ -111,13 +112,15 @@ local function HideTooltip()
     GameTooltip:Hide()
 end
 
--- The panel is held by the corner its icons grow from (GROW_CORNER): more icons
--- make it longer away from that corner, the corner stays where it was put.
--- settings.position = { point = the corner, x, y -- from the bottom left of the
--- screen, isCorner = true }; an older position (point = "CENTER", relative to
--- the same point of the screen) is moved to the corner on the next layout.
-local function PinToCorner()
-    local corner = GROW_CORNER[ns.db.settings.growDirection] or GROW_CORNER.right
+-- The panel is held by the middle of the edge its icons grow from (GROW_ANCHOR):
+-- growing right -- the middle of its left edge. More icons make it longer away
+-- from that point, more lines spread to both sides of it; the point stays where
+-- it was put. settings.position = { point = that point, x, y -- from the bottom
+-- left of the screen, isCorner = true (the name of older versions: "relative to
+-- the screen's bottom left") }; an older position (a corner, or "CENTER"
+-- relative to the screen's center) is moved to the anchor on the next layout.
+local function PinToAnchor()
+    local anchor = GROW_ANCHOR[ns.db.settings.growDirection] or GROW_ANCHOR.right
     local left = panel:GetLeft()
     local right = panel:GetRight()
     local top = panel:GetTop()
@@ -125,17 +128,21 @@ local function PinToCorner()
     if not (left and right and top and bottom) then
         return
     end
-    local x = left
-    if corner:find("RIGHT") then
+    local x = (left + right) / 2
+    if anchor:find("LEFT") then
+        x = left
+    elseif anchor:find("RIGHT") then
         x = right
     end
-    local y = top
-    if corner:find("BOTTOM") then
+    local y = (top + bottom) / 2
+    if anchor:find("TOP") then
+        y = top
+    elseif anchor:find("BOTTOM") then
         y = bottom
     end
     panel:ClearAllPoints()
-    panel:SetPoint(corner, UIParent, "BOTTOMLEFT", x, y)
-    ns.db.settings.position = { point = corner, x = x, y = y, isCorner = true }
+    panel:SetPoint(anchor, UIParent, "BOTTOMLEFT", x, y)
+    ns.db.settings.position = { point = anchor, x = x, y = y, isCorner = true }
 end
 
 local function PlacePanel()
@@ -149,15 +156,16 @@ local function PlacePanel()
 end
 
 local function SavePosition()
-    PinToCorner()
+    PinToAnchor()
 end
 
--- The anchor mark on the growth corner, the arrow next to it, toward the growth.
+-- The anchor mark (an open padlock) on the point the panel is held by, the arrow
+-- next to it, toward the growth.
 local function PlaceAnchor()
     local direction = ns.db.settings.growDirection
-    local corner = GROW_CORNER[direction] or GROW_CORNER.right
+    local anchor = GROW_ANCHOR[direction] or GROW_ANCHOR.right
     anchorMark:ClearAllPoints()
-    anchorMark:SetPoint("CENTER", mover, corner, 0, 0)
+    anchorMark:SetPoint("CENTER", mover, anchor, 0, 0)
     local shift = ARROW_SHIFT[direction] or ARROW_SHIFT.right
     local distance = ANCHOR_SIZE / 2 + ARROW_GAP + ARROW_SIZE / 2
     anchorArrow:ClearAllPoints()
@@ -257,14 +265,10 @@ local function CreateMover()
         BuffPanel.UpdateMover()
     end)
 
-    -- the anchor: a gold square with a dark edge, over everything on the mover
-    local markBorder = mover:CreateTexture(nil, "OVERLAY", nil, 6)
-    markBorder:SetColorTexture(0, 0, 0, 1)
-    markBorder:SetSize(ANCHOR_SIZE + ANCHOR_BORDER * 2, ANCHOR_SIZE + ANCHOR_BORDER * 2)
+    -- the anchor: an open padlock, over everything on the mover
     anchorMark = mover:CreateTexture(nil, "OVERLAY", nil, 7)
-    anchorMark:SetColorTexture(ANCHOR_COLOR[1], ANCHOR_COLOR[2], ANCHOR_COLOR[3], 1)
+    anchorMark:SetTexture(ANCHOR_TEXTURE)
     anchorMark:SetSize(ANCHOR_SIZE, ANCHOR_SIZE)
-    markBorder:SetPoint("CENTER", anchorMark, "CENTER")
     anchorArrow = mover:CreateTexture(nil, "OVERLAY", nil, 7)
     anchorArrow:SetTexture(ARROW_TEXTURE)
     anchorArrow:SetVertexColor(ANCHOR_COLOR[1], ANCHOR_COLOR[2], ANCHOR_COLOR[3])
@@ -344,14 +348,14 @@ local function Layout(states)
     local step = size + spacing
     local direction = settings.growDirection
 
-    -- another direction (or an older position): hold the panel by its new corner first;
-    -- otherwise put it back on its corner -- whatever moved it, the corner is the place.
+    -- another direction (or an older position): hold the panel by its new anchor first;
+    -- otherwise put it back on its anchor -- whatever moved it, the anchor is the place.
     -- Not while it is dragged: the mouse holds it then (the ticker and the aura
     -- events lay out every second -- the panel jumped back under the mouse).
     -- The place is saved when the drag ends.
     if not isDragging then
-        if settings.position.point ~= GROW_CORNER[direction] then
-            PinToCorner()
+        if settings.position.point ~= GROW_ANCHOR[direction] then
+            PinToAnchor()
         else
             PlacePanel()
         end

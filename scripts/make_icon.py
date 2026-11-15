@@ -6,6 +6,9 @@
                                                 and the icon in the addon list)
     python scripts/make_icon.py variants     -- every concept into media/icon_variants/ to compare
 
+Also SimpleBuffTracker/media/lock_open.tga, 32x32: a gold open padlock -- the anchor
+the unlocked panel shows (drawn here: no game texture of it is sure to be on the client).
+
 Concepts:
   swipe      -- (the chosen one) a glowing arcane buff icon with the game's dark cooldown swipe
                 over the time already gone, in a dark metal frame;
@@ -409,6 +412,42 @@ def render(name):
     return CONCEPTS[name]().resize((SIZE, SIZE), Image.LANCZOS)
 
 
+LOCK_SIZE = 32
+LOCK_OUTPUT = os.path.join(REPOSITORY, "SimpleBuffTracker", "media", "lock_open.tga")
+
+
+def draw_open_lock():
+    """A gold open padlock with a dark outline: the body, the shackle up and open on the right."""
+    canvas = LOCK_SIZE * SCALE
+    unit = canvas / 128            # drawn on a 128 grid
+    image = Image.new("RGBA", (canvas, canvas), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    outline = (20, 12, 2, 255)
+    gold_dark = (176, 120, 30, 255)
+    gold = (255, 206, 72, 255)
+    gold_light = (255, 240, 170, 255)
+
+    def box(left, top, right, bottom):
+        return (left * unit, top * unit, right * unit, bottom * unit)
+
+    # the shackle: a half ring on top, the left leg into the body, the right one lifted
+    for width, color in ((20, outline), (12, gold_dark), (6, gold)):
+        draw.arc(box(30, 10, 82, 62), start=180, end=360, fill=color, width=round(width * unit))
+        leg = width / 2
+        draw.rectangle(box(36 - leg, 36, 36 + leg, 70), fill=color)
+        draw.rectangle(box(76 - leg, 36, 76 + leg, 46), fill=color)
+    # the body
+    draw.rounded_rectangle(box(18, 58, 110, 122), radius=14 * unit, fill=outline)
+    draw.rounded_rectangle(box(24, 64, 104, 116), radius=10 * unit, fill=gold_dark)
+    draw.rounded_rectangle(box(24, 64, 104, 104), radius=10 * unit, fill=gold)
+    draw.rounded_rectangle(box(30, 68, 98, 78), radius=5 * unit, fill=gold_light)
+    # the keyhole
+    draw.ellipse(box(56, 80, 72, 96), fill=outline)
+    draw.polygon([(60 * unit, 90 * unit), (68 * unit, 90 * unit), (70 * unit, 108 * unit), (58 * unit, 108 * unit)],
+                 fill=outline)
+    return image.resize((LOCK_SIZE, LOCK_SIZE), Image.LANCZOS)
+
+
 CHOSEN = "swipe"
 MINIMAP_SIZE = 64
 MINIMAP_OUTPUT = os.path.join(REPOSITORY, "SimpleBuffTracker", "media", "icon.tga")
@@ -431,6 +470,8 @@ def main():
     minimap = swipe_art().resize((MINIMAP_SIZE, MINIMAP_SIZE), Image.LANCZOS)
     minimap.save(MINIMAP_OUTPUT, compression=None)
     print(MINIMAP_OUTPUT)
+    draw_open_lock().save(LOCK_OUTPUT, compression=None)
+    print(LOCK_OUTPUT)
 
 
 if __name__ == "__main__":
