@@ -434,12 +434,12 @@ def test_buffs():
     """)
     check("all mode shows every buff", shown_buttons(lua) == 4)
     check("spell button casts the spell",
-          lua.eval("secureButtons[1].attributes.type") == "spell"
+          lua.eval("secureButtons[1].attributes.type1") == "spell"
           and lua.eval("secureButtons[1].attributes.spell") == "Arcane Intellect")
     check("food button uses the item", lua.eval("secureButtons[2].attributes.item") == "item:2683")
     check("oil button puts the oil on the main hand",
           lua.eval("secureButtons[3].attributes.macrotext") == "/use item:20749\n/use 16")
-    check("tracked-only button has no action", lua.eval("secureButtons[4].attributes.type") is None)
+    check("tracked-only button has no action", lua.eval("secureButtons[4].attributes.type1") is None)
     check("active buff has its timer", lua.eval("secureButtons[1].state.isActive") is True)
     check("food count is shown", lua.eval("secureButtons[2].state.itemCount") == 5)
 
@@ -1305,6 +1305,26 @@ def test_panel_stays_on_its_corner():
           and lua.eval("SimpleBuffTrackerDB.settings.position.x") == 400)
 
 
+def test_right_click_opens_settings():
+    lua = new_runtime()
+    lua.execute("""
+        Slash('add Arcane Intellect = spell Arcane Intellect')
+        Slash('add Trueshot Aura')
+        RunTickers()
+        local button = secureButtons[2]
+        button.scripts.OnClick(button, 'RightButton', true)
+    """)
+    check("pressing the right button does nothing yet", lua.eval("Window().IsOpen()") is False)
+    lua.execute("secureButtons[2].scripts.OnClick(secureButtons[2], 'RightButton', false)")
+    check("a right click on an icon opens the window", lua.eval("Window().IsOpen()") is True)
+    check("on that buff's page", lua.eval("FindField('aura').text") == "Trueshot Aura")
+    lua.execute("secureButtons[1].scripts.OnClick(secureButtons[1], 'RightButton', false)")
+    check("another icon: the window stays open on its buff", lua.eval("Window().IsOpen()") is True
+          and lua.eval("FindField('aura').text") == "Arcane Intellect")
+    check("the action is on the left button only", lua.eval("secureButtons[1].attributes.type1") == "spell"
+          and lua.eval("secureButtons[1].attributes.type") is None)
+
+
 def test_russian():
     lua = new_runtime("ruRU")
     lua.execute("Slash('list')")
@@ -1362,6 +1382,7 @@ def main():
     test_shift_drag()
     test_missing_glow()
     test_panel_stays_on_its_corner()
+    test_right_click_opens_settings()
     test_russian()
     test_wording()
     if failures:

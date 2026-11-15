@@ -21,6 +21,7 @@
         "click_spell": "Click to cast %s",
         "click_item": "Click to use %s",
         "item_count": "In bags: %d",
+        "right_click_settings": "Right-click to open its settings",
         "shift_drag": "Shift-drag to move the panel",
         "mover_drag": "Drag to move the panel",
         "mover_lock": "Right-click to lock the panel",

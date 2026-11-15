@@ -1,5 +1,6 @@
--- buff_button.lua -- a buff icon that is also a secure action button: a click
--- casts the spell or uses the item set by SetAction.
+-- buff_button.lua -- a buff icon that is also a secure action button: a left
+-- click casts the spell or uses the item set by SetAction (the action is set for
+-- the left button only: "type1"), a right click calls options.onRightClick.
 --
 -- Looks (ns.Constants.ICON_TEMPLATE), switched by SetTemplate:
 --   action_bar  -- the client's own ActionButtonTemplate inside, scaled to the
@@ -43,7 +44,9 @@ local ACTION_BUTTON_TEXT_LEVEL_GAP = 10
 local ACTION_BUTTON_FRAME_PARTS = { "Border", "SlotArt", "SlotBackground", "FloatingBG", "NewActionTexture" }
 
 -- every attribute SetAction may set: the old ones are cleared first
-local ACTION_ATTRIBUTES = { "type", "spell", "item", "macrotext" }
+local ACTION_ATTRIBUTES = { "type", "type1", "spell", "item", "macrotext" }
+-- the action's type goes on the left button only: the right one is ours
+local LEFT_BUTTON_TYPE = "type1"
 
 -- Each Dress* makes a look inside the button and returns { frame -- shown or
 -- hidden as a whole, icon, cooldown, textLevel -- the frame level above it,
@@ -114,7 +117,8 @@ local function Dress(button, template, size)
 end
 
 -- options: name -- global frame name (secure buttons work best with one), size,
--- template -- ns.Constants.ICON_TEMPLATE, onEnter(button), onLeave(button)
+-- template -- ns.Constants.ICON_TEMPLATE, onEnter(button), onLeave(button),
+-- onRightClick(button) -- after a right click (released), in combat too
 function ns.UI.BuffButton(parent, options)
     local button = CreateFrame("Button", options.name, parent, "SecureActionButtonTemplate")
     button:RegisterForClicks("AnyUp", "AnyDown")
@@ -141,6 +145,12 @@ function ns.UI.BuffButton(parent, options)
         highlight:Show()
         if options.onEnter then
             options.onEnter(self)
+        end
+    end)
+    -- after the secure handler: the right button has no action, only this
+    button:HookScript("OnClick", function(self, mouseButton, isDown)
+        if mouseButton == "RightButton" and not isDown and options.onRightClick then
+            options.onRightClick(self)
         end
     end)
     button:SetScript("OnLeave", function(self)
@@ -211,6 +221,9 @@ function ns.UI.BuffButton(parent, options)
             return
         end
         for attributeName, value in pairs(attributes) do
+            if attributeName == "type" then
+                attributeName = LEFT_BUTTON_TYPE
+            end
             self:SetAttribute(attributeName, value)
         end
     end

@@ -101,6 +101,8 @@ local function ShowTooltip(button)
         GameTooltip:AddLine(Text("tooltip.item_count", state.itemCount),
             TOOLTIP_HINT_COLOR[1], TOOLTIP_HINT_COLOR[2], TOOLTIP_HINT_COLOR[3])
     end
+    GameTooltip:AddLine(Text("tooltip.right_click_settings"),
+        TOOLTIP_HINT_COLOR[1], TOOLTIP_HINT_COLOR[2], TOOLTIP_HINT_COLOR[3])
     GameTooltip:AddLine(Text("tooltip.shift_drag"), TOOLTIP_HINT_COLOR[1], TOOLTIP_HINT_COLOR[2], TOOLTIP_HINT_COLOR[3])
     GameTooltip:Show()
 end
@@ -292,6 +294,12 @@ local function GetButton(index)
             template = ns.db.settings.iconTemplate,
             onEnter = ShowButtonTooltip,
             onLeave = HideTooltip,
+            -- the buff's page in the window
+            onRightClick = function(self)
+                if self.state then
+                    ns.Components.MainWindow.ShowBuff(self.state.buff)
+                end
+            end,
         })
         buttons[index] = button
     end

@@ -27,7 +27,7 @@ Arcane Intellect, Well Fed, a scroll, Wizard Oil on the main hand and Flametongu
 - **Move it anywhere** – unlock and drag it, right-click to lock again; or Shift + drag the locked panel.
 
 ### One click to put it back
-Give a buff a **source**, and a click on its icon reapplies it:
+Give a buff a **source**, and a left-click on its icon reapplies it:
 - **a spell** – casts it;
 - **an item** – food, a scroll, an elixir: uses it;
 - **an oil, stone or poison** on a weapon buff – uses it and puts it on that weapon right away.
@@ -39,6 +39,7 @@ A buff without a source is only tracked.
 - **Drag and drop** – drag a spell from the spellbook or an item from your bags into a field, or Shift-click it.
 - **Suggestions while you type** – your spells, the items in your bags and every buff you have had, with their icons.
 - **Drag to reorder** the buffs in the list.
+- **Right-click an icon** on the panel to open that buff's settings.
 - Buffs and settings are kept per character.
 
 ### In combat

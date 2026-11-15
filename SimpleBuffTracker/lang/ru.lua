@@ -27,6 +27,7 @@ ns.Localization.Add("ru", [==[
         "click_spell": "ЛКМ: применить %s",
         "click_item": "ЛКМ: использовать %s",
         "item_count": "В сумках: %d",
+        "right_click_settings": "ПКМ: настройки бафа",
         "shift_drag": "Shift+перетаскивание: переместить панель",
         "mover_drag": "Перетаскивание: переместить панель",
         "mover_lock": "ПКМ: закрепить панель",
