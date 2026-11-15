@@ -23,6 +23,7 @@ SIZE = 64
 REPOSITORIES = {
     "purple_note": "wow-addon-blacklist",
     "prr": "wow-addon-reagent-or-material",
+    "loot_buddy": "wow-addon-loot-buddy",
     "target_it": "wow-addon-fast-target-button",
     "simple_buff_tracker": "wow-addon-simple-buff-tracker",
 }

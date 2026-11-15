@@ -24,6 +24,7 @@ ns.OtherAddons.texts.fr = {
     notes = {
         purple_note = "Des notes sur les joueurs que vous croisez : sur les barres de nom, dans les infobulles et le chat.",
         prr = "Ce qui fabrique un objet et à quoi il sert de composant : dans les infobulles et une fenêtre de recettes.",
+        loot_buddy = "Des notifications de butin, un historique du butin avec recherche et des filtres de fouille automatique.",
         target_it = "Des boutons de barre d'action qui ciblent le PNJ vivant choisi le plus proche : les monstres de quête d'abord.",
         simple_buff_tracker = "Vos améliorations sur une barre d'icônes : toutes avec minuteurs ou seulement les manquantes. Un clic les remet.",
     },
@@ -43,6 +44,14 @@ ns.OtherAddons.texts.fr = {
             "Planificateur d'artisanat : prix de l'hôtel des ventes, bénéfice et la montée de métier la moins chère",
             "Environ 2 500 recettes de WoW Forever intégrées, rien à scanner",
             "L'interface en 8 langues, les noms des objets et recettes tirés de votre client de jeu",
+        },
+        loot_buddy = {
+            "Des notifications de butin animées aux couleurs de la qualité des objets",
+            "Un historique de chaque objet ramassé : quand, où et sur quoi ; recherche et filtres",
+            "Filtres de fouille automatique : laissez la camelote par qualité, prix du marchand, nom ou masque",
+            "Clic du milieu sur un objet de vos sacs pour l'exclure de la fouille automatique",
+            "Un suivi des sacs : vos propres groupes d'objets avec leur nombre à l'écran",
+            "Voyage du butin : rejouez votre butin sur la carte de la zone, objet par objet",
         },
         target_it = {
             "Des boutons au style des barres d'action : un clic cible le PNJ vivant choisi le plus proche",

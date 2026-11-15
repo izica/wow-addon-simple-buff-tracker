@@ -24,6 +24,7 @@ ns.OtherAddons.texts.en = {
     notes = {
         purple_note = "Notes on the players you meet: see them on nameplates, in tooltips and in chat.",
         prr = "What crafts an item and what it is a reagent for: in tooltips and in a recipe window.",
+        loot_buddy = "Loot notifications, a searchable loot history and Auto Loot filters.",
         target_it = "Action-bar buttons that target the nearest living NPC you picked: quest mobs first.",
         simple_buff_tracker = "Your buffs on one icon panel: all with timers or only the missing ones. A click puts a buff back.",
     },
@@ -43,6 +44,14 @@ ns.OtherAddons.texts.en = {
             "Craft planner: auction house prices, profit and the cheapest way to level a profession",
             "About 2,500 recipes of WoW Forever built in, nothing to scan",
             "The interface in 8 languages, the names of items and recipes from your game client",
+        },
+        loot_buddy = {
+            "Animated loot notifications in the colors of item quality",
+            "A history of every item looted: when, where and from what; search and filters",
+            "Auto Loot filters: leave junk behind by quality, merchant price, name or mask",
+            "Middle-click an item in your bags to block it from Auto Loot",
+            "A bag tracker: your own groups of items with their counts on the screen",
+            "Loot Journey: replay your loot on the zone map, item by item",
         },
         target_it = {
             "Buttons in the action bar style: a click targets the nearest living NPC you picked",

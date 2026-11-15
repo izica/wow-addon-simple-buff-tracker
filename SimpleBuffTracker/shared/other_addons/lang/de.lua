@@ -24,6 +24,7 @@ ns.OtherAddons.texts.de = {
     notes = {
         purple_note = "Notizen zu den Spielern, die du triffst: an Namensplaketten, in Tooltips und im Chat.",
         prr = "Was einen Gegenstand herstellt und wofür er ein Reagenz ist: in Tooltips und in einem Rezeptfenster.",
+        loot_buddy = "Beute-Benachrichtigungen, ein durchsuchbarer Beuteverlauf und Filter für automatisches Plündern.",
         target_it = "Aktionsleisten-Knöpfe, die den nächsten lebenden NPC deiner Wahl anvisieren: Questgegner zuerst.",
         simple_buff_tracker = "Deine Buffs auf einer Symbolleiste: alle mit Timern oder nur die fehlenden. Ein Klick erneuert einen Buff.",
     },
@@ -43,6 +44,14 @@ ns.OtherAddons.texts.de = {
             "Handwerksplaner: Auktionshauspreise, Gewinn und der günstigste Weg, einen Beruf zu leveln",
             "Rund 2.500 Rezepte von WoW Forever eingebaut, nichts zu scannen",
             "Die Oberfläche in 8 Sprachen, Namen von Gegenständen und Rezepten aus deinem Spielclient",
+        },
+        loot_buddy = {
+            "Animierte Beute-Benachrichtigungen in den Farben der Gegenstandsqualität",
+            "Ein Verlauf jedes erbeuteten Gegenstands: wann, wo und woher; Suche und Filter",
+            "Filter für automatisches Plündern: Plunder nach Qualität, Händlerpreis, Name oder Maske liegen lassen",
+            "Mittelklick auf einen Gegenstand in den Taschen sperrt ihn für automatisches Plündern",
+            "Ein Taschen-Tracker: eigene Gruppen von Gegenständen mit ihrer Anzahl auf dem Bildschirm",
+            "Beutereise: deine Beute Gegenstand für Gegenstand auf der Zonenkarte abspielen",
         },
         target_it = {
             "Knöpfe im Stil der Aktionsleisten: ein Klick visiert den nächsten lebenden NPC deiner Wahl an",

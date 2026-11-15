@@ -29,6 +29,12 @@ ns.OtherAddons.list = {
         picture = "prr",
     },
     {
+        id = "loot_buddy",
+        folder = "LootBuddy",
+        title = "Loot Buddy",
+        icon = "Interface\\Icons\\INV_Misc_Bag_08",
+    },
+    {
         id = "target_it",
         folder = "TargetIt",
         title = "TargetIt (NPC targeter and finder)",

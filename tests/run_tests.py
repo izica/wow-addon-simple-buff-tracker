@@ -1388,9 +1388,9 @@ def test_settings_pages():
         states = {}
         for _, card in ipairs(others.cards) do states[#states + 1] = card:Refresh() end
     """)
-    check("the page leaves out its own addon: three cards", lua.eval("#others.cards") == 3)
+    check("the page leaves out its own addon: four cards", lua.eval("#others.cards") == 4)
     check("installed, turned off, not installed",
-          list(lua.eval("states").values()) == ["loaded", "disabled", "missing"])
+          list(lua.eval("states").values()) == ["loaded", "disabled", "missing", "missing"])
     lua.execute("""
         bulletLines = 0
         for _, frame in ipairs(allFrames) do

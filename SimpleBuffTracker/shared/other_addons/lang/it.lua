@@ -24,6 +24,7 @@ ns.OtherAddons.texts.it = {
     notes = {
         purple_note = "Note sui giocatori che incontri: sulle barre dei nomi, nei tooltip e in chat.",
         prr = "Cosa crea un oggetto e a cosa serve come reagente: nei tooltip e in una finestra delle ricette.",
+        loot_buddy = "Notifiche del bottino, una cronologia del bottino con ricerca e filtri per il saccheggio automatico.",
         target_it = "Pulsanti da barra azioni che selezionano il PNG vivo scelto più vicino: prima i mostri delle missioni.",
         simple_buff_tracker = "I tuoi potenziamenti in una barra di icone: tutti con timer o solo quelli mancanti. Un clic li rimette.",
     },
@@ -43,6 +44,14 @@ ns.OtherAddons.texts.it = {
             "Pianificatore: prezzi della casa d'aste, profitto e il modo più economico di salire di professione",
             "Circa 2.500 ricette di WoW Forever incluse, niente da scansionare",
             "L'interfaccia in 8 lingue, i nomi di oggetti e ricette dal tuo client di gioco",
+        },
+        loot_buddy = {
+            "Notifiche del bottino animate nei colori della qualità degli oggetti",
+            "Una cronologia di ogni oggetto raccolto: quando, dove e da cosa; ricerca e filtri",
+            "Filtri per il saccheggio automatico: lascia la spazzatura per qualità, prezzo del mercante, nome o maschera",
+            "Clic centrale su un oggetto nelle borse per escluderlo dal saccheggio automatico",
+            "Un tracciatore delle borse: i tuoi gruppi di oggetti con la loro quantità sullo schermo",
+            "Viaggio del bottino: rivedi il tuo bottino sulla mappa della zona, oggetto per oggetto",
         },
         target_it = {
             "Pulsanti in stile barra azioni: un clic seleziona il PNG vivo scelto più vicino",

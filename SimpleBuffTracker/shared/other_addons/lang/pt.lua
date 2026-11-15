@@ -24,6 +24,7 @@ ns.OtherAddons.texts.pt = {
     notes = {
         purple_note = "Notas sobre os jogadores que você encontra: nas placas de nome, nas dicas e no chat.",
         prr = "O que fabrica um item e para que ele é reagente: nas dicas e numa janela de receitas.",
+        loot_buddy = "Avisos de saque, um histórico de saque com busca e filtros de saque automático.",
         target_it = "Botões de barra de ações que selecionam o PNJ vivo escolhido mais próximo: primeiro os de missão.",
         simple_buff_tracker = "Seus bônus numa barra de ícones: todos com temporizadores ou só os que faltam. Um clique os repõe.",
     },
@@ -43,6 +44,14 @@ ns.OtherAddons.texts.pt = {
             "Planejador: preços da casa de leilões, lucro e o jeito mais barato de evoluir uma profissão",
             "Cerca de 2.500 receitas de WoW Forever incluídas, nada para escanear",
             "A interface em 8 idiomas, os nomes de itens e receitas do seu cliente do jogo",
+        },
+        loot_buddy = {
+            "Avisos de saque animados nas cores da qualidade dos itens",
+            "Um histórico de cada item saqueado: quando, onde e de quê; busca e filtros",
+            "Filtros de saque automático: deixe o lixo para trás por qualidade, preço de venda, nome ou máscara",
+            "Clique do meio num item das bolsas para excluí-lo do saque automático",
+            "Um rastreador de bolsas: seus próprios grupos de itens com a quantidade na tela",
+            "Jornada do saque: reveja seu saque no mapa da zona, item por item",
         },
         target_it = {
             "Botões no estilo das barras de ações: um clique seleciona o PNJ vivo escolhido mais próximo",

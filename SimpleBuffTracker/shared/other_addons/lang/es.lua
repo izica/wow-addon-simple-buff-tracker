@@ -24,6 +24,7 @@ ns.OtherAddons.texts.es = {
     notes = {
         purple_note = "Notas sobre los jugadores que conoces: en las placas de nombre, en las descripciones y en el chat.",
         prr = "Qué fabrica un objeto y para qué es componente: en las descripciones y en una ventana de recetas.",
+        loot_buddy = "Avisos de botín, un historial de botín con búsqueda y filtros de despojo automático.",
         target_it = "Botones de barra de acción que seleccionan al PNJ vivo elegido más cercano: primero los de misión.",
         simple_buff_tracker = "Tus beneficios en una barra de iconos: todos con temporizadores o solo los que faltan. Un clic los repone.",
     },
@@ -43,6 +44,14 @@ ns.OtherAddons.texts.es = {
             "Planificador: precios de la casa de subastas, beneficio y la forma más barata de subir una profesión",
             "Unas 2.500 recetas de WoW Forever incluidas, nada que escanear",
             "La interfaz en 8 idiomas, los nombres de objetos y recetas de tu cliente del juego",
+        },
+        loot_buddy = {
+            "Avisos de botín animados con los colores de la calidad de los objetos",
+            "Un historial de cada objeto despojado: cuándo, dónde y de qué; búsqueda y filtros",
+            "Filtros de despojo automático: deja la chatarra por calidad, precio de venta, nombre o máscara",
+            "Clic central en un objeto de tus bolsas para excluirlo del despojo automático",
+            "Un rastreador de bolsas: tus propios grupos de objetos con su cantidad en pantalla",
+            "Viaje del botín: reproduce tu botín en el mapa de la zona, objeto a objeto",
         },
         target_it = {
             "Botones al estilo de las barras de acción: un clic selecciona al PNJ vivo elegido más cercano",
