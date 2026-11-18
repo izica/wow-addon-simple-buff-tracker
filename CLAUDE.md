@@ -183,6 +183,20 @@ buff = { target = { spellId, name } | { weapon = "mainhand"|"offhand" },
   `type=macro`, `/use item:ID` + `/use 16|17`.
 * Режим `missing`: показываются нет-бафы и те, у кого осталось ≤ `settings.warnSeconds`
   (если сам баф длиннее порога).
+* **Условия показа** — `buff.conditions` (nil — всегда): `places = { raid|pvp|party = true }` (тип инстанса
+  из `IsInInstance`, `INSTANCE_KIND`; ничего — везде; несколько — любой из них), `itemId` (только пока
+  предмет в сумках), `talent = { spellId, name }` + `talentMissing` (только пока изучен / не изучен). Должны
+  выполняться все заданные; не выполнены — бафа нет ни в каком режиме (`BuffConditions.Hold` в
+  `BuffService.VisibleStates`). Изучен ли: сначала дерево талантов по имени (`dataflows/talents.lua`,
+  классический `GetTalentInfo` -> name, icon, tier, column, rank; другой формат API — талантов нет), потом
+  `IsPlayerSpell` / `C_SpellBook.IsSpellKnown` по id, имя без id — `Spell.Find`. Пустая таблица условий
+  удаляется. Перерисовка — `events/conditions.lua` (зона, таланты, заклинания; событие, которого нет на
+  клиенте, пропускается — `ns.Events.OnIfExists`), сумки — `BAG_UPDATE_DELAYED`. В бою раскладки нет, как
+  и для режима `missing`: баф пропадёт/появится после боя.
+* В редакторе условия — **вторая страница** (`mainPage` / `conditionsPage` в `buff_editor.lua`, у каждой своя
+  форма): кнопка «Условия (N)» в ряду кнопок, там же «Назад». Под полями бафа места нет (окно 610, проверяет
+  `test_editor_fits`); ошибка правки — строкой над рядом кнопок. Поле таланта берёт spell- и talent-ссылки,
+  подсказки — дерево талантов и книга вместе с пассивками (`IconSearch.SOURCES.TALENTS`).
 
 ## Что нельзя сломать
 

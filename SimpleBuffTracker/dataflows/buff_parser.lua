@@ -86,6 +86,26 @@ function BuffParser.ParseIcon(text)
     return Spell.Icon(text)
 end
 
+-- { spellId, name } of a talent or spell for the talent condition: a talent
+-- link (shift-click in the talent window) gives its name, a talent of the tree
+-- is found by name (in its own spelling), anything else as ParseSpell.
+function BuffParser.ParseTalent(text)
+    if text:find("|Htalent:") then
+        local name = text:match("|h%[(.-)%]|h")
+        if name then
+            return { name = name }
+        end
+    end
+    local wanted = text:lower()
+    for _, talent in ipairs(ns.Dataflows.Talents.All()) do
+        if talent.name:lower() == wanted then
+            return { name = talent.name }
+        end
+    end
+    local spell = BuffParser.ParseSpell(text)
+    return { spellId = spell.spellId, name = spell.name }
+end
+
 -- an item id by id, link or name of an item the client has seen; nil -- unknown
 function BuffParser.ParseItemId(text)
     return tonumber(text:match("|Hitem:(%d+)")) or tonumber(text:match("^(%d+)$")) or Item.FindId(text)

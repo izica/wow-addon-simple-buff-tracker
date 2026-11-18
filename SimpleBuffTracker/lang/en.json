@@ -145,7 +145,22 @@
         "enchant_note": "Enchants seen on your weapons. Not listed? Apply it once (oil, Flametongue...).",
         "grow": "Growth Direction",
         "missing_glow": "Missing Buff Glow",
-        "icon_template": "Icon Style"
+        "icon_template": "Icon Style",
+        "conditions": "Conditions",
+        "conditions_count": "Conditions (%d)",
+        "conditions_back": "Back",
+        "conditions_title": "Show %s only when:",
+        "conditions_hint": "Every condition you set must be met. A buff whose conditions are not met is hidden in every display mode.",
+        "condition_places": "Where to Show",
+        "place_raid": "Raid",
+        "place_pvp": "Battleground",
+        "place_party": "Dungeon",
+        "condition_places_note": "None checked: shown everywhere.",
+        "condition_item": "Item in Bags",
+        "condition_item_note": "Shown only while this item is in your bags (food, oil, flask...). Leave empty to skip. Drag an item here or Shift-click it.",
+        "condition_talent": "Talent or Spell Learned",
+        "condition_talent_note": "Shown only if you have learned it, such as a talent of your specialization. Leave empty to skip. Suggests talents and spells.",
+        "condition_talent_missing": "Only if NOT learned"
     },
     "grow": {
         "right": "Right",

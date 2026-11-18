@@ -1547,6 +1547,115 @@ def test_wording():
     check("and Click to use for an item", "Click to use " in text)
 
 
+def click_checkbox(lua, text, checked):
+    lua.execute("""
+        local wanted, checked = ...
+        for _, frame in ipairs(allFrames) do
+            local label = rawget(frame, "label")
+            if frame.template == "UICheckButtonTemplate" and label and label.text == wanted then
+                frame.checked = checked
+                frame.scripts.OnClick(frame)
+                return
+            end
+        end
+        error('no checkbox ' .. wanted)
+    """, text, checked)
+
+
+def test_show_conditions():
+    lua = new_runtime()
+    lua.execute("""
+        instanceType = nil
+        function IsInInstance() return instanceType ~= nil, instanceType or "none" end
+        -- the classic talent tree: name, icon, tier, column, rank, maxRank
+        talentTree = { { "Arcane Mind", 135991, 1, 1, 0, 5 }, { "Ice Shards", 135855, 1, 2, 0, 5 } }
+        function GetNumTalentTabs() return 1 end
+        function GetNumTalents() return #talentTree end
+        function GetTalentInfo(tab, index) return unpack(talentTree[index]) end
+        knownSpells = {}
+        function IsPlayerSpell(spellId) return knownSpells[spellId] == true end
+        Slash('add Arcane Intellect = spell')
+        Slash('buffs')
+    """)
+    check("a buff without conditions is shown", shown_buttons(lua) == 1)
+    check("the Conditions button in the button row",
+          lua.eval("(function() for _, f in ipairs(allFrames) do if rawget(f, 'text') == 'Conditions' and f.shown then return true end end return false end)()") is True)
+    click_button(lua, "Conditions")
+    check("Conditions opens its page with the buff's name",
+          any("Show Arcane Intellect only when:" == text for text in
+              lua.eval("(function() local r = {} for _, f in ipairs(allFrames) do r[#r + 1] = rawget(f, 'text') end return r end)()").values()
+              if isinstance(text, str)))
+
+    click_checkbox(lua, "Raid", True)
+    check("a raid checkbox: the place is kept", lua.eval("SimpleBuffTrackerDB.buffs[1].conditions.places.raid") is True)
+    lua.execute("RunTickers()")
+    check("outside a raid the buff is hidden", shown_buttons(lua) == 0)
+    lua.execute("instanceType = 'party'; RunTickers()")
+    check("in a dungeon too (only Raid checked)", shown_buttons(lua) == 0)
+    click_checkbox(lua, "Dungeon", True)
+    lua.execute("RunTickers()")
+    check("Raid or Dungeon: shown in a dungeon", shown_buttons(lua) == 1)
+    lua.execute("instanceType = 'pvp'; RunTickers()")
+    check("not on a battleground", shown_buttons(lua) == 0)
+    click_checkbox(lua, "Raid", False)
+    click_checkbox(lua, "Dungeon", False)
+    check("no place checked: no places kept", lua.eval("SimpleBuffTrackerDB.buffs[1].conditions") is None)
+    lua.execute("RunTickers()")
+    check("and shown everywhere", shown_buttons(lua) == 1)
+
+    lua.execute("Enter('conditionItem', 'Crab Cake')")
+    check("an item condition by name", lua.eval("SimpleBuffTrackerDB.buffs[1].conditions.itemId") == 2683)
+    lua.execute("itemCounts[2683] = 0; RunTickers()")
+    check("no item in the bags: hidden", shown_buttons(lua) == 0)
+    lua.execute("itemCounts[2683] = 3; RunTickers()")
+    check("the item in the bags: shown", shown_buttons(lua) == 1)
+    lua.execute("Enter('conditionItem', 'Nothing at all')")
+    check("an unknown item changes nothing", lua.eval("SimpleBuffTrackerDB.buffs[1].conditions.itemId") == 2683)
+    lua.execute("Enter('conditionItem', '')")
+    check("empty: no item condition", lua.eval("SimpleBuffTrackerDB.buffs[1].conditions") is None)
+
+    lua.execute("Enter('conditionTalent', 'arcane mind')")
+    check("a talent of the tree by name, in its own spelling",
+          lua.eval("SimpleBuffTrackerDB.buffs[1].conditions.talent.name") == "Arcane Mind")
+    lua.execute("RunTickers()")
+    check("a talent not learned: hidden", shown_buttons(lua) == 0)
+    lua.execute("talentTree[1][5] = 1; Fire('CHARACTER_POINTS_CHANGED')")
+    check("a point in it: shown", shown_buttons(lua) == 1)
+    click_checkbox(lua, "Only if NOT learned", True)
+    lua.execute("RunTickers()")
+    check("Only if NOT learned: hidden with the talent", shown_buttons(lua) == 0)
+    lua.execute("talentTree[1][5] = 0; RunTickers()")
+    check("and shown without it", shown_buttons(lua) == 1)
+    click_checkbox(lua, "Only if NOT learned", False)
+
+    lua.execute("Enter('conditionTalent', '1459')")
+    check("a spell by id", lua.eval("SimpleBuffTrackerDB.buffs[1].conditions.talent.spellId") == 1459)
+    lua.execute("RunTickers()")
+    check("a spell not known: hidden", shown_buttons(lua) == 0)
+    lua.execute("knownSpells[1459] = true; RunTickers()")
+    check("a known spell: shown", shown_buttons(lua) == 1)
+    lua.execute("Window().PickLink('|cff4e96f7|Htalent:1234:0|h[Ice Shards]|h|r')")
+    check("a talent link while no field is in focus changes nothing",
+          lua.eval("SimpleBuffTrackerDB.buffs[1].conditions.talent.spellId") == 1459)
+    lua.execute("FocusField('conditionTalent'); Window().PickLink('|cff4e96f7|Htalent:1234:0|h[Ice Shards]|h|r')")
+    check("a talent link (shift-click) into the talent field",
+          lua.eval("SimpleBuffTrackerDB.buffs[1].conditions.talent.name") == "Ice Shards")
+
+    lua.execute("Enter('conditionItem', 'Crab Cake')")
+    click_checkbox(lua, "Raid", True)
+    click_button(lua, "Back")
+    check("back on the buff page the button counts the conditions",
+          lua.eval("(function() for _, f in ipairs(allFrames) do if rawget(f, 'text') == 'Conditions (3)' then return true end end return false end)()") is True)
+
+    # combat: the conditions change, the icons stay until the end of combat
+    lua.execute("instanceType = 'raid'; talentTree[2][5] = 1; RunTickers()")
+    check("all three conditions met: shown", shown_buttons(lua) == 1)
+    lua.execute("inCombat = true; itemCounts[2683] = 0; Fire('BAG_UPDATE_DELAYED'); RunTickers()")
+    check("in combat the icon stays (no layout in combat)", shown_buttons(lua) == 1)
+    lua.execute("inCombat = false; Fire('PLAYER_REGEN_ENABLED')")
+    check("after combat the buff without its item is hidden", shown_buttons(lua) == 0)
+
+
 def main():
     test_buffs()
     test_minimap()
@@ -1576,6 +1685,7 @@ def main():
     test_other_addons_languages()
     test_russian()
     test_wording()
+    test_show_conditions()
     if failures:
         print("\n%d failed" % len(failures))
         sys.exit(1)

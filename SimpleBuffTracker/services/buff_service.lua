@@ -8,6 +8,7 @@ local Buff = ns.Models.Buff
 local AuraScan = ns.Dataflows.AuraScan
 local WeaponEnchant = ns.Dataflows.WeaponEnchant
 local BuffParser = ns.Dataflows.BuffParser
+local BuffConditions = ns.Dataflows.BuffConditions
 local Spell = ns.Utilities.Spell
 local Item = ns.Utilities.Item
 local SOURCE_KIND = ns.Constants.SOURCE_KIND
@@ -149,6 +150,87 @@ function BuffService.SetIconText(buff, text)
     return true
 end
 
+-- Show conditions (buff.conditions, models/buff.lua). An empty conditions
+-- table is dropped: the buff is shown always again.
+local function Conditions(buff)
+    buff.conditions = buff.conditions or {}
+    return buff.conditions
+end
+
+local function DropEmptyConditions(buff)
+    local conditions = buff.conditions
+    if not conditions then
+        return
+    end
+    if conditions.places and next(conditions.places) == nil then
+        conditions.places = nil
+    end
+    if not conditions.talent then
+        conditions.talentMissing = nil
+    end
+    if next(conditions) == nil then
+        buff.conditions = nil
+    end
+end
+
+-- shown in instances of that kind (ns.Constants.INSTANCE_KIND) or not
+function BuffService.SetConditionPlace(buff, kind, isOn)
+    local conditions = Conditions(buff)
+    conditions.places = conditions.places or {}
+    conditions.places[kind] = isOn or nil
+    DropEmptyConditions(buff)
+end
+
+-- only while this item is in the bags: a name, id or link; empty -- no such condition
+function BuffService.SetConditionItemText(buff, text)
+    if text == "" then
+        Conditions(buff).itemId = nil
+        DropEmptyConditions(buff)
+        return true
+    end
+    local itemId = BuffParser.ParseItemId(text)
+    if not itemId then
+        return nil, "messages.unknown_item"
+    end
+    Conditions(buff).itemId = itemId
+    return true
+end
+
+-- only while a talent or spell is learned: a name, id or link; empty -- no such condition
+function BuffService.SetConditionTalentText(buff, text)
+    if text == "" then
+        Conditions(buff).talent = nil
+        DropEmptyConditions(buff)
+        return true
+    end
+    Conditions(buff).talent = BuffParser.ParseTalent(text)
+    return true
+end
+
+-- the talent condition the other way round: only while it is not learned
+function BuffService.SetConditionTalentMissing(buff, isMissing)
+    if not (buff.conditions and buff.conditions.talent) then
+        return
+    end
+    buff.conditions.talentMissing = isMissing or nil
+end
+
+function BuffService.ConditionItemText(buff)
+    local itemId = buff.conditions and buff.conditions.itemId
+    if not itemId then
+        return ""
+    end
+    return Item.Name(itemId) or tostring(itemId)
+end
+
+function BuffService.ConditionTalentText(buff)
+    local talent = buff.conditions and buff.conditions.talent
+    if not talent then
+        return ""
+    end
+    return talent.name or (talent.spellId and tostring(talent.spellId)) or ""
+end
+
 -- what the fields show: the aura, the spell or item of the source
 function BuffService.AuraText(buff)
     local target = buff.target
@@ -248,7 +330,8 @@ local function Evaluate(buff, index, now, weapons, warnSeconds)
     return state
 end
 
--- The states of the buffs the panel shows in the current mode, in the order of the list.
+-- The states of the buffs the panel shows in the current mode, in the order of
+-- the list; a buff whose show conditions do not hold is left out.
 function BuffService.VisibleStates()
     local now = GetTime()
     local settings = ns.db.settings
@@ -257,12 +340,15 @@ function BuffService.VisibleStates()
 
     local states = {}
     for index, buff in ipairs(ns.db.buffs) do
-        -- a buff's own warning time, or the panel's
-        local warnSeconds = buff.warnSeconds or settings.warnSeconds
-        local state = Evaluate(buff, index, now, weapons, warnSeconds)
-        local isNeeded = not state.isActive or state.isExpiring
-        if not onlyMissing or isNeeded then
-            table.insert(states, state)
+        -- not here, no item, no talent: not shown in any mode
+        if BuffConditions.Hold(buff) then
+            -- a buff's own warning time, or the panel's
+            local warnSeconds = buff.warnSeconds or settings.warnSeconds
+            local state = Evaluate(buff, index, now, weapons, warnSeconds)
+            local isNeeded = not state.isActive or state.isExpiring
+            if not onlyMissing or isNeeded then
+                table.insert(states, state)
+            end
         end
     end
     return states

@@ -5,7 +5,8 @@
 -- of its pictures, so only these are searched.
 --
 -- A suggestion: { label -- the name shown, icon -- the picture, kind -- "aura",
--- "spell" or "item", spellId (may be nil for an aura), itemId }.
+-- "spell", "talent" or "item", spellId (may be nil for an aura or a talent), itemId }.
+-- The talent condition also searches the talent tree (dataflows/talents.lua).
 
 local ADDON, ns = ...
 ns.Dataflows = ns.Dataflows or {}
@@ -21,6 +22,8 @@ IconSearch.SOURCES = {
     BUFFS = { auras = true, seen = true, spells = true },
     SPELLS = { spells = true, auras = true },
     ITEMS = { items = true },
+    -- the talent condition: the talent tree and the spellbook with its passive spells
+    TALENTS = { talents = true, spells = true, passives = true },
 }
 
 local MAX_SUGGESTIONS = 10
@@ -41,7 +44,15 @@ local function SeenSuggestions(add)
     end
 end
 
-local function SpellBookSuggestions(add)
+-- every talent of the tree, learned or not (dataflows/talents.lua)
+local function TalentSuggestions(add)
+    for _, talent in ipairs(ns.Dataflows.Talents.All()) do
+        add({ label = talent.name, icon = talent.icon, kind = "talent" })
+    end
+end
+
+-- includePassive -- the passive spells too (talents learned show up so)
+local function SpellBookSuggestions(add, includePassive)
     local hasSpellBook = C_SpellBook and C_SpellBook.GetNumSpellBookSkillLines
         and Enum and Enum.SpellBookSpellBank
     if not hasSpellBook then
@@ -53,7 +64,7 @@ local function SpellBookSuggestions(add)
         if skillLine then
             for offset = 1, skillLine.numSpellBookItems do
                 local info = C_SpellBook.GetSpellBookItemInfo(skillLine.itemIndexOffset + offset, bank)
-                local isSpell = info and info.spellID and not info.isPassive
+                local isSpell = info and info.spellID and (includePassive or not info.isPassive)
                 if isSpell then
                     add({ label = info.name, icon = info.iconID, kind = "spell", spellId = info.spellID })
                 end
@@ -118,8 +129,11 @@ function IconSearch.Search(query, sources)
     if sources.seen then
         pcall(SeenSuggestions, add)
     end
+    if sources.talents then
+        pcall(TalentSuggestions, add)
+    end
     if sources.spells then
-        pcall(SpellBookSuggestions, add)
+        pcall(SpellBookSuggestions, add, sources.passives)
     end
     if sources.items then
         pcall(BagSuggestions, add)

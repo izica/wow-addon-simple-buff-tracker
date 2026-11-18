@@ -28,6 +28,8 @@ dataflows\aura_scan.lua
 dataflows\weapon_enchant.lua
 dataflows\buff_parser.lua
 dataflows\icon_search.lua
+dataflows\talents.lua
+dataflows\buff_conditions.lua
 services\buff_service.lua
 ui\client_border.lua
 ui\panel.lua
@@ -68,6 +70,7 @@ commands\settings.lua
 commands\debug.lua
 events\addon_loaded.lua
 events\auras.lua
+events\conditions.lua
 events\buff_frame.lua
 events\chat_link.lua
 events\modifier.lua

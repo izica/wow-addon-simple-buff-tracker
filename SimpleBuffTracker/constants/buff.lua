@@ -59,3 +59,13 @@ ns.Constants.GLOW_EFFECT = {
     PROC = "proc",
     PULSE = "pulse",
 }
+
+-- where a buff with a place condition is shown: the instance type the client
+-- gives (IsInInstance); a buff with none of them -- everywhere
+ns.Constants.INSTANCE_KIND = {
+    RAID = "raid",            -- a raid instance
+    BATTLEGROUND = "pvp",     -- a battleground
+    DUNGEON = "party",        -- a dungeon (five-player instance)
+}
+-- the order of the checkboxes in the buff window
+ns.Constants.INSTANCE_KINDS = { "raid", "pvp", "party" }

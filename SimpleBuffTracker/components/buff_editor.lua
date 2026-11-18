@@ -11,8 +11,13 @@
 -- enchant, the spell or item of a buff without a source) is hidden with its
 -- label and note, and the fields under it move up (ui/form_layout.lua groups). Right of
 -- the buff, spell and item fields stands their picture, with the game's tooltip
--- of the spell or item on hover. An edit that fails shows its reason in red in
+-- of the spell or item on hover. An edit that fails shows its reason in red over
 -- the button row.
+--
+-- The show conditions of the buff (where, an item in the bags, a talent) are on
+-- a second page of the editor, behind the Conditions button of the button row:
+-- the window has no room for them under the other fields. The button tells how
+-- many conditions the buff has.
 
 local ADDON, ns = ...
 ns.Components = ns.Components or {}
@@ -24,6 +29,9 @@ local Item = ns.Utilities.Item
 local BuffService = ns.Services.Buff
 local IconSearch = ns.Dataflows.IconSearch
 local WeaponEnchant = ns.Dataflows.WeaponEnchant
+local BuffConditions = ns.Dataflows.BuffConditions
+local Talents = ns.Dataflows.Talents
+local INSTANCE_KINDS = ns.Constants.INSTANCE_KINDS
 local SOURCE_KIND = ns.Constants.SOURCE_KIND
 local WEAPON_SLOT = ns.Constants.WEAPON_SLOT
 
@@ -44,7 +52,17 @@ local ICON_CROP = 0.08
 local NOTE_LINES = 2
 local BUTTON_GAP = 10
 local BUTTON_WIDTH = 90
+local MOVE_BUTTON_WIDTH = 80
+local CONDITIONS_BUTTON_WIDTH = 124
+local BUTTON_SPACING = 6
 local BUTTON_HEIGHT = 24
+local ERROR_HEIGHT = 14
+local ERROR_GAP = 6
+local TITLE_HEIGHT = 22
+local HINT_LINES = 2
+local HINT_LINE_HEIGHT = 12
+local HINT_COLOR = { 0.6, 0.6, 0.6 }
+local CHECKBOX_NOTE_GAP = 6   -- a checkbox row has no gap under it of its own
 local ERROR_COLOR = { 1, 0.3, 0.3 }
 local DELETE_POPUP = "SIMPLEBUFFTRACKER_DELETE_BUFF"
 -- the per-buff warning slider: the first step -- the panel's own setting
@@ -130,7 +148,19 @@ function BuffEditor.Create(parent, options)
     local buffIndex = nil
     local buffCount = 0
     local inputs = {}     -- [field key] = input
-    local form = ns.UI.FormLayout(frame, { padding = PADDING, rightInset = RIGHT_INSET })
+
+    -- two pages of one buff: what it is (main) and when it is shown (conditions)
+    local mainPage = CreateFrame("Frame", nil, frame)
+    mainPage:SetAllPoints()
+    local conditionsPage = CreateFrame("Frame", nil, frame)
+    conditionsPage:SetAllPoints()
+    conditionsPage:Hide()
+    local isConditionsPage = false
+    local mainForm = ns.UI.FormLayout(mainPage, { padding = PADDING, rightInset = RIGHT_INSET })
+    local conditionsForm = ns.UI.FormLayout(conditionsPage, { padding = PADDING, rightInset = RIGHT_INSET })
+    -- the page and its form the next fields go on
+    local page = mainPage
+    local form = mainForm
 
     local errorText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     errorText:SetTextColor(ERROR_COLOR[1], ERROR_COLOR[2], ERROR_COLOR[3])
@@ -151,7 +181,7 @@ function BuffEditor.Create(parent, options)
     local function AddSelect(textKey, choices, selected, onChange)
         local group = form:Group()
         local label = form:Label(Text(textKey))
-        local select = ns.UI.Select(frame, {
+        local select = ns.UI.Select(page, {
             width = 100,   -- the form stretches it
             choices = choices,
             selected = selected,
@@ -193,7 +223,7 @@ function BuffEditor.Create(parent, options)
             end
         end
 
-        input = ns.UI.Input(frame, {
+        input = ns.UI.Input(page, {
             width = 100,   -- the form stretches it
             fontObject = "GameFontHighlight",   -- the same font as the dropdowns
             onEnter = function()
@@ -246,7 +276,7 @@ function BuffEditor.Create(parent, options)
         end)
 
         if field.preview then
-            local preview = NewPreview(frame, field.preview)
+            local preview = NewPreview(page, field.preview)
             -- right of the drawn edge of the field
             preview:SetPoint("LEFT", input, "RIGHT", PREVIEW_ART_GAP + PREVIEW_GAP, 0)
             input.preview = preview
@@ -401,7 +431,7 @@ function BuffEditor.Create(parent, options)
     -- how long before the end the buff counts as missing: its own, or the panel's
     form:Group()
     local warnLabel = form:Label(Text("settings.buff_warn"))
-    local warnSlider = ns.UI.StepSlider(frame, {
+    local warnSlider = ns.UI.StepSlider(page, {
         steps = WARN_STEPS,
         value = WARN_DEFAULT,
         width = 100,   -- the form stretches it
@@ -426,17 +456,131 @@ function BuffEditor.Create(parent, options)
     })
     form:Slider(warnSlider, WARN_VALUE_WIDTH)
 
+    -- the conditions page: when the buff is shown at all
+    page = conditionsPage
+    form = conditionsForm
+
+    local conditionsTitle = page:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    form:Text(conditionsTitle, TITLE_HEIGHT)
+    local conditionsHint = page:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    conditionsHint:SetTextColor(HINT_COLOR[1], HINT_COLOR[2], HINT_COLOR[3])
+    conditionsHint:SetJustifyV("TOP")
+    conditionsHint:SetHeight(HINT_LINES * HINT_LINE_HEIGHT)
+    conditionsHint:SetText(Text("settings.conditions_hint"))
+    form:Text(conditionsHint, HINT_LINES * HINT_LINE_HEIGHT + BUTTON_GAP)
+
+    -- where: none checked -- everywhere
+    local placesLabel = form:Label(Text("settings.condition_places"))
+    local placeBoxes = {}   -- [instance kind] = checkbox
+    for _, kind in ipairs(INSTANCE_KINDS) do
+        local checkbox = ns.UI.Checkbox(page, {
+            text = Text("settings.place_" .. kind),
+            onChange = function(isChecked)
+                if buff then
+                    BuffService.SetConditionPlace(buff, kind, isChecked)
+                    options.onChanged()
+                end
+            end,
+        })
+        form:Checkbox(checkbox)
+        placeBoxes[kind] = checkbox
+    end
+    form:Space(CHECKBOX_NOTE_GAP)
+    local placesNote = form:Note(Text("settings.condition_places_note"), 1)
+
+    local itemConditionInput = AddInput("conditionItem", "settings.condition_item", {
+        read = BuffService.ConditionItemText,
+        save = BuffService.SetConditionItemText,
+        sources = function()
+            return IconSearch.SOURCES.ITEMS
+        end,
+        textOf = ItemTextOf,
+        takes = function(linkKind)
+            return linkKind == "item"
+        end,
+        note = function()
+            return Text("settings.condition_item_note")
+        end,
+        preview = function()
+            local itemId = buff and buff.conditions and buff.conditions.itemId
+            if not itemId then
+                return nil
+            end
+            return Item.Icon(itemId), function(tooltip)
+                tooltip:SetItemByID(itemId)
+            end
+        end,
+    })
+
+    local talentConditionInput = AddInput("conditionTalent", "settings.condition_talent", {
+        read = BuffService.ConditionTalentText,
+        save = BuffService.SetConditionTalentText,
+        sources = function()
+            return IconSearch.SOURCES.TALENTS
+        end,
+        textOf = NameOf,
+        takes = function(linkKind)
+            return linkKind == "spell" or linkKind == "talent"
+        end,
+        note = function()
+            return Text("settings.condition_talent_note")
+        end,
+        preview = function()
+            local talent = buff and buff.conditions and buff.conditions.talent
+            if not talent then
+                return nil
+            end
+            local spellId = talent.spellId
+            if spellId then
+                return Spell.Icon(spellId), function(tooltip)
+                    tooltip:SetSpellByID(spellId)
+                end
+            end
+            for _, known in ipairs(Talents.All()) do
+                if known.name == talent.name then
+                    return known.icon
+                end
+            end
+            return Spell.Icon(talent.name)
+        end,
+    })
+
+    -- the talent condition the other way round: for the other specialization
+    local talentMissingBox = ns.UI.Checkbox(page, {
+        text = Text("settings.condition_talent_missing"),
+        onChange = function(isChecked)
+            if buff then
+                BuffService.SetConditionTalentMissing(buff, isChecked)
+                options.onChanged()
+            end
+        end,
+    })
+    form:Checkbox(talentMissingBox)
+
     -- How tall the fields are at most, and the button row under them: the window
     -- must hold both. The enchant select and the buff field never show together
     -- (a weapon buff or an aura), the buff field is the taller one.
     enchantSelect.group:SetShown(false)
-    form:Layout()
-    frame.formHeight = -form.top
-    frame.buttonRowHeight = PADDING + BUTTON_HEIGHT + BUTTON_GAP
+    mainForm:Layout()
+    conditionsForm:Layout()
+    frame.formHeight = math.max(-mainForm.top, -conditionsForm.top)
+    frame.buttonRowHeight = PADDING + BUTTON_HEIGHT + ERROR_GAP + ERROR_HEIGHT + BUTTON_GAP
+
+    -- one page or the other; a field typed in on the page that goes away is saved first
+    local function ShowPage(showConditions)
+        for _, input in pairs(inputs) do
+            if input:HasFocus() then
+                input:ClearFocus()
+            end
+        end
+        isConditionsPage = showConditions
+        mainPage:SetShown(not showConditions)
+        conditionsPage:SetShown(showConditions)
+    end
 
     local upButton = ns.UI.Button(frame, {
         text = Text("settings.move_up"),
-        width = BUTTON_WIDTH,
+        width = MOVE_BUTTON_WIDTH,
         height = BUTTON_HEIGHT,
         onClick = function()
             options.onMove(buffIndex, -1)
@@ -445,13 +589,13 @@ function BuffEditor.Create(parent, options)
     upButton:SetPoint("BOTTOMLEFT", PADDING, PADDING)
     local downButton = ns.UI.Button(frame, {
         text = Text("settings.move_down"),
-        width = BUTTON_WIDTH,
+        width = MOVE_BUTTON_WIDTH,
         height = BUTTON_HEIGHT,
         onClick = function()
             options.onMove(buffIndex, 1)
         end,
     })
-    downButton:SetPoint("LEFT", upButton, "RIGHT", 6, 0)
+    downButton:SetPoint("LEFT", upButton, "RIGHT", BUTTON_SPACING, 0)
     local deleteButton = ns.UI.Button(frame, {
         text = Text("settings.remove"),
         width = BUTTON_WIDTH,
@@ -462,9 +606,22 @@ function BuffEditor.Create(parent, options)
     })
     deleteButton:SetPoint("BOTTOMRIGHT", -PADDING, PADDING)
 
-    -- the reason an edit failed: one line in the button row, it takes no room in the form
-    errorText:SetPoint("LEFT", downButton, "RIGHT", BUTTON_GAP, 0)
-    errorText:SetPoint("RIGHT", deleteButton, "LEFT", -BUTTON_GAP, 0)
+    -- the other page: the show conditions, or back to the buff
+    local conditionsButton = ns.UI.Button(frame, {
+        text = Text("settings.conditions"),
+        width = CONDITIONS_BUTTON_WIDTH,
+        height = BUTTON_HEIGHT,
+        onClick = function()
+            ShowPage(not isConditionsPage)
+            frame:Display(buff, buffIndex, buffCount)
+        end,
+    })
+    conditionsButton:SetPoint("RIGHT", deleteButton, "LEFT", -BUTTON_SPACING, 0)
+
+    -- the reason an edit failed: one line over the button row, it takes no room in the form
+    errorText:SetPoint("BOTTOMLEFT", upButton, "TOPLEFT", 0, ERROR_GAP)
+    errorText:SetPoint("RIGHT", deleteButton, "RIGHT", 0, 0)
+    errorText:SetHeight(ERROR_HEIGHT)
     errorText:SetWordWrap(false)
 
     StaticPopupDialogs[DELETE_POPUP] = {
@@ -486,7 +643,35 @@ function BuffEditor.Create(parent, options)
     -- everything but the empty text: shown while a buff is chosen
     local parts = { targetSelect, targetSelect.label, auraInput, auraInput.label, sourceSelect,
         sourceSelect.label, sourceInput, sourceInput.label, iconInput, iconInput.label,
-        warnLabel, warnSlider, errorText, upButton, downButton, deleteButton }
+        warnLabel, warnSlider, errorText, upButton, downButton, deleteButton, conditionsButton,
+        conditionsTitle, conditionsHint, placesLabel, placesNote, itemConditionInput,
+        itemConditionInput.label, talentConditionInput, talentConditionInput.label, talentMissingBox }
+    for _, kind in ipairs(INSTANCE_KINDS) do
+        table.insert(parts, placeBoxes[kind])
+    end
+
+    -- the conditions page of the buff shown
+    local function DisplayConditions()
+        local conditions = buff.conditions or {}
+        local places = conditions.places or {}
+        for kind, checkbox in pairs(placeBoxes) do
+            checkbox:SetChecked(places[kind] == true)
+        end
+        talentMissingBox:SetChecked(conditions.talentMissing == true)
+        talentMissingBox:SetEnabled(conditions.talent ~= nil)
+        conditionsTitle:SetText(Text("settings.conditions_title", ns.Models.Buff.TargetLabel(buff)))
+
+        if isConditionsPage then
+            conditionsButton:SetText(Text("settings.conditions_back"))
+            return
+        end
+        local count = BuffConditions.Count(buff)
+        if count > 0 then
+            conditionsButton:SetText(Text("settings.conditions_count", count))
+        else
+            conditionsButton:SetText(Text("settings.conditions"))
+        end
+    end
 
     -- show a buff (nil -- none chosen); index and count -- its place in the list
     function frame:Display(shownBuff, index, count)
@@ -499,6 +684,7 @@ function BuffEditor.Create(parent, options)
         end
         emptyText:SetShown(buff == nil)
         if not buff then
+            ShowPage(false)
             enchantSelect:Hide()
             enchantSelect.label:Hide()
             enchantSelect.note:Hide()
@@ -555,8 +741,10 @@ function BuffEditor.Create(parent, options)
         enchantSelect:Refresh()
         sourceSelect:Refresh()
         warnSlider:SetValueOf(buff.warnSeconds or WARN_DEFAULT)
+        DisplayConditions()
         -- the hidden fields take no room: the shown ones stack up without holes
-        form:Layout()
+        mainForm:Layout()
+        conditionsForm:Layout()
         upButton:SetEnabled(buffIndex > 1)
         downButton:SetEnabled(buffIndex < buffCount)
     end
@@ -586,6 +774,8 @@ function BuffEditor.Create(parent, options)
             linkKind = "item"
         elseif link:find("spell:", 1, true) then
             linkKind = "spell"
+        elseif link:find("talent:", 1, true) then
+            linkKind = "talent"
         end
         if not (linkKind and input.field.takes(linkKind)) then
             return false
