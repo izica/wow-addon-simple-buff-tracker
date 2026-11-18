@@ -150,8 +150,8 @@ local function DropEmptyConditions(buff)
     if not conditions then
         return
     end
-    if conditions.places and next(conditions.places) == nil then
-        conditions.places = nil
+    if conditions.hiddenPlaces and next(conditions.hiddenPlaces) == nil then
+        conditions.hiddenPlaces = nil
     end
     if not conditions.talent then
         conditions.talentMissing = nil
@@ -161,11 +161,12 @@ local function DropEmptyConditions(buff)
     end
 end
 
--- shown in instances of that kind (ns.Constants.INSTANCE_KIND) or not
-function BuffService.SetConditionPlace(buff, kind, isOn)
+-- shown in places of that kind (ns.Constants.INSTANCE_KIND) or not; every
+-- place is on until turned off, only the ones turned off are kept
+function BuffService.SetConditionPlace(buff, kind, isShown)
     local conditions = Conditions(buff)
-    conditions.places = conditions.places or {}
-    conditions.places[kind] = isOn or nil
+    conditions.hiddenPlaces = conditions.hiddenPlaces or {}
+    conditions.hiddenPlaces[kind] = (not isShown) or nil
     DropEmptyConditions(buff)
 end
 

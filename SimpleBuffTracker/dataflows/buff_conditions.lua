@@ -59,8 +59,8 @@ function BuffConditions.IsLearned(talent)
     return true
 end
 
-local function HasPlaces(places)
-    return places ~= nil and next(places) ~= nil
+local function HasHiddenPlaces(conditions)
+    return conditions.hiddenPlaces ~= nil and next(conditions.hiddenPlaces) ~= nil
 end
 
 -- whether the buff is to be shown now
@@ -69,11 +69,9 @@ function BuffConditions.Hold(buff)
     if not conditions then
         return true
     end
-    if HasPlaces(conditions.places) then
-        local kind = BuffConditions.InstanceKind()
-        if not conditions.places[kind] then
-            return false
-        end
+    -- a place turned off: not there (an arena, a scenario -- not in the list, always shown)
+    if HasHiddenPlaces(conditions) and conditions.hiddenPlaces[BuffConditions.InstanceKind()] then
+        return false
     end
     if conditions.itemId and Item.Count(conditions.itemId) <= 0 then
         return false
@@ -94,7 +92,7 @@ function BuffConditions.Count(buff)
         return 0
     end
     local count = 0
-    if HasPlaces(conditions.places) then
+    if HasHiddenPlaces(conditions) then
         count = count + 1
     end
     if conditions.itemId then

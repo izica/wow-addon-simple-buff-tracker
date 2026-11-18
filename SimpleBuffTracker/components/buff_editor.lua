@@ -491,7 +491,7 @@ function BuffEditor.Create(parent, options)
     conditionsHint:SetText(Text("settings.conditions_hint"))
     form:Text(conditionsHint, HINT_LINES * HINT_LINE_HEIGHT + BUTTON_GAP)
 
-    -- where: none checked -- everywhere
+    -- where: all checked (the default) -- everywhere; unchecked -- not there
     local placesLabel = form:Label(Text("settings.condition_places"))
     local placeBoxes = {}   -- [instance kind] = checkbox
     local placeRow = {}     -- the same, in the order of INSTANCE_KINDS
@@ -650,9 +650,9 @@ function BuffEditor.Create(parent, options)
     -- the conditions page of the buff shown
     local function DisplayConditions()
         local conditions = buff.conditions or {}
-        local places = conditions.places or {}
+        local hiddenPlaces = conditions.hiddenPlaces or {}
         for kind, checkbox in pairs(placeBoxes) do
-            checkbox:SetChecked(places[kind] == true)
+            checkbox:SetChecked(not hiddenPlaces[kind])
         end
         talentMissingBox:SetChecked(conditions.talentMissing == true)
         talentMissingBox:SetEnabled(conditions.talent ~= nil)

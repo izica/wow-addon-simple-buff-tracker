@@ -17,8 +17,9 @@
 --     { kind = "item", itemId }
 --   conditions -- when the buff is shown at all, nil -- always
 --             (dataflows/buff_conditions.lua; every one set must hold):
---     places   -- { [ns.Constants.INSTANCE_KIND] = true }: only in these
---                 instances ("world" -- outside instances); nil or empty -- everywhere;
+--     hiddenPlaces -- { [ns.Constants.INSTANCE_KIND] = true }: not in these
+--                 places ("world" -- outside instances); nil or empty -- everywhere
+--                 (every checkbox of the buff window on: the default);
 --     itemId   -- only while this item is in the bags;
 --     talent   -- { spellId, name }: only while the character has learned it,
 --                 talentMissing = true -- only while not.

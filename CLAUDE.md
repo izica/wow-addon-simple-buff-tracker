@@ -183,8 +183,9 @@ buff = { target = { spellId, name } | { weapon = "mainhand"|"offhand" },
   `type=macro`, `/use item:ID` + `/use 16|17`.
 * Режим `missing`: показываются нет-бафы и те, у кого осталось ≤ `settings.warnSeconds`
   (если сам баф длиннее порога).
-* **Условия показа** — `buff.conditions` (nil — всегда): `places = { world|party|raid|pvp = true }` (тип инстанса
-  из `IsInInstance`, `INSTANCE_KIND`; `world` — вне инстансов; ничего — везде; несколько — любой из них), `itemId` (только пока
+* **Условия показа** — `buff.conditions` (nil — всегда): `hiddenPlaces = { world|party|raid|pvp = true }` — где **не**
+  показывать (тип инстанса из `IsInInstance`, `INSTANCE_KIND`; `world` — вне инстансов; по умолчанию все галочки
+  стоят — хранятся только снятые; арена и сценарий не в списке — показываются всегда; ничего — везде; несколько — любой из них), `itemId` (только пока
   предмет в сумках), `talent = { spellId, name }` + `talentMissing` (только пока изучен / не изучен). Должны
   выполняться все заданные; не выполнены — бафа нет ни в каком режиме (`BuffConditions.Hold` в
   `BuffService.VisibleStates`). Изучен ли: сначала дерево талантов по имени (`dataflows/talents.lua`,

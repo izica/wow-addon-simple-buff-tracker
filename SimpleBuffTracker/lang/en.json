@@ -152,7 +152,7 @@
         "place_raid": "Raid",
         "place_pvp": "Battleground",
         "place_party": "Dungeon",
-        "condition_places_note": "None checked: shown everywhere.",
+        "condition_places_note": "Uncheck the places where this buff is not needed.",
         "condition_item": "Item in Bags",
         "condition_item_note": "Shown only while this item is in your bags (food, oil, flask...). Leave empty to skip. Drag an item here or Shift-click it.",
         "condition_talent": "Talent or Spell Learned",
