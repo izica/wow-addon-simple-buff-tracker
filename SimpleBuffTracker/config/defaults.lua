@@ -16,6 +16,8 @@ ns.Config.defaults = {
         -- the effect around the icon of a missing buff (ns.Constants.GLOW_EFFECT)
         missingGlow = ns.Constants.GLOW_EFFECT.NONE,
         locked = true,
+        -- the first login was told how to add buffs (once, while none are tracked)
+        welcomed = false,
         -- a buff with this many seconds left or less counts as missing in the "missing" mode
         warnSeconds = 120,
         position = { point = "CENTER", x = 0, y = -180 },

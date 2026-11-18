@@ -66,6 +66,9 @@ local TITLE_HEIGHT = 22
 local HINT_LINES = 2
 local HINT_LINE_HEIGHT = 12
 local HINT_COLOR = { 0.6, 0.6, 0.6 }
+local STATUS_HEIGHT = 16
+local SHOWN_COLOR = { 0.3, 1, 0.3 }
+local HIDDEN_COLOR = { 1, 0.3, 0.3 }
 local CHECKBOX_NOTE_GAP = 6   -- a checkbox row has no gap under it of its own
 local ERROR_COLOR = { 1, 0.3, 0.3 }
 local DELETE_POPUP = "SIMPLEBUFFTRACKER_DELETE_BUFF"
@@ -489,7 +492,11 @@ function BuffEditor.Create(parent, options)
     conditionsHint:SetJustifyV("TOP")
     conditionsHint:SetHeight(HINT_LINES * HINT_LINE_HEIGHT)
     conditionsHint:SetText(Text("settings.conditions_hint"))
-    form:Text(conditionsHint, HINT_LINES * HINT_LINE_HEIGHT + BUTTON_GAP)
+    form:Text(conditionsHint, HINT_LINES * HINT_LINE_HEIGHT)
+    -- what the conditions do right now: shown, or hidden and why
+    local conditionsStatus = page:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    conditionsStatus:SetWordWrap(false)
+    form:Text(conditionsStatus, STATUS_HEIGHT + BUTTON_GAP)
 
     -- where: all checked (the default) -- everywhere; unchecked -- not there
     local placesLabel = form:Label(Text("settings.condition_places"))
@@ -641,7 +648,7 @@ function BuffEditor.Create(parent, options)
     -- everything but the empty text: shown while a buff is chosen
     local parts = { targetSelect, targetSelect.label, auraInput, auraInput.label, sourceSelect,
         sourceSelect.label, sourceInput, sourceInput.label, iconInput, iconInput.label,
-        warnLabel, warnSlider, errorText, deleteButton, tabs, conditionsTitle, conditionsHint, placesLabel, placesNote, itemConditionInput,
+        warnLabel, warnSlider, errorText, deleteButton, tabs, conditionsTitle, conditionsHint, conditionsStatus, placesLabel, placesNote, itemConditionInput,
         itemConditionInput.label, talentConditionInput, talentConditionInput.label, talentMissingBox }
     for _, kind in ipairs(INSTANCE_KINDS) do
         table.insert(parts, placeBoxes[kind])
@@ -657,6 +664,24 @@ function BuffEditor.Create(parent, options)
         talentMissingBox:SetChecked(conditions.talentMissing == true)
         talentMissingBox:SetEnabled(conditions.talent ~= nil)
         conditionsTitle:SetText(Text("settings.conditions_title", ns.Models.Buff.TargetLabel(buff)))
+
+        local reasonKey, reasonArgument = BuffConditions.Reason(buff)
+        if reasonKey then
+            conditionsStatus:SetText(Text("settings.status_hidden", Text(reasonKey, reasonArgument)))
+            conditionsStatus:SetTextColor(HIDDEN_COLOR[1], HIDDEN_COLOR[2], HIDDEN_COLOR[3])
+        else
+            conditionsStatus:SetText(Text("settings.status_shown"))
+            conditionsStatus:SetTextColor(SHOWN_COLOR[1], SHOWN_COLOR[2], SHOWN_COLOR[3])
+        end
+
+        -- every place unchecked: say it plainly, it is easy to do by mistake
+        if BuffConditions.IsNowhere(buff) then
+            placesNote:SetText(Text("settings.condition_places_nowhere"))
+            placesNote:SetTextColor(HIDDEN_COLOR[1], HIDDEN_COLOR[2], HIDDEN_COLOR[3])
+        else
+            placesNote:SetText(Text("settings.condition_places_note"))
+            placesNote:SetTextColor(HINT_COLOR[1], HINT_COLOR[2], HINT_COLOR[3])
+        end
 
         -- the tab tells there are conditions without opening it
         local count = BuffConditions.Count(buff)
@@ -739,6 +764,15 @@ function BuffEditor.Create(parent, options)
         -- the hidden fields take no room: the shown ones stack up without holes
         mainForm:Layout()
         conditionsForm:Layout()
+    end
+
+    -- a buff just added: its first page, typing in its Buff field
+    function frame:StartEditing()
+        ShowPage(false)
+        local auraInput = inputs.aura
+        if buff and auraInput:IsShown() then
+            auraInput:SetFocus()
+        end
     end
 
     -- the field being typed in now: input, its key and the buff; nil -- none

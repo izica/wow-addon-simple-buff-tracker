@@ -17,7 +17,7 @@ ns.Localization.Add("en", [==[
     },
     "modes": {
         "all": "All buffs",
-        "missing": "Missing buffs only"
+        "missing": "Missing or expiring only"
     },
     "tooltip": {
         "active": "Active",
@@ -50,10 +50,11 @@ ns.Localization.Add("en", [==[
         "size_usage": "Usage: /sbt size <%d-%d>",
         "row_usage": "Usage: /sbt row <%d-%d>",
         "warn_usage": "Usage: /sbt warn <%d-%d> (seconds)",
-        "warn_set": "Buffs with %d sec or less remaining now count as missing.",
+        "warn_set": "Buffs now warn %d sec before they run out.",
         "minimap_hidden": "Minimap button hidden. Type /sbt minimap to show it again.",
         "minimap_shown": "Minimap button shown.",
-        "unknown_icon": "Icon not found. Enter a spell ID, or Shift-click a spell, item or buff."
+        "unknown_icon": "Icon not found. Enter a spell ID, or Shift-click a spell, item or buff.",
+        "welcome": "No buffs tracked yet. Left-click the minimap button or type /sbt buffs to add them."
     },
     "commands": {
         "add": {
@@ -82,7 +83,7 @@ ns.Localization.Add("en", [==[
             "help": "<count> - Set the number of icons per row."
         },
         "warn": {
-            "help": "<seconds> - Buffs with this much time or less remaining count as missing."
+            "help": "<seconds> - Warn this long before a buff runs out: it glows, and shows up in the missing mode."
         },
         "move": {
             "help": "Lock or unlock the panel.",
@@ -116,7 +117,7 @@ ns.Localization.Add("en", [==[
         "tab_buffs": "Buffs",
         "tab_panel": "Panel",
         "mode": "Display Mode",
-        "warn_seconds": "Show When Expiring Within",
+        "warn_seconds": "Warn Before Expiring",
         "icon_size": "Icon Size",
         "icons_per_row": "Icons per Line (row or column)",
         "icon_spacing": "Icon Spacing",
@@ -135,7 +136,7 @@ ns.Localization.Add("en", [==[
         "source_spell_value": "Spell",
         "source_item_value": "Item",
         "icon": "Icon (leave empty for automatic)",
-        "buff_warn": "Show When Expiring Within",
+        "buff_warn": "Warn Before Expiring",
         "warn_default": "Panel default (%s)",
         "remove": "Delete",
         "remove_confirm": "Stop tracking %s?",
@@ -148,12 +149,12 @@ ns.Localization.Add("en", [==[
         "enchant_any": "Any temporary enchant",
         "enchant_note": "Enchants seen on your weapons. Not listed? Apply it once (oil, Flametongue...).",
         "grow": "Growth Direction",
-        "missing_glow": "Missing Buff Glow",
+        "missing_glow": "Glow: Missing or Expiring",
         "icon_template": "Icon Style",
         "conditions": "Conditions",
         "conditions_count": "Conditions (%d)",
         "conditions_title": "Show %s only when:",
-        "conditions_hint": "Every condition you set must be met. A buff whose conditions are not met is hidden in every display mode.",
+        "conditions_hint": "All the conditions you set must be met. A hidden buff is not on the panel in any display mode.",
         "condition_places": "Where to Show",
         "place_raid": "Raid",
         "place_pvp": "Battleground",
@@ -163,10 +164,17 @@ ns.Localization.Add("en", [==[
         "condition_item_note": "Shown only while this item is in your bags (food, oil, flask...). Leave empty to skip. Drag an item here or Shift-click it.",
         "condition_talent": "Talent or Spell Learned",
         "condition_talent_note": "Shown only if you have learned it, such as a talent of your specialization. Leave empty to skip. Suggests talents and spells.",
-        "condition_talent_missing": "Only if NOT learned",
-        "page_buff": "Buff",
-        "hidden_by_conditions": "Hidden right now: its show conditions are not met.",
-        "place_world": "World"
+        "condition_talent_missing": "Reverse: only while NOT learned",
+        "page_buff": "General",
+        "place_world": "World",
+        "status_shown": "Right now: shown on the panel",
+        "status_hidden": "Right now: hidden (%s)",
+        "hidden_place": "turned off for: %s",
+        "hidden_item": "%s is not in your bags",
+        "hidden_not_learned": "%s is not learned",
+        "hidden_learned": "%s is learned",
+        "hidden_not_set_up": "Not set up yet: enter the buff on the right.",
+        "condition_places_nowhere": "Everything unchecked: this buff is never shown."
     },
     "grow": {
         "right": "Right",

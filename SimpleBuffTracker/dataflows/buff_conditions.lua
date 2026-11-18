@@ -63,22 +63,49 @@ local function HasHiddenPlaces(conditions)
     return conditions.hiddenPlaces ~= nil and next(conditions.hiddenPlaces) ~= nil
 end
 
--- whether the buff is to be shown now
-function BuffConditions.Hold(buff)
+-- Why the buff is not shown now: the key of the text (settings.hidden_*) and
+-- its argument; nil -- every condition holds. The buff window tells it.
+function BuffConditions.Reason(buff)
     local conditions = buff.conditions
     if not conditions then
-        return true
+        return nil
     end
     -- a place turned off: not there (an arena, a scenario -- not in the list, always shown)
-    if HasHiddenPlaces(conditions) and conditions.hiddenPlaces[BuffConditions.InstanceKind()] then
+    local kind = BuffConditions.InstanceKind()
+    if HasHiddenPlaces(conditions) and conditions.hiddenPlaces[kind] then
+        return "settings.hidden_place", ns.Localization.Text("settings.place_" .. kind)
+    end
+    local itemId = conditions.itemId
+    if itemId and Item.Count(itemId) <= 0 then
+        return "settings.hidden_item", Item.Name(itemId) or ("item:" .. itemId)
+    end
+    local talent = conditions.talent
+    if talent then
+        local isLearned = BuffConditions.IsLearned(talent)
+        local talentName = talent.name or (talent.spellId and Spell.Name(talent.spellId)) or "?"
+        if isLearned and conditions.talentMissing then
+            return "settings.hidden_learned", talentName
+        end
+        if not isLearned and not conditions.talentMissing then
+            return "settings.hidden_not_learned", talentName
+        end
+    end
+    return nil
+end
+
+-- whether the buff is to be shown now
+function BuffConditions.Hold(buff)
+    return BuffConditions.Reason(buff) == nil
+end
+
+-- every place of the list turned off: the buff is never shown (but in an arena)
+function BuffConditions.IsNowhere(buff)
+    local hiddenPlaces = buff.conditions and buff.conditions.hiddenPlaces
+    if not hiddenPlaces then
         return false
     end
-    if conditions.itemId and Item.Count(conditions.itemId) <= 0 then
-        return false
-    end
-    if conditions.talent then
-        local isLearned = BuffConditions.IsLearned(conditions.talent)
-        if isLearned == (conditions.talentMissing == true) then
+    for _, kind in ipairs(ns.Constants.INSTANCE_KINDS) do
+        if not hiddenPlaces[kind] then
             return false
         end
     end

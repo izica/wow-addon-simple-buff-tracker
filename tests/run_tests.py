@@ -1290,6 +1290,9 @@ def test_missing_glow():
         Fire('UNIT_AURA', 'player')
     """)
     check("the buff is back: no glow", lua.eval("glowHolder.shown") is False)
+    lua.execute("clock = clock + 1400; RunTickers()")
+    check("100 s left (warns at 120): it glows in the all mode too", lua.eval("glowHolder.shown") is True)
+    lua.execute("clock = clock - 1400; RunTickers()")
     lua.execute("""
         auras = {}
         inCombat = true
@@ -1585,7 +1588,7 @@ def test_show_conditions():
               if isinstance(text, str)))
 
     check("every place is checked by default",
-          lua.eval("(function() for _, f in ipairs(allFrames) do if f.template == 'UICheckButtonTemplate' and rawget(f, 'label') and f.label.text ~= 'Only if NOT learned' and not f.checked then return false end end return true end)()") is True)
+          lua.eval("(function() for _, f in ipairs(allFrames) do if f.template == 'UICheckButtonTemplate' and rawget(f, 'label') and f.label.text ~= 'Reverse: only while NOT learned' and not f.checked then return false end end return true end)()") is True)
     click_checkbox(lua, "Raid", False)
     check("a raid unchecked: kept as a hidden place",
           lua.eval("SimpleBuffTrackerDB.buffs[1].conditions.hiddenPlaces.raid") is True)
@@ -1629,12 +1632,12 @@ def test_show_conditions():
     check("a talent not learned: hidden", shown_buttons(lua) == 0)
     lua.execute("talentTree[1][5] = 1; Fire('CHARACTER_POINTS_CHANGED')")
     check("a point in it: shown", shown_buttons(lua) == 1)
-    click_checkbox(lua, "Only if NOT learned", True)
+    click_checkbox(lua, "Reverse: only while NOT learned", True)
     lua.execute("RunTickers()")
-    check("Only if NOT learned: hidden with the talent", shown_buttons(lua) == 0)
+    check("Reverse: only while NOT learned: hidden with the talent", shown_buttons(lua) == 0)
     lua.execute("talentTree[1][5] = 0; RunTickers()")
     check("and shown without it", shown_buttons(lua) == 1)
-    click_checkbox(lua, "Only if NOT learned", False)
+    click_checkbox(lua, "Reverse: only while NOT learned", False)
 
     lua.execute("Enter('conditionTalent', '1459')")
     check("a spell by id", lua.eval("SimpleBuffTrackerDB.buffs[1].conditions.talent.spellId") == 1459)
@@ -1651,8 +1654,8 @@ def test_show_conditions():
 
     lua.execute("Enter('conditionItem', 'Crab Cake')")
     click_checkbox(lua, "Battleground", False)
-    click_button(lua, "Buff")
-    check("the Buff tab shows the fields again", lua.eval("FindField('aura').parent.shown") is True
+    click_button(lua, "General")
+    check("the General tab shows the fields again", lua.eval("FindField('aura').parent.shown") is True
           and lua.eval("FindField('conditionItem').parent.shown") is False)
     check("the Conditions tab counts the conditions",
           lua.eval("(function() for _, f in ipairs(allFrames) do if rawget(f, 'text') == 'Conditions (3)' then return true end end return false end)()") is True)
@@ -1674,6 +1677,59 @@ def test_show_conditions():
     check("in combat the icon stays (no layout in combat)", shown_buttons(lua) == 1)
     lua.execute("inCombat = false; Fire('PLAYER_REGEN_ENABLED')")
     check("after combat the buff without its item is hidden", shown_buttons(lua) == 0)
+
+
+def has_text(lua, wanted):
+    return lua.eval("""(function(wanted)
+        for _, frame in ipairs(allFrames) do
+            if rawget(frame, 'text') == wanted then return true end
+        end
+        return false
+    end)(...)""", wanted) is True
+
+
+def test_first_use():
+    lua = new_runtime()
+    check("first login with no buffs: one line says where to add them",
+          any("No buffs tracked yet" in (line or "") for line in lua.eval("chat").values()))
+    check("and only once", lua.eval("SimpleBuffTrackerDB.settings.welcomed") is True)
+    lua.execute("chat = {}; Fire('PLAYER_LOGIN')")
+    check("the next login says nothing", lua.eval("#chat") == 0)
+
+    lua.execute("Slash('buffs')")
+    click_button(lua, "Add Buff")
+    check("Add Buff: the Buff field is ready to type in", lua.eval("FindField('aura').focused") is True)
+    lua.execute("FindField('aura'):ClearFocus(); ns.Core.Refresh()")
+    check("a buff not set up is not put on the panel", shown_buttons(lua) == 0)
+    check("the list greys it and says why", lua.eval("Rows()[1].isHidden") is True
+          and "Not set up yet" in lua.eval("Rows()[1].hiddenText"))
+    lua.execute("Enter('aura', 'Arcane Intellect'); ns.Core.Refresh()")
+    check("set up: on the panel", shown_buttons(lua) == 1 and lua.eval("Rows()[1].isHidden") is False)
+
+
+def test_conditions_feedback():
+    lua = new_runtime()
+    lua.execute("""
+        instanceType = nil
+        function IsInInstance() return instanceType ~= nil, instanceType or "none" end
+        Slash('add Arcane Intellect = spell')
+        Slash('buffs')
+    """)
+    click_button(lua, "Conditions")
+    check("no conditions: the page says the buff is on the panel", has_text(lua, "Right now: shown on the panel"))
+    click_checkbox(lua, "World", False)
+    check("World unchecked in the world: hidden, and why",
+          has_text(lua, "Right now: hidden (turned off for: World)"))
+    lua.execute("Enter('conditionItem', 'Crab Cake'); instanceType = 'raid'; itemCounts[2683] = 0; Window().Refresh()")
+    check("no item in the bags: says which item", has_text(lua, "Right now: hidden (Crab Cake is not in your bags)"))
+    check("the list tooltip says the same",
+          lua.eval("Rows()[1].hiddenText") == "Right now: hidden (Crab Cake is not in your bags)")
+    for place in ("Dungeon", "Raid", "Battleground"):
+        click_checkbox(lua, place, False)
+    check("every place unchecked: a red warning under them",
+          has_text(lua, "Everything unchecked: this buff is never shown."))
+    click_checkbox(lua, "Raid", True)
+    check("one place back: the usual note", has_text(lua, "Uncheck the places where this buff is not needed."))
 
 
 def main():
@@ -1706,6 +1762,8 @@ def main():
     test_russian()
     test_wording()
     test_show_conditions()
+    test_first_use()
+    test_conditions_feedback()
     if failures:
         print("\n%d failed" % len(failures))
         sys.exit(1)

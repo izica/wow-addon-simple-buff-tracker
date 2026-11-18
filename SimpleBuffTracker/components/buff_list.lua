@@ -1,8 +1,9 @@
 -- buff_list.lua -- the left side of the Buffs tab: the tracked buffs as rows
 -- with a picture and a name, the chosen one highlighted, "Add buff" under them.
 -- A row dragged with the mouse goes to another place (the order of the panel):
--- a gold line shows where it will land. A buff its show conditions hide right
--- now (not in a raid, no item...) is grey, its tooltip says why.
+-- a gold line shows where it will land. A buff not on the panel right now (not
+-- set up yet, or hidden by its show conditions: not in a raid, no item...) is
+-- grey, its tooltip says why.
 
 local ADDON, ns = ...
 ns.Components = ns.Components or {}
@@ -155,7 +156,7 @@ function BuffList.Create(parent, options)
             end
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
             GameTooltip:SetText(self.label:GetText() or "")
-            GameTooltip:AddLine(Text("settings.hidden_by_conditions"), 1, 1, 1, true)
+            GameTooltip:AddLine(self.hiddenText, 1, 1, 1, true)
             GameTooltip:Show()
         end)
         row:SetScript("OnLeave", function()
@@ -175,9 +176,20 @@ function BuffList.Create(parent, options)
             row.index = index
             row.icon:SetTexture(BuffService.Icon(buff))
             row.label:SetText(Buff.TargetLabel(buff))
-            -- hidden by its show conditions right now: grey, the tooltip says why
-            local isHidden = not BuffConditions.Hold(buff)
+            -- not on the panel right now (not set up, or its show conditions):
+            -- grey, the tooltip says why
+            local hiddenText = nil
+            if not Buff.HasTarget(buff) then
+                hiddenText = Text("settings.hidden_not_set_up")
+            else
+                local reasonKey, reasonArgument = BuffConditions.Reason(buff)
+                if reasonKey then
+                    hiddenText = Text("settings.status_hidden", Text(reasonKey, reasonArgument))
+                end
+            end
+            local isHidden = hiddenText ~= nil
             row.isHidden = isHidden
+            row.hiddenText = hiddenText
             row.icon:SetDesaturated(isHidden)
             if isHidden then
                 row.label:SetFontObject("GameFontDisable")

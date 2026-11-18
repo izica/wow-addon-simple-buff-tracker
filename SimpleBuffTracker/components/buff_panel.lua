@@ -320,11 +320,16 @@ local function Paint(button, state)
     button:SetMissing(not state.isActive)
     if state.isActive then
         button:SetTimer(state.expirationTime, state.duration)
-        button:SetGlow(nil)
     else
         button:SetTimer(0, 0)
-        -- a missing buff draws the eye with the effect chosen on the Panel tab
+    end
+    -- a missing buff, or one about to run out (the warning time), draws the eye
+    -- with the effect chosen on the Panel tab -- in both display modes
+    local needsAttention = not state.isActive or state.isExpiring
+    if needsAttention then
         button:SetGlow(ns.db.settings.missingGlow)
+    else
+        button:SetGlow(nil)
     end
     button:SetItemCount(state.itemCount)
 end

@@ -39,6 +39,13 @@ function Buff.New(target, source)
     return { target = target, source = source }
 end
 
+-- whether it says what to track: a weapon slot, a spell or a name. A buff just
+-- added in the window has nothing yet and is not put on the panel.
+function Buff.HasTarget(buff)
+    local target = buff.target
+    return target.weapon ~= nil or target.spellId ~= nil or target.name ~= nil
+end
+
 -- A source picked in the settings but not filled in yet (no spell, no item)
 -- does nothing: no label, no icon, no action.
 function Buff.HasCompleteSource(buff)

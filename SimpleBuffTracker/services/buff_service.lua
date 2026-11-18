@@ -329,8 +329,8 @@ function BuffService.VisibleStates()
 
     local states = {}
     for index, buff in ipairs(ns.db.buffs) do
-        -- not here, no item, no talent: not shown in any mode
-        if BuffConditions.Hold(buff) then
+        -- not set up yet, or not here, no item, no talent: not shown in any mode
+        if Buff.HasTarget(buff) and BuffConditions.Hold(buff) then
             -- a buff's own warning time, or the panel's
             local warnSeconds = buff.warnSeconds or settings.warnSeconds
             local state = Evaluate(buff, index, now, weapons, warnSeconds)

@@ -105,6 +105,7 @@ local function Create()
             BuffService.Add(Buff.New({}, nil))
             selectedIndex = #BuffService.List()
             Changed()
+            buffEditor:StartEditing()
         end,
     })
     buffList:SetPoint("TOPLEFT")
