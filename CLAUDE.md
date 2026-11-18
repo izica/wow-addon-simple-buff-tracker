@@ -183,8 +183,8 @@ buff = { target = { spellId, name } | { weapon = "mainhand"|"offhand" },
   `type=macro`, `/use item:ID` + `/use 16|17`.
 * Режим `missing`: показываются нет-бафы и те, у кого осталось ≤ `settings.warnSeconds`
   (если сам баф длиннее порога).
-* **Условия показа** — `buff.conditions` (nil — всегда): `places = { raid|pvp|party = true }` (тип инстанса
-  из `IsInInstance`, `INSTANCE_KIND`; ничего — везде; несколько — любой из них), `itemId` (только пока
+* **Условия показа** — `buff.conditions` (nil — всегда): `places = { world|party|raid|pvp = true }` (тип инстанса
+  из `IsInInstance`, `INSTANCE_KIND`; `world` — вне инстансов; ничего — везде; несколько — любой из них), `itemId` (только пока
   предмет в сумках), `talent = { spellId, name }` + `talentMissing` (только пока изучен / не изучен). Должны
   выполняться все заданные; не выполнены — бафа нет ни в каком режиме (`BuffConditions.Hold` в
   `BuffService.VisibleStates`). Изучен ли: сначала дерево талантов по имени (`dataflows/talents.lua`,
@@ -196,7 +196,7 @@ buff = { target = { spellId, name } | { weapon = "mainhand"|"offhand" },
 * В редакторе две **вкладки сверху** — «Баф» | «Условия (N)» (`ui/segment_tabs.lua`: текст, выбранная —
   белая с золотым подчёркиванием; страницы `mainPage` / `conditionsPage` в `buff_editor.lua`, у каждой своя
   форма). Под полями бафа места нет (окно 610, проверяет `test_editor_fits`). Выбранная вкладка остаётся при
-  выборе другого бафа — одно условие нескольким бафам подряд. Места — три галочки в один ряд
+  выборе другого бафа — одно условие нескольким бафам подряд. Места — четыре галочки в один ряд (мир, подземелье, рейд, поле боя)
   (`form:CheckboxRow`). Поле таланта берёт spell- и talent-ссылки, подсказки — дерево талантов и книга
   вместе с пассивками (`IconSearch.SOURCES.TALENTS`).
 * Ряд кнопок редактора — только «Удалить» справа, ошибка правки — слева от неё. Кнопок «Выше/Ниже» нет:

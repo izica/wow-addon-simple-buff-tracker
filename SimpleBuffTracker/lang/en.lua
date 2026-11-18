@@ -165,7 +165,8 @@ ns.Localization.Add("en", [==[
         "condition_talent_note": "Shown only if you have learned it, such as a talent of your specialization. Leave empty to skip. Suggests talents and spells.",
         "condition_talent_missing": "Only if NOT learned",
         "page_buff": "Buff",
-        "hidden_by_conditions": "Hidden right now: its show conditions are not met."
+        "hidden_by_conditions": "Hidden right now: its show conditions are not met.",
+        "place_world": "World"
     },
     "grow": {
         "right": "Right",

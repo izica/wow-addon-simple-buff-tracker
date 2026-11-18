@@ -13,14 +13,17 @@ local Talents = ns.Dataflows.Talents
 local BuffConditions = {}
 ns.Dataflows.BuffConditions = BuffConditions
 
--- the instance type the player is in ("raid", "pvp", "party", ...); nil -- outside instances
+local WORLD = ns.Constants.INSTANCE_KIND.WORLD
+
+-- where the player is: the instance type ("raid", "pvp", "party", "arena"...),
+-- or "world" outside instances
 function BuffConditions.InstanceKind()
     if not IsInInstance then
-        return nil
+        return WORLD
     end
     local isInInstance, instanceType = IsInInstance()
-    if not isInInstance or instanceType == "none" then
-        return nil
+    if not isInInstance or not instanceType or instanceType == "none" then
+        return WORLD
     end
     return instanceType
 end
@@ -68,7 +71,7 @@ function BuffConditions.Hold(buff)
     end
     if HasPlaces(conditions.places) then
         local kind = BuffConditions.InstanceKind()
-        if not (kind and conditions.places[kind]) then
+        if not conditions.places[kind] then
             return false
         end
     end
