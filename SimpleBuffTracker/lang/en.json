@@ -131,8 +131,6 @@
         "icon": "Icon (leave empty for automatic)",
         "buff_warn": "Show When Expiring Within",
         "warn_default": "Panel default (%s)",
-        "move_up": "Move Up",
-        "move_down": "Move Down",
         "remove": "Delete",
         "remove_confirm": "Stop tracking %s?",
         "aura_note": "Spell name or ID. Suggests your spells and any buff you have had. Drag a spell here or Shift-click it.",
@@ -148,7 +146,6 @@
         "icon_template": "Icon Style",
         "conditions": "Conditions",
         "conditions_count": "Conditions (%d)",
-        "conditions_back": "Back",
         "conditions_title": "Show %s only when:",
         "conditions_hint": "Every condition you set must be met. A buff whose conditions are not met is hidden in every display mode.",
         "condition_places": "Where to Show",
@@ -160,7 +157,9 @@
         "condition_item_note": "Shown only while this item is in your bags (food, oil, flask...). Leave empty to skip. Drag an item here or Shift-click it.",
         "condition_talent": "Talent or Spell Learned",
         "condition_talent_note": "Shown only if you have learned it, such as a talent of your specialization. Leave empty to skip. Suggests talents and spells.",
-        "condition_talent_missing": "Only if NOT learned"
+        "condition_talent_missing": "Only if NOT learned",
+        "page_buff": "Buff",
+        "hidden_by_conditions": "Hidden right now: its show conditions are not met."
     },
     "grow": {
         "right": "Right",

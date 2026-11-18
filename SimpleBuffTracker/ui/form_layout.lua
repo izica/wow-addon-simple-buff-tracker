@@ -39,7 +39,8 @@ local CHECKBOX_SHIFT = -4         -- the checkbox art has an empty edge on the l
 -- width -- the drawn width of every control; nil -- up to rightInset;
 -- sliderWidth -- the drawn width of the sliders with their value text, width when nil.
 -- form:Label(text), form:Field(control), form:Slider(slider, valueWidth),
--- form:Checkbox(checkbox), form:Text(fontString, height), form:Note(text, lines),
+-- form:Checkbox(checkbox), form:CheckboxRow(checkboxes, columnWidth),
+-- form:Text(fontString, height), form:Note(text, lines),
 -- form:Space(pixels); form:Group() -> group, group:SetShown(isShown), form:Layout().
 function ns.UI.FormLayout(frame, options)
     local padding = options.padding
@@ -137,6 +138,18 @@ function ns.UI.FormLayout(frame, options)
         AddStep(function()
             checkbox:ClearAllPoints()
             checkbox:SetPoint("TOPLEFT", frame, "TOPLEFT", padding + CHECKBOX_SHIFT, form.top)
+            form.top = form.top - CHECKBOX_HEIGHT
+        end)
+    end
+
+    -- checkboxes side by side in one row, each in a column of columnWidth
+    function form:CheckboxRow(checkboxes, columnWidth)
+        AddStep(function()
+            for index, checkbox in ipairs(checkboxes) do
+                checkbox:ClearAllPoints()
+                local x = padding + CHECKBOX_SHIFT + (index - 1) * columnWidth
+                checkbox:SetPoint("TOPLEFT", frame, "TOPLEFT", x, form.top)
+            end
             form.top = form.top - CHECKBOX_HEIGHT
         end)
     end

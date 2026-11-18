@@ -1,7 +1,8 @@
 -- buff_list.lua -- the left side of the Buffs tab: the tracked buffs as rows
 -- with a picture and a name, the chosen one highlighted, "Add buff" under them.
 -- A row dragged with the mouse goes to another place (the order of the panel):
--- a gold line shows where it will land.
+-- a gold line shows where it will land. A buff its show conditions hide right
+-- now (not in a raid, no item...) is grey, its tooltip says why.
 
 local ADDON, ns = ...
 ns.Components = ns.Components or {}
@@ -9,6 +10,7 @@ ns.Components = ns.Components or {}
 local Text = ns.Localization.Text
 local Buff = ns.Models.Buff
 local BuffService = ns.Services.Buff
+local BuffConditions = ns.Dataflows.BuffConditions
 
 local BuffList = {}
 ns.Components.BuffList = BuffList
@@ -147,6 +149,18 @@ function BuffList.Create(parent, options)
         row:SetScript("OnClick", function(self)
             options.onSelect(self.index)
         end)
+        row:SetScript("OnEnter", function(self)
+            if not self.isHidden then
+                return
+            end
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:SetText(self.label:GetText() or "")
+            GameTooltip:AddLine(Text("settings.hidden_by_conditions"), 1, 1, 1, true)
+            GameTooltip:Show()
+        end)
+        row:SetScript("OnLeave", function()
+            GameTooltip:Hide()
+        end)
         row:RegisterForDrag("LeftButton")
         row:SetScript("OnDragStart", StartDrag)
         row:SetScript("OnDragStop", StopDrag)
@@ -161,6 +175,15 @@ function BuffList.Create(parent, options)
             row.index = index
             row.icon:SetTexture(BuffService.Icon(buff))
             row.label:SetText(Buff.TargetLabel(buff))
+            -- hidden by its show conditions right now: grey, the tooltip says why
+            local isHidden = not BuffConditions.Hold(buff)
+            row.isHidden = isHidden
+            row.icon:SetDesaturated(isHidden)
+            if isHidden then
+                row.label:SetFontObject("GameFontDisable")
+            else
+                row.label:SetFontObject("GameFontHighlight")
+            end
             row.selection:SetShown(index == selectedIndex)
             row:Show()
         end

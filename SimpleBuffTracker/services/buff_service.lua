@@ -35,18 +35,6 @@ function BuffService.Remove(index)
     return table.remove(ns.db.buffs, index)
 end
 
--- swap the buff with its neighbour: offset -1 -- up the list, 1 -- down; false -- no neighbour
-function BuffService.Move(index, offset)
-    local buffs = ns.db.buffs
-    local otherIndex = index + offset
-    if not (buffs[index] and buffs[otherIndex]) then
-        return false
-    end
-    local moved = buffs[index]
-    buffs[index] = buffs[otherIndex]
-    buffs[otherIndex] = moved
-    return true
-end
 
 -- take the buff out of its place and put it at toIndex (the list dragged in
 -- the buff window); false -- no such places

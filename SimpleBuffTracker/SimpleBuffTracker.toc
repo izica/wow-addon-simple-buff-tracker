@@ -41,6 +41,7 @@ ui\checkbox.lua
 ui\inset_panel.lua
 ui\scroll_area.lua
 ui\tab_bar.lua
+ui\segment_tabs.lua
 ui\step_slider.lua
 ui\form_layout.lua
 ui\glow.lua

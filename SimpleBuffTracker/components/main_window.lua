@@ -113,12 +113,6 @@ local function Create()
 
     buffEditor = ns.Components.BuffEditor.Create(buffsTab, {
         onChanged = Changed,
-        onMove = function(index, offset)
-            if BuffService.Move(index, offset) then
-                selectedIndex = index + offset
-            end
-            Changed()
-        end,
         onDelete = function(index)
             BuffService.Remove(index)
             selectedIndex = math.min(index, #BuffService.List())

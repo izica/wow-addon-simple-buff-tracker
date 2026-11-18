@@ -70,6 +70,7 @@ function Frame:GetPoint() return "TOPLEFT", nil, "TOPLEFT", 10, -20 end
 function Frame:GetFrameLevel() return 1 end
 function Frame:GetFont() return "Fonts\\FRIZQT__.TTF", 12, "OUTLINE" end
 function Frame:SetText(text) self.text = text end
+function Frame:SetFontObject(font) self.fontObject = font end
 function Frame:SetFrameStrata(strata) self.strata = strata end
 function Frame:SetTexture(texture) self.texture = texture end
 function Frame:SetDesaturated(value) self.desaturated = value end
@@ -590,9 +591,6 @@ def test_window_editing():
 
     click_button(lua, "Add Buff")
     lua.execute("Enter('aura', 'Well Fed')")
-    click_button(lua, "Move Up")
-    check("Up moves the buff", lua.eval("SimpleBuffTrackerDB.buffs[1].target.name") == "Well Fed"
-          and lua.eval("Rows()[1].label.text") == "Well Fed")
     click_button(lua, "Delete")
     check("Delete removes it after the question", lua.eval("#SimpleBuffTrackerDB.buffs") == 1
           and lua.eval("SimpleBuffTrackerDB.buffs[1].target.name") == "Arcane Intellect")
@@ -1578,7 +1576,7 @@ def test_show_conditions():
         Slash('buffs')
     """)
     check("a buff without conditions is shown", shown_buttons(lua) == 1)
-    check("the Conditions button in the button row",
+    check("the Conditions tab at the top of the editor",
           lua.eval("(function() for _, f in ipairs(allFrames) do if rawget(f, 'text') == 'Conditions' and f.shown then return true end end return false end)()") is True)
     click_button(lua, "Conditions")
     check("Conditions opens its page with the buff's name",
@@ -1607,8 +1605,13 @@ def test_show_conditions():
     check("an item condition by name", lua.eval("SimpleBuffTrackerDB.buffs[1].conditions.itemId") == 2683)
     lua.execute("itemCounts[2683] = 0; RunTickers()")
     check("no item in the bags: hidden", shown_buttons(lua) == 0)
+    lua.execute("Fire('BAG_UPDATE_DELAYED')")
+    check("the list greys the buff hidden now", lua.eval("Rows()[1].isHidden") is True
+          and lua.eval("Rows()[1].label.fontObject") == "GameFontDisable")
     lua.execute("itemCounts[2683] = 3; RunTickers()")
     check("the item in the bags: shown", shown_buttons(lua) == 1)
+    lua.execute("Fire('BAG_UPDATE_DELAYED')")
+    check("and back to white when shown", lua.eval("Rows()[1].isHidden") is False)
     lua.execute("Enter('conditionItem', 'Nothing at all')")
     check("an unknown item changes nothing", lua.eval("SimpleBuffTrackerDB.buffs[1].conditions.itemId") == 2683)
     lua.execute("Enter('conditionItem', '')")
@@ -1643,9 +1646,21 @@ def test_show_conditions():
 
     lua.execute("Enter('conditionItem', 'Crab Cake')")
     click_checkbox(lua, "Raid", True)
-    click_button(lua, "Back")
-    check("back on the buff page the button counts the conditions",
+    click_button(lua, "Buff")
+    check("the Buff tab shows the fields again", lua.eval("FindField('aura').parent.shown") is True
+          and lua.eval("FindField('conditionItem').parent.shown") is False)
+    check("the Conditions tab counts the conditions",
           lua.eval("(function() for _, f in ipairs(allFrames) do if rawget(f, 'text') == 'Conditions (3)' then return true end end return false end)()") is True)
+
+    click_button(lua, "Conditions (3)")
+    lua.execute("Slash('add Well Fed'); Window().Refresh()")
+    lua.execute("Rows()[2].scripts.OnClick(Rows()[2])")
+    check("another buff picked: the Conditions page stays open",
+          lua.eval("FindField('conditionItem').parent.shown") is True
+          and lua.eval("(function() for _, f in ipairs(allFrames) do if rawget(f, 'text') == 'Show Well Fed only when:' then return true end end return false end)()") is True)
+    check("its tab has no count: no conditions",
+          lua.eval("(function() for _, f in ipairs(allFrames) do if rawget(f, 'text') == 'Conditions' and rawget(f, 'scripts').OnClick then return true end end return false end)()") is True)
+    lua.execute("ns.Services.Buff.Remove(2); Window().Refresh()")
 
     # combat: the conditions change, the icons stay until the end of combat
     lua.execute("instanceType = 'raid'; talentTree[2][5] = 1; RunTickers()")

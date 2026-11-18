@@ -1,5 +1,6 @@
 -- buff_editor.lua -- the right side of the Buffs tab: one buff -- what is
--- tracked, how a click puts it back, its icon; up, down, delete.
+-- tracked, how a click puts it back, its icon, when it is shown; delete.
+-- The order of the buffs is changed by dragging them in the list.
 --
 -- Text fields save on Enter or when they lose the focus, only if the text was
 -- changed (a name shown for an item may not parse back when the item is not in
@@ -11,13 +12,14 @@
 -- enchant, the spell or item of a buff without a source) is hidden with its
 -- label and note, and the fields under it move up (ui/form_layout.lua groups). Right of
 -- the buff, spell and item fields stands their picture, with the game's tooltip
--- of the spell or item on hover. An edit that fails shows its reason in red over
--- the button row.
+-- of the spell or item on hover. An edit that fails shows its reason in red in
+-- the button row, left of Delete.
 --
--- The show conditions of the buff (where, an item in the bags, a talent) are on
--- a second page of the editor, behind the Conditions button of the button row:
--- the window has no room for them under the other fields. The button tells how
--- many conditions the buff has.
+-- Two pages, as tabs at the top of the editor (ui/segment_tabs.lua): Buff --
+-- what it is; Conditions -- when it is shown (where, an item in the bags, a
+-- talent), its tab counts the conditions set. The window has no room for both
+-- in one column. The page stays chosen when another buff is picked: setting the
+-- same condition for several buffs goes one after another.
 
 local ADDON, ns = ...
 ns.Components = ns.Components or {}
@@ -52,12 +54,14 @@ local ICON_CROP = 0.08
 local NOTE_LINES = 2
 local BUTTON_GAP = 10
 local BUTTON_WIDTH = 90
-local MOVE_BUTTON_WIDTH = 80
-local CONDITIONS_BUTTON_WIDTH = 124
-local BUTTON_SPACING = 6
 local BUTTON_HEIGHT = 24
-local ERROR_HEIGHT = 14
-local ERROR_GAP = 6
+local TABS_TOP = 8           -- from the top of the editor to its tabs
+local TABS_SIDE = 10
+-- the pages start under the tabs
+local PAGE_TOP = TABS_TOP + ns.UI.SEGMENT_TABS_HEIGHT
+local PAGE_BUFF = "buff"
+local PAGE_CONDITIONS = "conditions"
+local PLACE_COLUMN_WIDTH = 120
 local TITLE_HEIGHT = 22
 local HINT_LINES = 2
 local HINT_LINE_HEIGHT = 12
@@ -141,7 +145,7 @@ local function NewPreview(parent, getInfo)
     return preview
 end
 
--- options: onChanged() -- after any edit; onMove(index, offset), onDelete(index)
+-- options: onChanged() -- after any edit; onDelete(index)
 function BuffEditor.Create(parent, options)
     local frame = ns.UI.InsetPanel(parent, {})
     local buff = nil
@@ -149,13 +153,31 @@ function BuffEditor.Create(parent, options)
     local buffCount = 0
     local inputs = {}     -- [field key] = input
 
-    -- two pages of one buff: what it is (main) and when it is shown (conditions)
-    local mainPage = CreateFrame("Frame", nil, frame)
-    mainPage:SetAllPoints()
-    local conditionsPage = CreateFrame("Frame", nil, frame)
-    conditionsPage:SetAllPoints()
+    -- two pages of one buff under the tabs: what it is (main) and when it is shown (conditions)
+    local function NewPage()
+        local newPage = CreateFrame("Frame", nil, frame)
+        newPage:SetPoint("TOPLEFT", 0, -PAGE_TOP)
+        newPage:SetPoint("BOTTOMRIGHT")
+        return newPage
+    end
+    local mainPage = NewPage()
+    local conditionsPage = NewPage()
     conditionsPage:Hide()
     local isConditionsPage = false
+    local ShowPage = nil   -- defined after the fields (it clears their focus)
+    local tabs = ns.UI.SegmentTabs(frame, {
+        tabs = {
+            { id = PAGE_BUFF, text = Text("settings.page_buff") },
+            { id = PAGE_CONDITIONS, text = Text("settings.conditions") },
+        },
+        onSelect = function(id)
+            ShowPage(id == PAGE_CONDITIONS)
+            frame:Display(buff, buffIndex, buffCount)
+        end,
+    })
+    tabs:SetPoint("TOPLEFT", TABS_SIDE, -TABS_TOP)
+    tabs:SetPoint("TOPRIGHT", -TABS_SIDE, -TABS_TOP)
+    tabs:Select(PAGE_BUFF)
     local mainForm = ns.UI.FormLayout(mainPage, { padding = PADDING, rightInset = RIGHT_INSET })
     local conditionsForm = ns.UI.FormLayout(conditionsPage, { padding = PADDING, rightInset = RIGHT_INSET })
     -- the page and its form the next fields go on
@@ -472,6 +494,7 @@ function BuffEditor.Create(parent, options)
     -- where: none checked -- everywhere
     local placesLabel = form:Label(Text("settings.condition_places"))
     local placeBoxes = {}   -- [instance kind] = checkbox
+    local placeRow = {}     -- the same, in the order of INSTANCE_KINDS
     for _, kind in ipairs(INSTANCE_KINDS) do
         local checkbox = ns.UI.Checkbox(page, {
             text = Text("settings.place_" .. kind),
@@ -482,9 +505,10 @@ function BuffEditor.Create(parent, options)
                 end
             end,
         })
-        form:Checkbox(checkbox)
         placeBoxes[kind] = checkbox
+        table.insert(placeRow, checkbox)
     end
+    form:CheckboxRow(placeRow, PLACE_COLUMN_WIDTH)
     form:Space(CHECKBOX_NOTE_GAP)
     local placesNote = form:Note(Text("settings.condition_places_note"), 1)
 
@@ -563,11 +587,11 @@ function BuffEditor.Create(parent, options)
     enchantSelect.group:SetShown(false)
     mainForm:Layout()
     conditionsForm:Layout()
-    frame.formHeight = math.max(-mainForm.top, -conditionsForm.top)
-    frame.buttonRowHeight = PADDING + BUTTON_HEIGHT + ERROR_GAP + ERROR_HEIGHT + BUTTON_GAP
+    frame.formHeight = PAGE_TOP + math.max(-mainForm.top, -conditionsForm.top)
+    frame.buttonRowHeight = PADDING + BUTTON_HEIGHT + BUTTON_GAP
 
     -- one page or the other; a field typed in on the page that goes away is saved first
-    local function ShowPage(showConditions)
+    ShowPage = function(showConditions)
         for _, input in pairs(inputs) do
             if input:HasFocus() then
                 input:ClearFocus()
@@ -576,26 +600,13 @@ function BuffEditor.Create(parent, options)
         isConditionsPage = showConditions
         mainPage:SetShown(not showConditions)
         conditionsPage:SetShown(showConditions)
+        if showConditions then
+            tabs:Select(PAGE_CONDITIONS)
+        else
+            tabs:Select(PAGE_BUFF)
+        end
     end
 
-    local upButton = ns.UI.Button(frame, {
-        text = Text("settings.move_up"),
-        width = MOVE_BUTTON_WIDTH,
-        height = BUTTON_HEIGHT,
-        onClick = function()
-            options.onMove(buffIndex, -1)
-        end,
-    })
-    upButton:SetPoint("BOTTOMLEFT", PADDING, PADDING)
-    local downButton = ns.UI.Button(frame, {
-        text = Text("settings.move_down"),
-        width = MOVE_BUTTON_WIDTH,
-        height = BUTTON_HEIGHT,
-        onClick = function()
-            options.onMove(buffIndex, 1)
-        end,
-    })
-    downButton:SetPoint("LEFT", upButton, "RIGHT", BUTTON_SPACING, 0)
     local deleteButton = ns.UI.Button(frame, {
         text = Text("settings.remove"),
         width = BUTTON_WIDTH,
@@ -606,22 +617,9 @@ function BuffEditor.Create(parent, options)
     })
     deleteButton:SetPoint("BOTTOMRIGHT", -PADDING, PADDING)
 
-    -- the other page: the show conditions, or back to the buff
-    local conditionsButton = ns.UI.Button(frame, {
-        text = Text("settings.conditions"),
-        width = CONDITIONS_BUTTON_WIDTH,
-        height = BUTTON_HEIGHT,
-        onClick = function()
-            ShowPage(not isConditionsPage)
-            frame:Display(buff, buffIndex, buffCount)
-        end,
-    })
-    conditionsButton:SetPoint("RIGHT", deleteButton, "LEFT", -BUTTON_SPACING, 0)
-
-    -- the reason an edit failed: one line over the button row, it takes no room in the form
-    errorText:SetPoint("BOTTOMLEFT", upButton, "TOPLEFT", 0, ERROR_GAP)
-    errorText:SetPoint("RIGHT", deleteButton, "RIGHT", 0, 0)
-    errorText:SetHeight(ERROR_HEIGHT)
+    -- the reason an edit failed: one line in the button row, it takes no room in the form
+    errorText:SetPoint("LEFT", frame, "BOTTOMLEFT", PADDING, PADDING + BUTTON_HEIGHT / 2)
+    errorText:SetPoint("RIGHT", deleteButton, "LEFT", -BUTTON_GAP, 0)
     errorText:SetWordWrap(false)
 
     StaticPopupDialogs[DELETE_POPUP] = {
@@ -643,8 +641,7 @@ function BuffEditor.Create(parent, options)
     -- everything but the empty text: shown while a buff is chosen
     local parts = { targetSelect, targetSelect.label, auraInput, auraInput.label, sourceSelect,
         sourceSelect.label, sourceInput, sourceInput.label, iconInput, iconInput.label,
-        warnLabel, warnSlider, errorText, upButton, downButton, deleteButton, conditionsButton,
-        conditionsTitle, conditionsHint, placesLabel, placesNote, itemConditionInput,
+        warnLabel, warnSlider, errorText, deleteButton, tabs, conditionsTitle, conditionsHint, placesLabel, placesNote, itemConditionInput,
         itemConditionInput.label, talentConditionInput, talentConditionInput.label, talentMissingBox }
     for _, kind in ipairs(INSTANCE_KINDS) do
         table.insert(parts, placeBoxes[kind])
@@ -661,15 +658,12 @@ function BuffEditor.Create(parent, options)
         talentMissingBox:SetEnabled(conditions.talent ~= nil)
         conditionsTitle:SetText(Text("settings.conditions_title", ns.Models.Buff.TargetLabel(buff)))
 
-        if isConditionsPage then
-            conditionsButton:SetText(Text("settings.conditions_back"))
-            return
-        end
+        -- the tab tells there are conditions without opening it
         local count = BuffConditions.Count(buff)
         if count > 0 then
-            conditionsButton:SetText(Text("settings.conditions_count", count))
+            tabs:SetTabText(PAGE_CONDITIONS, Text("settings.conditions_count", count))
         else
-            conditionsButton:SetText(Text("settings.conditions"))
+            tabs:SetTabText(PAGE_CONDITIONS, Text("settings.conditions"))
         end
     end
 
@@ -745,8 +739,6 @@ function BuffEditor.Create(parent, options)
         -- the hidden fields take no room: the shown ones stack up without holes
         mainForm:Layout()
         conditionsForm:Layout()
-        upButton:SetEnabled(buffIndex > 1)
-        downButton:SetEnabled(buffIndex < buffCount)
     end
 
     -- the field being typed in now: input, its key and the buff; nil -- none
