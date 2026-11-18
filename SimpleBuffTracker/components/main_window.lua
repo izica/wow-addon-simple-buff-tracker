@@ -38,6 +38,13 @@ local buffList = nil
 local buffEditor = nil
 local panelSettings = nil
 local tabFrames = {}
+-- When the game closed the window (GetTime() of that frame), not the player:
+-- the game hides every UISpecialFrames window both on Escape and when it opens
+-- a big panel of its own (the spellbook and talents -- CloseWindows ->
+-- CloseSpecialWindows in UIParentPanelManager.lua). Only the second one is
+-- followed by ShowUIPanel: then the window comes back (MainWindow.OnGamePanelShown).
+local closedByGameAt = nil
+local isClosingOurselves = false
 local selectedIndex = nil
 local currentTab = MainWindow.TAB.BUFFS
 
@@ -141,9 +148,29 @@ local function Create()
         onSelect = ShowTab,
     })
     window:HookScript("OnShow", function()
+        closedByGameAt = nil
         MainWindow.Refresh()
     end)
+    window:HookScript("OnHide", function()
+        if not isClosingOurselves then
+            closedByGameAt = GetTime()
+        end
+    end)
+    isClosingOurselves = true
     window:Hide()
+    isClosingOurselves = false
+end
+
+-- A panel of the game was just shown (ShowUIPanel, events/ui_panels.lua). If it
+-- closed our window on its way (the talents opened to drag a talent into a
+-- field), the window is shown again; Escape shows no panel and stays a close.
+function MainWindow.OnGamePanelShown(panel)
+    local wasClosedNow = closedByGameAt ~= nil and closedByGameAt == GetTime()
+    if not wasClosedNow or panel == window then
+        return
+    end
+    closedByGameAt = nil
+    window:Show()
 end
 
 function MainWindow.IsOpen()
@@ -174,7 +201,9 @@ function MainWindow.Toggle(tabId)
         Create()
     end
     if window:IsShown() and currentTab == tabId then
+        isClosingOurselves = true
         window:Hide()
+        isClosingOurselves = false
         return
     end
     window:Show()

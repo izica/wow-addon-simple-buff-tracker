@@ -380,6 +380,12 @@ end
 -- shift-click on an item in the bags: HandleModifiedItemClick -> ChatFrameUtil.InsertLink,
 -- with the addon's hook after it
 function hooksecurefunc(owner, name, hook)
+    -- the global form: hooksecurefunc("FunctionName", hook)
+    if type(owner) == "string" then
+        hook = name
+        name = owner
+        owner = _G
+    end
     local original = owner[name]
     owner[name] = function(...)
         local result = original(...)
@@ -388,6 +394,19 @@ function hooksecurefunc(owner, name, hook)
     end
 end
 ChatFrameUtil = { InsertLink = function(link) return false end }
+
+-- the game's panels: opening a big one closes every UISpecialFrames window first
+-- (CloseWindows -> CloseSpecialWindows), as UIParentPanelManager does
+function ShowUIPanel(panel)
+    for _, name in ipairs(UISpecialFrames) do
+        local frame = _G[name]
+        if frame and frame.shown then
+            frame:Hide()
+            if frame.scripts.OnHide then frame.scripts.OnHide(frame) end
+        end
+    end
+    panel.shown = true
+end
 """
 
 
@@ -1732,6 +1751,31 @@ def test_conditions_feedback():
     check("one place back: the usual note", has_text(lua, "Uncheck the places where this buff is not needed."))
 
 
+def test_window_stays_with_game_panels():
+    lua = new_runtime()
+    lua.execute("""
+        Slash('buffs')
+        window = _G.SimpleBuffTrackerWindow
+        -- the stubs do not run OnHide by themselves: Hide as the client does it
+        local hide = window.Hide
+        function window:Hide()
+            local wasShown = self.shown
+            hide(self)
+            if wasShown and self.scripts.OnHide then self.scripts.OnHide(self) end
+        end
+        PlayerSpellsFrame = NewFrame()
+        PlayerSpellsFrame.shown = false
+    """)
+    check("the window is open", lua.eval("window.shown") is True)
+    lua.execute("ShowUIPanel(PlayerSpellsFrame)")
+    check("the talents opened: our window stays open",
+          lua.eval("window.shown") is True and lua.eval("PlayerSpellsFrame.shown") is True)
+    lua.execute("window:Hide(); clock = clock + 1; ShowUIPanel(PlayerSpellsFrame)")
+    check("closed with Escape, a panel opened later: stays closed", lua.eval("window.shown") is False)
+    lua.execute("Slash('buffs'); Slash('buffs'); ShowUIPanel(PlayerSpellsFrame)")
+    check("closed by its own command: stays closed", lua.eval("window.shown") is False)
+
+
 def main():
     test_buffs()
     test_minimap()
@@ -1764,6 +1808,7 @@ def main():
     test_show_conditions()
     test_first_use()
     test_conditions_feedback()
+    test_window_stays_with_game_panels()
     if failures:
         print("\n%d failed" % len(failures))
         sys.exit(1)

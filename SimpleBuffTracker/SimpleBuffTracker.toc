@@ -74,5 +74,6 @@ events\auras.lua
 events\conditions.lua
 events\buff_frame.lua
 events\chat_link.lua
+events\ui_panels.lua
 events\modifier.lua
 events\ticker.lua

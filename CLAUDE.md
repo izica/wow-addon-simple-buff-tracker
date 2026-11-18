@@ -65,7 +65,11 @@ python tests/run_tests.py
   (`AuraScan.Seen`, `seenAuras` пишет `AuraScan.Update`), книга, сумки;
   поле предмета — только сумки). У остальных картинок клиента имён нет.
 * `/sbt buffs` (левый клик по миникарте) — вкладка «Бафы», `/sbt config` (shift + левый) — «Панель».
-  Escape закрывает (`UISpecialFrames`). Чат-команды перерисовывают окно (`MainWindow.Refresh`).
+  Escape закрывает (`UISpecialFrames`). Но игра закрывает все `UISpecialFrames` и когда открывает большую
+  свою панель (книга/таланты: `ShowUIPanel` -> `CloseWindows` -> `CloseSpecialWindows`, UIParentPanelManager.lua
+  ветки forever) — окно возвращается: `OnHide` не от нас запоминает `GetTime()`, хук `ShowUIPanel`
+  (`events/ui_panels.lua`) в тот же кадр -> `MainWindow.OnGamePanelShown` показывает его снова. Escape панелей
+  не открывает — остаётся закрытием. Свои закрытия (команда) идут с `isClosingOurselves`. Чат-команды перерисовывают окно (`MainWindow.Refresh`).
 * **Shift-клик по своему бафу** (окно бафов клиента): в Forever кнопки бафов — `AuraButtonMixin`
   (Blizzard_BuffFrame), клик шлёт `EventRegistry` `"BuffButton.OnClick"`, аура —
   `buttonInfo.auraInstanceID` -> `C_UnitAuras.GetAuraDataByAuraInstanceID` (`events/buff_frame.lua`)
