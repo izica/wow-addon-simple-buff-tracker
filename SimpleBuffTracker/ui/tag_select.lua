@@ -12,11 +12,14 @@ ns.UI = ns.UI or {}
 local FRAME_ATLAS = "common-dropdown-textholder"
 local ARROW_TEMPLATE = "WowStyle1ArrowDropdownTemplate"
 local ARROW_WIDTH = 22
-local INSET_LEFT = 6
-local INSET_TOP = 3
-local ROW_HEIGHT = 19               -- one row of tags; the field is 25 high with one row
-local TAG_HEIGHT = 17
-local TAG_GAP = 4
+local INSET_LEFT = 8                -- the tags stand clear of the field's bronze edge
+local INSET_TOP = 4
+local INSET_BOTTOM = 4
+local ARROW_GAP = 6                 -- between the last tag of a row and the arrow
+local ARROW_RIGHT = 3
+local TAG_HEIGHT = 18               -- one row: the field is 26 high, as the other fields
+local TAG_GAP = 4                   -- between tags in a row
+local ROW_GAP = 4                   -- between rows
 local TAG_TEXT_PADDING = 6
 local CROSS_SIZE = 10
 local CROSS_GAP = 4
@@ -64,11 +67,11 @@ function ns.UI.TagSelect(parent, options)
     local field = CreateFrame("Button", nil, parent)
     AddFrameArt(field)
     local tags = {}            -- every tag button made, reused
-    local contentHeight = ROW_HEIGHT
+    local rowCount = 1
     field.BuildMenu = options.buildMenu
 
     local placeholder = field:CreateFontString(nil, "OVERLAY", "GameFontDisable")
-    placeholder:SetPoint("TOPLEFT", INSET_LEFT + 2, -INSET_TOP - 3)
+    placeholder:SetPoint("TOPLEFT", INSET_LEFT, -INSET_TOP - 3)
     placeholder:SetText(options.placeholder or "")
 
     -- the game's dropdown arrow: it owns the menu; the whole field opens it
@@ -76,7 +79,8 @@ function ns.UI.TagSelect(parent, options)
     local hasMenu = ok and arrow ~= nil and arrow.SetupMenu ~= nil
     if hasMenu then
         arrow:SetSize(ARROW_WIDTH, ARROW_WIDTH)
-        arrow:SetPoint("TOPRIGHT", 0, -1)
+        -- centred on the first row, inside the edge
+        arrow:SetPoint("TOPRIGHT", -ARROW_RIGHT, -(INSET_TOP + (TAG_HEIGHT - ARROW_WIDTH) / 2))
         arrow:SetupMenu(function(_, rootDescription)
             options.buildMenu(rootDescription)
         end)
@@ -149,7 +153,7 @@ function ns.UI.TagSelect(parent, options)
         if not width or width <= 0 then
             width = FALLBACK_WIDTH
         end
-        return width - INSET_LEFT - ARROW_WIDTH
+        return width - INSET_LEFT - ARROW_GAP - ARROW_WIDTH - ARROW_RIGHT
     end
 
     -- the tags in rows; the form lays the field out by GetContentHeight
@@ -171,7 +175,7 @@ function ns.UI.TagSelect(parent, options)
                 row = row + 1
             end
             tag:ClearAllPoints()
-            tag:SetPoint("TOPLEFT", field, "TOPLEFT", INSET_LEFT + x, -INSET_TOP - row * ROW_HEIGHT - 1)
+            tag:SetPoint("TOPLEFT", field, "TOPLEFT", INSET_LEFT + x, -INSET_TOP - row * (TAG_HEIGHT + ROW_GAP))
             tag:Show()
             x = x + width + TAG_GAP
         end
@@ -179,12 +183,12 @@ function ns.UI.TagSelect(parent, options)
             tags[index]:Hide()
         end
         placeholder:SetShown(#list == 0)
-        contentHeight = (row + 1) * ROW_HEIGHT
+        rowCount = row + 1
     end
 
-    -- the height of the field: its rows and the insets
+    -- the height of the field: its rows, the gaps between them and the insets
     function field:GetContentHeight()
-        return contentHeight + INSET_TOP * 2
+        return INSET_TOP + rowCount * TAG_HEIGHT + (rowCount - 1) * ROW_GAP + INSET_BOTTOM
     end
 
     field:SetTags({})
