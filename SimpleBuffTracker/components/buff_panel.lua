@@ -79,13 +79,20 @@ local function ShowTooltip(button)
     local title = Buff.TargetLabel(state.buff)
     GameTooltip:AddLine(title, TOOLTIP_TITLE_COLOR[1], TOOLTIP_TITLE_COLOR[2], TOOLTIP_TITLE_COLOR[3])
 
+    local isEquippedItem = state.buff.target.isEquipped == true
     if state.isActive then
         local stateText = Text("tooltip.active")
+        if isEquippedItem then
+            stateText = Text("tooltip.equipped")
+        end
         if state.expirationTime > 0 then
             local secondsLeft = state.expirationTime - GetTime()
             stateText = Text("tooltip.time_left", ns.Utilities.FormatSeconds(secondsLeft))
         end
         GameTooltip:AddLine(stateText, TOOLTIP_ACTIVE_COLOR[1], TOOLTIP_ACTIVE_COLOR[2], TOOLTIP_ACTIVE_COLOR[3])
+    elseif isEquippedItem then
+        GameTooltip:AddLine(Text("tooltip.not_equipped"),
+            TOOLTIP_MISSING_COLOR[1], TOOLTIP_MISSING_COLOR[2], TOOLTIP_MISSING_COLOR[3])
     else
         GameTooltip:AddLine(Text("tooltip.missing"),
             TOOLTIP_MISSING_COLOR[1], TOOLTIP_MISSING_COLOR[2], TOOLTIP_MISSING_COLOR[3])

@@ -12,6 +12,7 @@ local BuffConditions = ns.Dataflows.BuffConditions
 local Spell = ns.Utilities.Spell
 local Item = ns.Utilities.Item
 local SOURCE_KIND = ns.Constants.SOURCE_KIND
+local TARGET_KIND = ns.Constants.TARGET_KIND
 local DISPLAY_MODE = ns.Constants.DISPLAY_MODE
 
 local BuffService = {}
@@ -52,15 +53,61 @@ end
 -- Edits from the buff window. Each takes what the player typed (trimmed); the
 -- ones that can fail return nil and the key of the error text, else true.
 
--- what is tracked: "aura" or a weapon slot (ns.Constants.WEAPON_SLOT)
+-- what is tracked: ns.Constants.TARGET_KIND (an aura, an equipped item) or a
+-- weapon slot (ns.Constants.WEAPON_SLOT). An equipped item is put on with a
+-- click by default; the other kinds can not be put on.
 function BuffService.SetTargetKind(buff, kind)
-    if kind == "aura" then
-        if buff.target.weapon then
+    local wasEquipped = buff.target.equipItemId ~= nil or buff.target.isEquipped
+    if kind == TARGET_KIND.AURA then
+        if buff.target.weapon or wasEquipped then
             buff.target = {}
         end
+    elseif kind == TARGET_KIND.EQUIPPED then
+        if not wasEquipped then
+            buff.target = { isEquipped = true }
+            buff.source = { kind = SOURCE_KIND.EQUIP }
+        end
         return
+    else
+        buff.target = { weapon = kind }
     end
-    buff.target = { weapon = kind }
+    if buff.source and buff.source.kind == SOURCE_KIND.EQUIP then
+        buff.source = nil
+    end
+end
+
+-- the kind of what is tracked, as the Track select shows it
+function BuffService.TargetKind(buff)
+    local target = buff.target
+    if target.weapon then
+        return target.weapon
+    end
+    if target.equipItemId or target.isEquipped then
+        return TARGET_KIND.EQUIPPED
+    end
+    return TARGET_KIND.AURA
+end
+
+-- the item an "equipped item" buff waits for: a name, id or link; empty -- none yet
+function BuffService.SetEquipItemText(buff, text)
+    if text == "" then
+        buff.target = { isEquipped = true }
+        return true
+    end
+    local itemId = BuffParser.ParseItemId(text)
+    if not itemId then
+        return nil, "messages.unknown_item"
+    end
+    buff.target = { isEquipped = true, equipItemId = itemId }
+    return true
+end
+
+function BuffService.EquipItemText(buff)
+    local itemId = buff.target.equipItemId
+    if not itemId then
+        return ""
+    end
+    return Item.Name(itemId) or tostring(itemId)
 end
 
 -- which temporary enchant a weapon buff tracks: a name from WeaponEnchant.SeenNames;
@@ -83,7 +130,7 @@ function BuffService.SetAuraText(buff, text)
     buff.target = BuffParser.ParseSpell(text)
 end
 
--- how a click puts it back: "none", "spell" or "item"
+-- how a click puts it back: "none", "spell", "item" or "equip"
 function BuffService.SetSourceKind(buff, kind)
     local currentKind = buff.source and buff.source.kind
     if kind == currentKind then
@@ -246,6 +293,9 @@ local function TargetIcon(buff)
         local inventorySlot = ns.Constants.WEAPON_INVENTORY_SLOT[target.weapon]
         return GetInventoryItemTexture and GetInventoryItemTexture("player", inventorySlot)
     end
+    if target.equipItemId then
+        return Item.Icon(target.equipItemId)
+    end
     return target.icon or Spell.Icon(target.spellId or target.name)
 end
 
@@ -285,6 +335,12 @@ local function Evaluate(buff, index, now, weapons, warnSeconds)
     if buff.target.weapon then
         -- a chosen enchant: only that one on the weapon counts, any other does not
         found = WeaponEnchant.Find(buff.target, weapons[buff.target.weapon])
+    elseif buff.target.isEquipped then
+        -- an item to wear: on while it is equipped, without a timer
+        local itemId = buff.target.equipItemId
+        if itemId and Item.IsEquipped(itemId) then
+            found = { expirationTime = 0, duration = 0, icon = Item.Icon(itemId) }
+        end
     else
         found = AuraScan.Find(buff.target, now)
         if found then

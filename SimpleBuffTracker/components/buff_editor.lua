@@ -40,7 +40,7 @@ local WEAPON_SLOT = ns.Constants.WEAPON_SLOT
 local BuffEditor = {}
 ns.Components.BuffEditor = BuffEditor
 
-local TARGET_AURA = "aura"
+local TARGET_KIND = ns.Constants.TARGET_KIND
 local SOURCE_NONE = "none"
 local ANY_ENCHANT = ""     -- the enchant select: any temporary enchant on the slot
 
@@ -312,12 +312,13 @@ function BuffEditor.Create(parent, options)
 
     local targetSelect = AddSelect("settings.target", function()
         return {
-            { value = TARGET_AURA, text = Text("settings.target_aura") },
+            { value = TARGET_KIND.AURA, text = Text("settings.target_aura") },
             { value = WEAPON_SLOT.MAIN_HAND, text = Text("buff." .. WEAPON_SLOT.MAIN_HAND) },
             { value = WEAPON_SLOT.OFF_HAND, text = Text("buff." .. WEAPON_SLOT.OFF_HAND) },
+            { value = TARGET_KIND.EQUIPPED, text = Text("settings.target_equipped") },
         }
     end, function()
-        return buff and (buff.target.weapon or TARGET_AURA)
+        return buff and BuffService.TargetKind(buff)
     end, function(value)
         BuffService.SetTargetKind(buff, value)
     end)
@@ -368,7 +369,39 @@ function BuffEditor.Create(parent, options)
         end,
     })
 
+    -- an equipped item: the item to wear, it is the picture and the click too
+    local equipInput = AddInput("equipItem", "settings.equip_item", {
+        read = BuffService.EquipItemText,
+        save = BuffService.SetEquipItemText,
+        sources = function()
+            return IconSearch.SOURCES.ITEMS
+        end,
+        textOf = ItemTextOf,
+        takes = function(linkKind)
+            return linkKind == "item"
+        end,
+        note = function()
+            return Text("settings.equip_item_note")
+        end,
+        preview = function()
+            local itemId = buff and buff.target.equipItemId
+            if not itemId then
+                return nil
+            end
+            return Item.Icon(itemId), function(tooltip)
+                tooltip:SetItemByID(itemId)
+            end
+        end,
+    })
+
     local sourceSelect = AddSelect("settings.source", function()
+        -- an item to wear can only be put on; the others are cast or used
+        if buff and BuffService.TargetKind(buff) == TARGET_KIND.EQUIPPED then
+            return {
+                { value = SOURCE_NONE, text = Text("settings.source_none") },
+                { value = SOURCE_KIND.EQUIP, text = Text("settings.source_equip") },
+            }
+        end
         return {
             { value = SOURCE_NONE, text = Text("settings.source_none") },
             { value = SOURCE_KIND.SPELL, text = Text("settings.source_spell") },
@@ -454,7 +487,8 @@ function BuffEditor.Create(parent, options)
     })
 
     -- how long before the end the buff counts as missing: its own, or the panel's
-    form:Group()
+    -- (an equipped item has no end: hidden for it)
+    local warnGroup = form:Group()
     local warnLabel = form:Label(Text("settings.buff_warn"))
     local warnSlider = ns.UI.StepSlider(page, {
         steps = WARN_STEPS,
@@ -592,6 +626,7 @@ function BuffEditor.Create(parent, options)
     -- must hold both. The enchant select and the buff field never show together
     -- (a weapon buff or an aura), the buff field is the taller one.
     enchantSelect.group:SetShown(false)
+    equipInput.group:SetShown(false)
     mainForm:Layout()
     conditionsForm:Layout()
     frame.formHeight = PAGE_TOP + math.max(-mainForm.top, -conditionsForm.top)
@@ -646,7 +681,8 @@ function BuffEditor.Create(parent, options)
     emptyText:SetText(Text("settings.no_buff_chosen"))
 
     -- everything but the empty text: shown while a buff is chosen
-    local parts = { targetSelect, targetSelect.label, auraInput, auraInput.label, sourceSelect,
+    local parts = { targetSelect, targetSelect.label, auraInput, auraInput.label, equipInput,
+        equipInput.label, sourceSelect,
         sourceSelect.label, sourceInput, sourceInput.label, iconInput, iconInput.label,
         warnLabel, warnSlider, errorText, deleteButton, tabs, conditionsTitle, conditionsHint, conditionsStatus, placesLabel, placesNote, itemConditionInput,
         itemConditionInput.label, talentConditionInput, talentConditionInput.label, talentMissingBox }
@@ -719,19 +755,31 @@ function BuffEditor.Create(parent, options)
             ShowError(nil)
         end
 
-        local isAura = buff.target.weapon == nil
+        -- one field for what is tracked: the buff, the enchant or the item to wear
+        local targetKind = BuffService.TargetKind(buff)
+        local isAura = targetKind == TARGET_KIND.AURA
+        local isEquipped = targetKind == TARGET_KIND.EQUIPPED
+        local isWeapon = not isAura and not isEquipped
         auraInput:SetShown(isAura)
         auraInput.label:SetShown(isAura)
         auraInput.group:SetShown(isAura)
-        enchantSelect:SetShown(not isAura)
-        enchantSelect.label:SetShown(not isAura)
-        enchantSelect.note:SetShown(not isAura)
-        enchantSelect.group:SetShown(not isAura)
+        equipInput:SetShown(isEquipped)
+        equipInput.label:SetShown(isEquipped)
+        equipInput.group:SetShown(isEquipped)
+        enchantSelect:SetShown(isWeapon)
+        enchantSelect.label:SetShown(isWeapon)
+        enchantSelect.note:SetShown(isWeapon)
+        enchantSelect.group:SetShown(isWeapon)
 
-        local hasSource = buff.source ~= nil
-        sourceInput:SetShown(hasSource)
-        sourceInput.label:SetShown(hasSource)
-        sourceInput.group:SetShown(hasSource)
+        -- "put it on" needs no spell or item: the item is the one above
+        local hasSourceField = buff.source ~= nil and buff.source.kind ~= SOURCE_KIND.EQUIP
+        sourceInput:SetShown(hasSourceField)
+        sourceInput.label:SetShown(hasSourceField)
+        sourceInput.group:SetShown(hasSourceField)
+
+        warnLabel:SetShown(not isEquipped)
+        warnSlider:SetShown(not isEquipped)
+        warnGroup:SetShown(not isEquipped)
 
         iconInput:Show()
         iconInput.label:Show()

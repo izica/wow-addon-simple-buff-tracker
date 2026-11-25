@@ -49,6 +49,16 @@ function Item.Icon(itemId)
     return nil
 end
 
+local IsEquippedItem = (C_Item and C_Item.IsEquippedItem) or IsEquippedItem
+
+-- whether the character wears it now (any slot)
+function Item.IsEquipped(itemId)
+    if not IsEquippedItem then
+        return false
+    end
+    return IsEquippedItem(itemId) and true or false
+end
+
 -- how many are in the bags
 function Item.Count(itemId)
     if not GetItemCount then

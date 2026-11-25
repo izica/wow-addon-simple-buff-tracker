@@ -1,8 +1,9 @@
 -- buff_parser.lua -- a buff from the text of "/sbt add":
 --
 --   <buff> [= <source>]
---   buff   -- a spell name, a spell id, a spell link (shift-click), or
---             "mainhand" / "offhand" for a temporary weapon enchant;
+--   buff   -- a spell name, a spell id, a spell link (shift-click),
+--             "mainhand" / "offhand" for a temporary weapon enchant, or
+--             "equip <item>" for an item to wear (a click puts it on);
 --   source -- "spell <name, id or link>" or "item <name, id or link>";
 --             a bare spell or item link is enough too; "spell" alone -- the
 --             same spell as the buff. Without "=" the buff is only tracked.
@@ -10,6 +11,7 @@
 --   /sbt add Arcane Intellect = spell
 --   /sbt add Well Fed = item Roasted Quail
 --   /sbt add mainhand = item [Brilliant Wizard Oil]
+--   /sbt add equip [Argent Dawn Commission]
 
 local ADDON, ns = ...
 ns.Dataflows = ns.Dataflows or {}
@@ -59,6 +61,15 @@ local function ParseTarget(text)
     local weaponSlot = WEAPON_KEYWORDS[text:lower()]
     if weaponSlot then
         return { weapon = weaponSlot }
+    end
+    -- "equip <item>": an item to wear (a trinket, a fishing pole)
+    local equipText = text:match("^[Ee][Qq][Uu][Ii][Pp]%s+(.+)$")
+    if equipText then
+        local itemId = BuffParser.ParseItemId(equipText)
+        if not itemId then
+            return nil
+        end
+        return { isEquipped = true, equipItemId = itemId }
     end
     if text:find("|Hitem:") then
         return nil
@@ -163,6 +174,10 @@ function BuffParser.Parse(text)
     end
 
     local source = nil
+    if target.isEquipped and not sourceText then
+        -- an item to wear is put on with a click unless told otherwise
+        source = { kind = SOURCE_KIND.EQUIP }
+    end
     if sourceText then
         local errorKey = nil
         source, errorKey = ParseSource(Trim(sourceText), target)

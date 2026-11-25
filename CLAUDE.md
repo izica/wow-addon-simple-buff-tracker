@@ -167,11 +167,16 @@ CurseForge (`media/curseforge_icon.png`, 400×400) рисует `python scripts/
 ## Модель
 
 ```
-buff = { target = { spellId, name } | { weapon = "mainhand"|"offhand" },
-         source = nil | { kind = "spell", spellId, name } | { kind = "item", itemId } }
+buff = { target = { spellId, name } | { weapon = "mainhand"|"offhand" } | { isEquipped = true, equipItemId },
+         source = nil | { kind = "spell", spellId, name } | { kind = "item", itemId } | { kind = "equip" } }
 ```
 
 * Аура ищется по `spellId` или по имени (имя покрывает все ранги).
+* **Надетый предмет** (`TARGET_KIND.EQUIPPED`, «Отслеживать: Надетый предмет»): активен, пока предмет надет
+  (`Item.IsEquipped` -> `C_Item.IsEquippedItem`), без таймера; `isEquipped` держит вид, пока предмет не выбран.
+  Клик — `source.kind = "equip"` -> макрос `/equip item:ID` (слот выбирает игра), ставится сам при выборе вида;
+  поля «Заклинание/Предмет» и ползунка предупреждения у него нет. Чат: `/sbt add equip <предмет>`.
+  Вид в селекте — `BuffService.TargetKind`.
 * Чары на оружии — не аура: `GetWeaponEnchantInfo` (`dataflows/weapon_enchant.lua`),
   длительность = самый большой остаток, виденный для того же enchantId.
 * **Какие именно чары** (масло и Flametongue): **в Forever на одной руке висят оба сразу**, а

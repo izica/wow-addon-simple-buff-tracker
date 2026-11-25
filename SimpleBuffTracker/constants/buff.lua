@@ -13,6 +13,13 @@ ns.Constants.DISPLAY_MODE = {
 ns.Constants.SOURCE_KIND = {
     SPELL = "spell",   -- cast a spell
     ITEM = "item",     -- use an item: food, scroll, elixir; on a weapon buff -- oil, stone, poison
+    EQUIP = "equip",   -- put on the tracked item (a buff of the "equipped item" kind)
+}
+
+-- what the Track select of the buff window offers besides the weapon slots
+ns.Constants.TARGET_KIND = {
+    AURA = "aura",          -- a buff on the player
+    EQUIPPED = "equipped",  -- an item worn: a trinket, a fishing pole, a riding crop
 }
 
 -- a temporary weapon enchant instead of an aura: the slot it sits on

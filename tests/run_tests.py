@@ -224,7 +224,8 @@ C_Spell = {
     end,
 }
 
-local items = { [2683] = "Crab Cake", [20749] = "Brilliant Wizard Oil" }
+local items = { [2683] = "Crab Cake", [20749] = "Brilliant Wizard Oil", [12846] = "Argent Dawn Commission" }
+equippedItems = {}
 itemCounts = { [2683] = 5, [20749] = 0 }
 C_Item = {
     GetItemInfoInstant = function(identifier)
@@ -238,6 +239,7 @@ C_Item = {
     GetItemNameByID = function(itemId) return items[itemId] end,
     GetItemIconByID = function(itemId) return 133000 + itemId end,
     GetItemCount = function(itemId) return itemCounts[itemId] or 0 end,
+    IsEquippedItem = function(itemId) return equippedItems[itemId] == true end,
 }
 
 -- the game's settings: registered pages are kept to look at
@@ -1776,6 +1778,56 @@ def test_window_stays_with_game_panels():
     check("closed by its own command: stays closed", lua.eval("window.shown") is False)
 
 
+def test_equipped_item():
+    lua = new_runtime()
+    lua.execute("Slash('add equip Argent Dawn Commission')")
+    check("/sbt add equip <item>: an item to wear",
+          lua.eval("SimpleBuffTrackerDB.buffs[1].target.equipItemId") == 12846
+          and lua.eval("SimpleBuffTrackerDB.buffs[1].source.kind") == "equip")
+    lua.execute("RunTickers()")
+    check("not worn: on the panel as missing", shown_buttons(lua) == 1
+          and lua.eval("secureButtons[1].state.isActive") is False)
+    check("a click puts it on", lua.eval("secureButtons[1].attributes.macrotext") == "/equip item:12846")
+    lua.execute("""
+        tooltipLines = {}
+        function GameTooltip:AddLine(text) tooltipLines[#tooltipLines + 1] = text end
+        secureButtons[1].scripts.OnEnter(secureButtons[1])
+        tooltipText = table.concat(tooltipLines, '|')
+    """)
+    check("its tooltip: Not equipped, Click to equip",
+          "Not equipped" in lua.eval("tooltipText") and "Click to equip Argent Dawn Commission" in lua.eval("tooltipText"))
+    lua.execute("equippedItems[12846] = true; Fire('PLAYER_EQUIPMENT_CHANGED')")
+    check("worn: active, no timer", lua.eval("secureButtons[1].state.isActive") is True
+          and lua.eval("secureButtons[1].state.expirationTime") == 0)
+    lua.execute("Slash('mode missing')")
+    check("worn: hidden in the missing mode", shown_buttons(lua) == 0)
+
+    lua.execute("""
+        Slash('mode all')
+        Slash('buffs')
+        Slash('add Arcane Intellect = spell')
+        Window().Refresh()
+        Rows()[2].scripts.OnClick(Rows()[2])
+        ns.Services.Buff.SetTargetKind(SimpleBuffTrackerDB.buffs[2], 'equipped')
+        Window().Refresh()
+    """)
+    check("Track: Equipped item -- the item field instead of the buff field",
+          lua.eval("FindField('equipItem') ~= nil") is True and lua.eval("FindField('aura') == nil") is True)
+    check("its click puts it on, with no spell or item field",
+          lua.eval("SimpleBuffTrackerDB.buffs[2].source.kind") == "equip"
+          and lua.eval("FindField('sourceValue') == nil") is True)
+    check("no warning slider: an item worn has no end", find_slider(lua, "Panel default (120 sec)") is None)
+    lua.execute("Enter('equipItem', 'Crab Cake')")
+    check("the item by name", lua.eval("SimpleBuffTrackerDB.buffs[2].target.equipItemId") == 2683
+          and lua.eval("Rows()[2].label.text") == "Crab Cake")
+    lua.execute("Enter('equipItem', 'Nothing at all')")
+    check("an unknown item changes nothing", lua.eval("SimpleBuffTrackerDB.buffs[2].target.equipItemId") == 2683)
+    lua.execute("ns.Services.Buff.SetTargetKind(SimpleBuffTrackerDB.buffs[2], 'aura'); Window().Refresh()")
+    check("back to a buff: the buff field, no equip click",
+          lua.eval("FindField('aura') ~= nil") is True and lua.eval("SimpleBuffTrackerDB.buffs[2].source") is None)
+    check("and the warning slider back", find_slider(lua, "Panel default (120 sec)") is not None)
+
+
 def main():
     test_buffs()
     test_minimap()
@@ -1809,6 +1861,7 @@ def main():
     test_first_use()
     test_conditions_feedback()
     test_window_stays_with_game_panels()
+    test_equipped_item()
     if failures:
         print("\n%d failed" % len(failures))
         sys.exit(1)

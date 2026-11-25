@@ -7,7 +7,8 @@
     },
     "source": {
         "spell": "Spell",
-        "item": "Item"
+        "item": "Item",
+        "equip": "Equip"
     },
     "modes": {
         "all": "All buffs",
@@ -25,7 +26,10 @@
         "shift_drag": "Shift-drag to move the panel",
         "mover_drag": "Drag to move the panel",
         "mover_lock": "Right-click to lock the panel",
-        "mover_anchor": "The gold mark is the anchor: the icons grow from it the way the arrow points."
+        "mover_anchor": "The gold mark is the anchor: the icons grow from it the way the arrow points.",
+        "click_equip": "Click to equip %s",
+        "equipped": "Equipped",
+        "not_equipped": "Not equipped"
     },
     "messages": {
         "buff_with_source": "%s (%s: %s)",
@@ -33,8 +37,8 @@
         "removed": "No longer tracking: %s.",
         "bad_index": "No buff with that number. Type /sbt list to see the numbers.",
         "list_empty": "No buffs tracked. Type /sbt add to add one.",
-        "add_usage": "Usage: /sbt add <buff> [= spell|item <name, ID or link>]. <buff> is a spell name, ID or link, or mainhand / offhand for a weapon enchant.",
-        "unknown_target": "A buff must be a spell (name, ID or link) or mainhand / offhand, not an item.",
+        "add_usage": "Usage: /sbt add <buff> [= spell|item <name, ID or link>]. <buff> is a spell name, ID or link, mainhand / offhand for a weapon enchant, or equip <item> for an item to wear.",
+        "unknown_target": "A buff must be a spell (name, ID or link), mainhand / offhand, or equip <item>, not an item alone.",
         "unknown_source_kind": "After = type spell or item, then a name, ID or link.",
         "unknown_item": "Item not found. Put it in your bags or enter its ID or link (Shift-click it).",
         "in_combat": "You can't do that while in combat.",
@@ -168,7 +172,11 @@
         "hidden_not_learned": "%s is not learned",
         "hidden_learned": "%s is learned",
         "hidden_not_set_up": "Not set up yet: enter the buff on the right.",
-        "condition_places_nowhere": "Everything unchecked: this buff is never shown."
+        "condition_places_nowhere": "Everything unchecked: this buff is never shown.",
+        "target_equipped": "Equipped item (trinket, fishing pole...)",
+        "equip_item": "Item to Wear",
+        "equip_item_note": "Counts as missing while you don't wear it. Drag an item here from your bags or Shift-click it.",
+        "source_equip": "Equip it"
     },
     "grow": {
         "right": "Right",

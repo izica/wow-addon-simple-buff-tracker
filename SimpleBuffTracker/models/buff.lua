@@ -8,6 +8,8 @@
 --     { weapon, enchantId, enchantName }  a temporary enchant on a weapon slot
 --                        (ns.Constants.WEAPON_SLOT); enchantId -- only this one
 --                        (an oil, not the shaman's Flametongue), nil -- any;
+--     { isEquipped = true, equipItemId }  an item the character must wear (a trinket, a fishing
+--                        pole); active while it is equipped, no timer;
 --   warnSeconds -- this buff counts as missing this long before its end; nil --
 --             the panel's settings.warnSeconds;
 --   icon, iconText -- a picture picked in the buff window (texture id) and what
@@ -15,6 +17,7 @@
 --   source -- how a click puts it back, or nil -- only tracked:
 --     { kind = "spell", spellId, name }
 --     { kind = "item", itemId }
+--     { kind = "equip" }  put on the item of an "equipped item" buff
 --   conditions -- when the buff is shown at all, nil -- always
 --             (dataflows/buff_conditions.lua; every one set must hold):
 --     hiddenPlaces -- { [ns.Constants.INSTANCE_KIND] = true }: not in these
@@ -39,11 +42,11 @@ function Buff.New(target, source)
     return { target = target, source = source }
 end
 
--- whether it says what to track: a weapon slot, a spell or a name. A buff just
+-- whether it says what to track: a weapon slot, a spell, a name or an item to wear. A buff just
 -- added in the window has nothing yet and is not put on the panel.
 function Buff.HasTarget(buff)
     local target = buff.target
-    return target.weapon ~= nil or target.spellId ~= nil or target.name ~= nil
+    return target.weapon ~= nil or target.spellId ~= nil or target.name ~= nil or target.equipItemId ~= nil
 end
 
 -- A source picked in the settings but not filled in yet (no spell, no item)
@@ -55,6 +58,9 @@ function Buff.HasCompleteSource(buff)
     end
     if source.kind == SOURCE_KIND.SPELL then
         return source.name ~= nil or source.spellId ~= nil
+    end
+    if source.kind == SOURCE_KIND.EQUIP then
+        return buff.target.equipItemId ~= nil
     end
     return source.itemId ~= nil
 end
@@ -76,6 +82,9 @@ function Buff.TargetLabel(buff)
         end
         return slotName
     end
+    if target.equipItemId then
+        return Item.Name(target.equipItemId) or ("item:" .. target.equipItemId)
+    end
     return target.name or (target.spellId and Spell.Name(target.spellId)) or Text("buff.new")
 end
 
@@ -88,7 +97,8 @@ function Buff.SourceLabel(buff)
     if source.kind == SOURCE_KIND.SPELL then
         return source.name or Spell.Name(source.spellId) or "?"
     end
-    return Item.Name(source.itemId) or ("item:" .. tostring(source.itemId))
+    local itemId = source.itemId or buff.target.equipItemId
+    return Item.Name(itemId) or ("item:" .. tostring(itemId))
 end
 
 function Buff.SourceIcon(buff)
@@ -99,7 +109,7 @@ function Buff.SourceIcon(buff)
     if source.kind == SOURCE_KIND.SPELL then
         return Spell.Icon(source.spellId or source.name)
     end
-    return Item.Icon(source.itemId)
+    return Item.Icon(source.itemId or buff.target.equipItemId)
 end
 
 -- The attributes of a secure action button that put the buff back with a
@@ -112,6 +122,10 @@ function Buff.Action(buff)
     local source = buff.source
     if source.kind == SOURCE_KIND.SPELL then
         return { type = "spell", spell = source.name or source.spellId }
+    end
+    -- /equip picks the slot itself (the first free trinket slot, the main hand...)
+    if source.kind == SOURCE_KIND.EQUIP then
+        return { type = "macro", macrotext = "/equip item:" .. buff.target.equipItemId }
     end
 
     local itemReference = "item:" .. source.itemId
