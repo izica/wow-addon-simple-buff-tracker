@@ -2024,8 +2024,12 @@ def test_buff_display_mode():
         Rows()[2].scripts.OnClick(Rows()[2])
         Window().Refresh()
     """)
-    check("the editor shows the buff's mode",
-          has_text(lua, "Display Mode") and lua.eval("SimpleBuffTrackerDB.buffs[2].mode") == "missing")
+    check("the editor's mode select speaks of one buff",
+          has_text(lua, "Show on Panel") and lua.eval("SimpleBuffTrackerDB.buffs[2].mode") == "missing")
+    check("its choices say what happens to this buff",
+          lua.eval("ns.Localization.Text('settings.mode_default', ns.Localization.Text('buff_modes.all'))")
+          == "As the panel: Always"
+          and lua.eval("ns.Localization.Text('buff_modes.missing')") == "Only when missing or expiring")
 
 
 def main():

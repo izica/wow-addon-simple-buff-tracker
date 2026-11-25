@@ -502,11 +502,12 @@ function BuffEditor.Create(parent, options)
     -- the display mode of this buff: its own, or the panel's
     form:Group()
     local modeSelect = AddSelect("settings.buff_mode", function()
-        local panelMode = Text("modes." .. ns.db.settings.mode)
+        -- said of one buff ("always"), not of the panel ("all buffs")
+        local panelMode = Text("buff_modes." .. ns.db.settings.mode)
         return {
             { value = MODE_DEFAULT, text = Text("settings.mode_default", panelMode) },
-            { value = DISPLAY_MODE.ALL, text = Text("modes." .. DISPLAY_MODE.ALL) },
-            { value = DISPLAY_MODE.MISSING, text = Text("modes." .. DISPLAY_MODE.MISSING) },
+            { value = DISPLAY_MODE.ALL, text = Text("buff_modes." .. DISPLAY_MODE.ALL) },
+            { value = DISPLAY_MODE.MISSING, text = Text("buff_modes." .. DISPLAY_MODE.MISSING) },
         }
     end, function()
         return buff and (buff.mode or MODE_DEFAULT)

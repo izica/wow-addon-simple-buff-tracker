@@ -192,8 +192,8 @@
         "zone_here": "%s (you are here)",
         "zone_continent_count": "%s (%d)",
         "zone_dungeons": "Dungeons and raids",
-        "buff_mode": "Display Mode",
-        "mode_default": "Panel default (%s)"
+        "buff_mode": "Show on Panel",
+        "mode_default": "As the panel: %s"
     },
     "grow": {
         "right": "Right",
@@ -218,5 +218,9 @@
         "description": "Keeps an eye on your buffs: the ones you care about sit on one small panel of icons that look like action bar buttons. Show them all with their timers, or only the missing ones and the ones about to run out.\n\nGive a buff a source and a left-click on its icon puts it back: casts the spell, eats the food for Well Fed, drinks the elixir or applies the oil to your weapon.",
         "open": "Open Buff Settings",
         "hint": "Also: left-click the minimap button, type /sbt buffs, or right-click a buff on the panel."
+    },
+    "buff_modes": {
+        "all": "Always",
+        "missing": "Only when missing or expiring"
     }
 }
