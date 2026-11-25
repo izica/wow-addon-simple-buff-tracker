@@ -197,7 +197,9 @@ ns.Localization.Add("en", [==[
         "zone_placeholder": "Any zone: click to pick zones",
         "zone_here": "%s (you are here)",
         "zone_continent_count": "%s (%d)",
-        "zone_dungeons": "Dungeons and raids"
+        "zone_dungeons": "Dungeons and raids",
+        "buff_mode": "Display Mode",
+        "mode_default": "Panel default (%s)"
     },
     "grow": {
         "right": "Right",

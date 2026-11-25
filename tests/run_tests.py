@@ -1165,13 +1165,8 @@ def test_fields_stack():
 
 def test_editor_fits():
     lua = new_runtime()
-    lua.execute("Slash('buffs')")
-    form_height = lua.eval("FindFrames('formHeight')[1].formHeight")
-    button_row = lua.eval("FindFrames('formHeight')[1].buttonRowHeight")
-    content_height = lua.eval("ns.Components.MainWindow.CONTENT_HEIGHT")
-    check("the editor's fields and buttons fit in the window (%d + %d <= %d)"
-          % (form_height, button_row, content_height), form_height + button_row <= content_height)
     lua.execute("Slash('config')")
+    content_height = lua.eval("ns.Components.MainWindow.CONTENT_HEIGHT")
     panel_height = lua.eval("FindFrames('panelFormHeight')[1].panelFormHeight")
     check("the Panel tab fits in the window (%d <= %d)" % (panel_height, content_height),
           panel_height <= content_height)
@@ -2007,6 +2002,32 @@ def test_combat_condition():
     check("both: no combat condition kept", lua.eval("SimpleBuffTrackerDB.buffs[1].conditions") is None)
 
 
+def test_buff_display_mode():
+    lua = new_runtime()
+    lua.execute("""
+        Slash('add Arcane Intellect = spell')
+        Slash('add Trueshot Aura')
+        auras = { { spellId = 1459, name = 'Arcane Intellect', icon = 135932,
+                    expirationTime = clock + 1800, duration = 1800 },
+                  { name = 'Trueshot Aura', icon = 132329, expirationTime = 0, duration = 0 } }
+        Fire('UNIT_AURA', 'player')
+        Slash('mode missing')
+    """)
+    check("panel mode missing: both active buffs hidden", shown_buttons(lua) == 0)
+    lua.execute("SimpleBuffTrackerDB.buffs[1].mode = 'all'; RunTickers()")
+    check("a buff of its own mode all: on the panel while active", shown_buttons(lua) == 1
+          and lua.eval("secureButtons[1].state.buff.target.name") == "Arcane Intellect")
+    lua.execute("Slash('mode all'); SimpleBuffTrackerDB.buffs[2].mode = 'missing'; RunTickers()")
+    check("panel mode all, a buff of its own mode missing: only the other one", shown_buttons(lua) == 1)
+    lua.execute("""
+        Slash('buffs')
+        Rows()[2].scripts.OnClick(Rows()[2])
+        Window().Refresh()
+    """)
+    check("the editor shows the buff's mode",
+          has_text(lua, "Display Mode") and lua.eval("SimpleBuffTrackerDB.buffs[2].mode") == "missing")
+
+
 def main():
     test_buffs()
     test_minimap()
@@ -2043,6 +2064,7 @@ def main():
     test_equipped_item()
     test_zone_condition()
     test_combat_condition()
+    test_buff_display_mode()
     if failures:
         print("\n%d failed" % len(failures))
         sys.exit(1)

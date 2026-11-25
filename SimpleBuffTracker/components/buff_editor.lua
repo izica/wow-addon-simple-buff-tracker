@@ -46,6 +46,8 @@ local TARGET_KIND = ns.Constants.TARGET_KIND
 local SOURCE_NONE = "none"
 local ANY_ENCHANT = ""     -- the enchant select: any temporary enchant on the slot
 local COMBAT_ANY = "any"   -- the combat select: in combat and out of it
+local MODE_DEFAULT = "default"   -- the display mode select: the panel's mode
+local DISPLAY_MODE = ns.Constants.DISPLAY_MODE
 local ZONE_MENU_HEIGHT = 400   -- a continent with more zones scrolls
 
 local PADDING = 18
@@ -162,18 +164,18 @@ function BuffEditor.Create(parent, options)
     local buffCount = 0
     local inputs = {}     -- [field key] = input
 
-    -- two pages of one buff under the tabs: what it is (main) and when it is shown (conditions)
-    local function NewPage()
-        local newPage = CreateFrame("Frame", nil, frame)
-        newPage:SetPoint("TOPLEFT", 0, -PAGE_TOP)
-        newPage:SetPoint("BOTTOMRIGHT")
-        return newPage
+    -- two pages of one buff under the tabs: what it is (main) and when it is
+    -- shown (conditions); both scroll between the tabs and the button row --
+    -- there are more fields than the window is tall
+    local function NewPageArea()
+        local area = ns.UI.ScrollArea(frame)
+        area:SetPoint("TOPLEFT", 0, -PAGE_TOP)
+        area:SetPoint("BOTTOMRIGHT", -ns.UI.SCROLL_AREA_BAR_SPACE, BUTTON_ROW_HEIGHT)
+        return area
     end
-    local mainPage = NewPage()
-    -- the conditions scroll: there are more of them than the window is tall
-    local conditionsArea = ns.UI.ScrollArea(frame)
-    conditionsArea:SetPoint("TOPLEFT", 0, -PAGE_TOP)
-    conditionsArea:SetPoint("BOTTOMRIGHT", -ns.UI.SCROLL_AREA_BAR_SPACE, BUTTON_ROW_HEIGHT)
+    local mainArea = NewPageArea()
+    local mainPage = mainArea.content
+    local conditionsArea = NewPageArea()
     conditionsArea:Hide()
     local conditionsPage = conditionsArea.content
     local isConditionsPage = false
@@ -497,6 +499,25 @@ function BuffEditor.Create(parent, options)
         end,
     })
 
+    -- the display mode of this buff: its own, or the panel's
+    form:Group()
+    local modeSelect = AddSelect("settings.buff_mode", function()
+        local panelMode = Text("modes." .. ns.db.settings.mode)
+        return {
+            { value = MODE_DEFAULT, text = Text("settings.mode_default", panelMode) },
+            { value = DISPLAY_MODE.ALL, text = Text("modes." .. DISPLAY_MODE.ALL) },
+            { value = DISPLAY_MODE.MISSING, text = Text("modes." .. DISPLAY_MODE.MISSING) },
+        }
+    end, function()
+        return buff and (buff.mode or MODE_DEFAULT)
+    end, function(value)
+        if value == MODE_DEFAULT then
+            buff.mode = nil
+        else
+            buff.mode = value
+        end
+    end)
+
     -- how long before the end the buff counts as missing: its own, or the panel's
     -- (an equipped item has no end: hidden for it)
     local warnGroup = form:Group()
@@ -737,16 +758,10 @@ function BuffEditor.Create(parent, options)
     })
     form:Checkbox(talentMissingBox)
 
-    -- How tall the fields are at most, and the button row under them: the window
-    -- must hold both. The enchant select and the buff field never show together
-    -- (a weapon buff or an aura), the buff field is the taller one.
     enchantSelect.group:SetShown(false)
     equipInput.group:SetShown(false)
     mainForm:Layout()
     conditionsForm:Layout()
-    -- (the conditions page scrolls: only the main page must fit)
-    frame.formHeight = PAGE_TOP - mainForm.top
-    frame.buttonRowHeight = PADDING + BUTTON_HEIGHT + BUTTON_GAP
 
     -- one page or the other; a field typed in on the page that goes away is saved first
     ShowPage = function(showConditions)
@@ -756,7 +771,7 @@ function BuffEditor.Create(parent, options)
             end
         end
         isConditionsPage = showConditions
-        mainPage:SetShown(not showConditions)
+        mainArea:SetShown(not showConditions)
         conditionsArea:SetShown(showConditions)
         if showConditions then
             tabs:Select(PAGE_CONDITIONS)
@@ -800,7 +815,7 @@ function BuffEditor.Create(parent, options)
     local parts = { targetSelect, targetSelect.label, auraInput, auraInput.label, equipInput,
         equipInput.label, sourceSelect,
         sourceSelect.label, sourceInput, sourceInput.label, iconInput, iconInput.label,
-        warnLabel, warnSlider, errorText, deleteButton, tabs, conditionsTitle, conditionsHint, conditionsStatus, placesLabel, placesNote, itemConditionInput,
+        warnLabel, warnSlider, modeSelect, modeSelect.label, errorText, deleteButton, tabs, conditionsTitle, conditionsHint, conditionsStatus, placesLabel, placesNote, itemConditionInput,
         itemConditionInput.label, talentConditionInput, talentConditionInput.label, talentMissingBox,
         zoneLabel, zoneField, zoneNote, combatSelect, combatSelect.label, combatSelect.note }
     for _, kind in ipairs(INSTANCE_KINDS) do
@@ -934,11 +949,13 @@ function BuffEditor.Create(parent, options)
         enchantSelect:Refresh()
         sourceSelect:Refresh()
         warnSlider:SetValueOf(buff.warnSeconds or WARN_DEFAULT)
+        modeSelect:Refresh()
         DisplayConditions()
         -- the hidden fields take no room: the shown ones stack up without holes
         mainForm:Layout()
         conditionsForm:Layout()
         conditionsArea:SetContentHeight(PADDING - conditionsForm.top, true)
+        mainArea:SetContentHeight(PADDING - mainForm.top, true)
     end
 
     -- a buff just added: its first page, typing in its Buff field

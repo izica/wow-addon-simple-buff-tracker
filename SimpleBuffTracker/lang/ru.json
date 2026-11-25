@@ -191,7 +191,9 @@
         "zone_placeholder": "Любая зона: щёлкните, чтобы выбрать",
         "zone_here": "%s (вы здесь)",
         "zone_continent_count": "%s (%d)",
-        "zone_dungeons": "Подземелья и рейды"
+        "zone_dungeons": "Подземелья и рейды",
+        "buff_mode": "Режим отображения",
+        "mode_default": "Как у панели (%s)"
     },
     "grow": {
         "right": "Вправо",

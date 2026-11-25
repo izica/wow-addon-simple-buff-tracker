@@ -10,6 +10,8 @@
 --                        (an oil, not the shaman's Flametongue), nil -- any;
 --     { isEquipped = true, equipItemId }  an item the character must wear (a trinket, a fishing
 --                        pole); active while it is equipped, no timer;
+--   mode -- ns.Constants.DISPLAY_MODE of this buff: "all" -- always on the
+--             panel, "missing" -- only missing or expiring; nil -- the panel's mode;
 --   warnSeconds -- this buff counts as missing this long before its end; nil --
 --             the panel's settings.warnSeconds;
 --   icon, iconText -- a picture picked in the buff window (texture id) and what

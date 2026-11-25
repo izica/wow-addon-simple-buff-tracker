@@ -419,13 +419,13 @@ local function Evaluate(buff, index, now, weapons, warnSeconds)
     return state
 end
 
--- The states of the buffs the panel shows in the current mode, in the order of
+-- The states of the buffs the panel shows in their display mode (a buff's own
+-- or the panel's), in the order of
 -- the list; a buff whose show conditions do not hold is left out.
 function BuffService.VisibleStates()
     local now = GetTime()
     local settings = ns.db.settings
     local weapons = WeaponEnchant.Read(now)
-    local onlyMissing = settings.mode == DISPLAY_MODE.MISSING
 
     local states = {}
     for index, buff in ipairs(ns.db.buffs) do
@@ -435,6 +435,8 @@ function BuffService.VisibleStates()
             local warnSeconds = buff.warnSeconds or settings.warnSeconds
             local state = Evaluate(buff, index, now, weapons, warnSeconds)
             local isNeeded = not state.isActive or state.isExpiring
+            -- the buff's own display mode, or the panel's
+            local onlyMissing = (buff.mode or settings.mode) == DISPLAY_MODE.MISSING
             if not onlyMissing or isNeeded then
                 table.insert(states, state)
             end
