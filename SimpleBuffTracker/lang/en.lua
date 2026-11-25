@@ -58,8 +58,7 @@ ns.Localization.Add("en", [==[
         "minimap_hidden": "Minimap button hidden. Type /sbt minimap to show it again.",
         "minimap_shown": "Minimap button shown.",
         "unknown_icon": "Icon not found. Enter a spell ID, or Shift-click a spell, item or buff.",
-        "welcome": "No buffs tracked yet. Left-click the minimap button or type /sbt buffs to add them.",
-        "unknown_zone": "Zone not found. Pick one from the list as you type."
+        "welcome": "No buffs tracked yet. Left-click the minimap button or type /sbt buffs to add them."
     },
     "commands": {
         "add": {
@@ -185,7 +184,7 @@ ns.Localization.Add("en", [==[
         "equip_item_note": "Counts as missing while you don't wear it. Drag an item here from your bags or Shift-click it.",
         "source_equip": "Equip it",
         "condition_zones": "Only in Zones",
-        "condition_zones_note": "Type a zone or dungeon name. Backspace removes the last one.",
+        "condition_zones_note": "Pick by continent; a click on a zone tag removes it.",
         "zone_remove_tooltip": "Click to remove this zone.",
         "hidden_zone": "you are in %s, not in the chosen zones",
         "condition_combat": "Combat",
@@ -195,8 +194,10 @@ ns.Localization.Add("en", [==[
         "condition_combat_note": "The panel changes as combat starts and ends.",
         "hidden_out_of_combat": "only in combat",
         "hidden_in_combat": "only out of combat",
-        "zone_placeholder": "Any zone: click to pick one",
-        "zone_here": "%s (you are here)"
+        "zone_placeholder": "Any zone: click to pick zones",
+        "zone_here": "%s (you are here)",
+        "zone_continent_count": "%s (%d)",
+        "zone_dungeons": "Dungeons and raids"
     },
     "grow": {
         "right": "Right",

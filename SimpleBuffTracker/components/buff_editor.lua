@@ -46,6 +46,7 @@ local TARGET_KIND = ns.Constants.TARGET_KIND
 local SOURCE_NONE = "none"
 local ANY_ENCHANT = ""     -- the enchant select: any temporary enchant on the slot
 local COMBAT_ANY = "any"   -- the combat select: in combat and out of it
+local ZONE_MENU_HEIGHT = 400   -- a continent with more zones scrolls
 
 local PADDING = 18
 local PREVIEW_SIZE = 28
@@ -575,45 +576,67 @@ function BuffEditor.Create(parent, options)
         return picked
     end
 
-    local function ZoneSuggestions(text)
+    local function IsZonePicked(zone)
+        return PickedZones()[zone.mapId or zone.name] == true
+    end
+
+    local function ToggleZone(zone)
+        if not buff then
+            return
+        end
+        if IsZonePicked(zone) then
+            BuffService.RemoveConditionZoneOf(buff, zone)
+        else
+            BuffService.AddConditionZone(buff, zone)
+        end
+        options.onChanged()
+    end
+
+    local function AddZoneCheckboxes(description, zones)
+        description:SetScrollMode(ZONE_MENU_HEIGHT)
+        for _, zone in ipairs(zones) do
+            description:CreateCheckbox(zone.name, IsZonePicked, ToggleZone, zone)
+        end
+    end
+
+    -- the tree: the zone the player is in first, then a submenu per continent
+    -- (its picked zones counted), its zones with checkboxes, its dungeons in a
+    -- submenu of their own
+    local function BuildZoneMenu(rootDescription)
+        local current = Zones.Current()
+        if current.name then
+            rootDescription:CreateCheckbox(Text("settings.zone_here", current.name), IsZonePicked, ToggleZone, current)
+            rootDescription:CreateDivider()
+        end
         local picked = PickedZones()
-        if text == "" then
-            local current = Zones.Current()
-            if not current.name or picked[current.mapId or current.name] then
-                return {}
+        for _, continent in ipairs(Zones.Tree()) do
+            local pickedCount = 0
+            for _, group in ipairs({ continent.zones, continent.dungeons }) do
+                for _, zone in ipairs(group) do
+                    if picked[zone.mapId] then
+                        pickedCount = pickedCount + 1
+                    end
+                end
             end
-            return { {
-                label = Text("settings.zone_here", current.name),
-                icon = IconSearch.MAP_ICON,
-                mapId = current.mapId,
-                zoneName = current.name,
-            } }
-        end
-        local result = {}
-        for _, suggestion in ipairs(IconSearch.Search(text, IconSearch.SOURCES.ZONES)) do
-            if not picked[suggestion.mapId] then
-                table.insert(result, suggestion)
+            local title = continent.name
+            if pickedCount > 0 then
+                title = Text("settings.zone_continent_count", continent.name, pickedCount)
+            end
+            local continentDescription = rootDescription:CreateButton(title)
+            AddZoneCheckboxes(continentDescription, continent.zones)
+            if #continent.dungeons > 0 then
+                continentDescription:CreateDivider()
+                local dungeonsDescription = continentDescription:CreateButton(Text("settings.zone_dungeons"))
+                AddZoneCheckboxes(dungeonsDescription, continent.dungeons)
             end
         end
-        return result
     end
 
     local zoneLabel = form:Label(Text("settings.condition_zones"))
-    local zoneField = ns.UI.TagInput(page, {
+    local zoneField = ns.UI.TagSelect(page, {
         placeholder = Text("settings.zone_placeholder"),
         removeTooltip = Text("settings.zone_remove_tooltip"),
-        search = ZoneSuggestions,
-        onChoose = function(suggestion)
-            if not buff then
-                return
-            end
-            BuffService.AddConditionZone(buff, {
-                mapId = suggestion.mapId,
-                name = suggestion.zoneName or suggestion.label,
-            })
-            ShowError(nil)
-            options.onChanged()
-        end,
+        buildMenu = BuildZoneMenu,
         onRemove = function(index)
             if not buff then
                 return
@@ -621,19 +644,7 @@ function BuffEditor.Create(parent, options)
             BuffService.RemoveConditionZone(buff, index)
             options.onChanged()
         end,
-        onSubmit = function(text)
-            if not buff then
-                return false
-            end
-            local isAdded, errorKey = BuffService.AddConditionZoneText(buff, text)
-            ShowError(errorKey)
-            if isAdded then
-                options.onChanged()
-            end
-            return isAdded
-        end,
     })
-    zoneField.editBox.fieldKey = "conditionZone"   -- the tests type into it like into the other fields
     form:Field(zoneField, function()
         return zoneField:GetContentHeight()
     end)
@@ -744,9 +755,6 @@ function BuffEditor.Create(parent, options)
                 input:ClearFocus()
             end
         end
-        if zoneField.editBox:HasFocus() then
-            zoneField.editBox:ClearFocus()
-        end
         isConditionsPage = showConditions
         mainPage:SetShown(not showConditions)
         conditionsArea:SetShown(showConditions)
@@ -834,6 +842,7 @@ function BuffEditor.Create(parent, options)
             table.insert(zoneTags, { text = zone.name })
         end
         zoneField:SetTags(zoneTags)
+        zoneField:RefreshMenu()
         combatSelect:Refresh()
 
         -- the tab tells there are conditions without opening it

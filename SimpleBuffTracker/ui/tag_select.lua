@@ -1,17 +1,18 @@
--- tag_input.lua -- a field that holds tags: the picked values stand inside the
--- field as small framed tags, the cursor after them; the field grows a row
--- when they do not fit. Typing drops suggestions under it (ui/suggestions.lua),
--- and with nothing typed the list opens on focus (the zone the player is in,
--- for example). A click on a tag takes it out; Backspace in the empty field
--- takes out the last one. The look is the game's dropdown text holder, as our
--- other fields (ui/input.lua), the tags framed in bronze like its edge.
+-- tag_select.lua -- a field that holds tags and opens a menu: the picked values
+-- stand inside the field as small framed tags, an arrow on the right; a click
+-- on the field opens the game's menu (Blizzard_Menu, as the dropdowns), where
+-- the caller builds whatever it needs -- submenus with checkboxes, a tree.
+-- A click on a tag takes it out. The field grows a row when the tags do not
+-- fit. The look is the game's dropdown text holder, as our other fields
+-- (ui/input.lua), the tags framed in bronze like its edge.
 
 local ADDON, ns = ...
 ns.UI = ns.UI or {}
 
 local FRAME_ATLAS = "common-dropdown-textholder"
+local ARROW_TEMPLATE = "WowStyle1ArrowDropdownTemplate"
+local ARROW_WIDTH = 22
 local INSET_LEFT = 6
-local INSET_RIGHT = 6
 local INSET_TOP = 3
 local ROW_HEIGHT = 19               -- one row of tags; the field is 25 high with one row
 local TAG_HEIGHT = 17
@@ -20,8 +21,8 @@ local TAG_TEXT_PADDING = 6
 local CROSS_SIZE = 10
 local CROSS_GAP = 4
 local MIN_TAG_WIDTH = 30
-local MIN_EDIT_WIDTH = 90           -- less room left in the row: the cursor goes to a new row
 local FALLBACK_WIDTH = 300          -- before the client laid the field out
+local MENU_GAP = 4
 local CROSS_TEXTURE = "Interface\\Buttons\\UI-StopButton"
 local TAG_BORDER_COLOR = { 0.55, 0.45, 0.25, 1 }     -- the bronze of the field's edge
 local TAG_FILL_COLOR = { 0.08, 0.07, 0.05, 1 }
@@ -30,8 +31,6 @@ local CROSS_ALPHA = 0.55
 local PLAIN_FILL = { 0, 0, 0, 0.5 }
 local PLAIN_EDGE = { 0.4, 0.4, 0.45, 1 }
 local TOOLTIP_TEXT_COLOR = { 1, 1, 1 }
-
-ns.UI.TAG_INPUT_ROW_HEIGHT = ROW_HEIGHT
 
 -- the field's frame: the dropdown text holder, or a thin edge without it
 local function AddFrameArt(field)
@@ -56,83 +55,49 @@ local function PaintTagBorder(tag, color)
     tag.border:SetColorTexture(color[1], color[2], color[3], color[4])
 end
 
--- options: placeholder, removeTooltip, search(text) -> suggestions (text may be
--- empty: what to offer on focus), onChoose(suggestion), onRemove(index),
--- onSubmit(text) -- typed text left in the field (Enter or the focus lost).
--- field:SetTags({ text, ... }), field:GetContentHeight(), field.editBox.
-function ns.UI.TagInput(parent, options)
+-- options: placeholder -- shown while there are no tags, removeTooltip,
+-- buildMenu(rootDescription) -- the menu (MenuUtil element descriptions),
+-- onRemove(index) -- a tag clicked.
+-- field:SetTags({ text, ... }), field:GetContentHeight(), field:RefreshMenu(),
+-- field.BuildMenu -- the menu builder (the tests walk it without the game's menu).
+function ns.UI.TagSelect(parent, options)
     local field = CreateFrame("Button", nil, parent)
     AddFrameArt(field)
     local tags = {}            -- every tag button made, reused
-    local tagCount = 0
     local contentHeight = ROW_HEIGHT
+    field.BuildMenu = options.buildMenu
 
-    local editBox = CreateFrame("EditBox", nil, field)
-    editBox:SetAutoFocus(false)
-    editBox:SetFontObject("GameFontHighlight")
-    editBox:SetHeight(ROW_HEIGHT)
-    field.editBox = editBox
-
-    local placeholder = editBox:CreateFontString(nil, "OVERLAY", "GameFontDisable")
-    placeholder:SetPoint("LEFT", 1, 0)
+    local placeholder = field:CreateFontString(nil, "OVERLAY", "GameFontDisable")
+    placeholder:SetPoint("TOPLEFT", INSET_LEFT + 2, -INSET_TOP - 3)
     placeholder:SetText(options.placeholder or "")
 
-    local function UpdatePlaceholder()
-        local text = editBox:GetText() or ""
-        placeholder:SetShown(text == "" and tagCount == 0)
+    -- the game's dropdown arrow: it owns the menu; the whole field opens it
+    local ok, arrow = pcall(CreateFrame, "DropdownButton", nil, field, ARROW_TEMPLATE)
+    local hasMenu = ok and arrow ~= nil and arrow.SetupMenu ~= nil
+    if hasMenu then
+        arrow:SetSize(ARROW_WIDTH, ARROW_WIDTH)
+        arrow:SetPoint("TOPRIGHT", 0, -1)
+        arrow:SetupMenu(function(_, rootDescription)
+            options.buildMenu(rootDescription)
+        end)
+        if arrow.SetMenuAnchor and AnchorUtil and AnchorUtil.CreateAnchor then
+            arrow:SetMenuAnchor(AnchorUtil.CreateAnchor("TOPLEFT", field, "BOTTOMLEFT", 0, -MENU_GAP))
+        end
+        field:SetScript("OnClick", function()
+            if arrow:IsMenuOpen() then
+                arrow:CloseMenu()
+            else
+                arrow:OpenMenu()
+            end
+        end)
     end
 
-    -- a click anywhere in the field puts the cursor in it
-    field:SetScript("OnClick", function()
-        editBox:SetFocus()
-    end)
-
-    ns.UI.AttachSuggestions(editBox, {
-        anchor = field,
-        search = options.search,
-        onChoose = function(suggestion)
-            editBox:SetText("")
-            options.onChoose(suggestion)
-        end,
-    })
-
-    local function Submit()
-        local text = editBox:GetText() or ""
-        text = text:match("^%s*(.-)%s*$")
-        if text == "" then
-            return
-        end
-        if options.onSubmit(text) then
-            editBox:SetText("")
+    -- the menu shows the picks again after they changed outside of it
+    function field:RefreshMenu()
+        if hasMenu and arrow.GenerateMenu then
+            arrow:GenerateMenu()
         end
     end
-
-    editBox:HookScript("OnTextChanged", UpdatePlaceholder)
-    editBox:HookScript("OnEditFocusGained", function(self)
-        -- nothing typed yet: what there is to offer right away
-        self:ShowSuggestionsFor("")
-    end)
-    editBox:HookScript("OnEnterPressed", function(self)
-        if not self:TakeHighlighted() then
-            Submit()
-        end
-        self:ClearFocus()
-    end)
-    editBox:HookScript("OnEscapePressed", function(self)
-        self:ClearFocus()
-    end)
-    editBox:HookScript("OnEditFocusLost", function(self)
-        if not self:IsChoosingSuggestion() then
-            Submit()
-        end
-    end)
-    -- Backspace in the empty field takes the last tag out
-    editBox:HookScript("OnKeyDown", function(self, key)
-        local isEmpty = (self:GetText() or "") == ""
-        if key == "BACKSPACE" and isEmpty and tagCount > 0 then
-            options.onRemove(tagCount)
-        end
-    end)
 
     local function GetTag(index)
         local tag = tags[index]
@@ -184,11 +149,10 @@ function ns.UI.TagInput(parent, options)
         if not width or width <= 0 then
             width = FALLBACK_WIDTH
         end
-        return width - INSET_LEFT - INSET_RIGHT
+        return width - INSET_LEFT - ARROW_WIDTH
     end
 
-    -- the tags in rows, the cursor after the last one; returns nothing, the
-    -- height is read with GetContentHeight (the form lays the field out by it)
+    -- the tags in rows; the form lays the field out by GetContentHeight
     function field:SetTags(list)
         local rowWidth = RowWidth()
         local x = 0
@@ -214,18 +178,8 @@ function ns.UI.TagInput(parent, options)
         for index = #list + 1, #tags do
             tags[index]:Hide()
         end
-        tagCount = #list
-
-        -- the cursor: after the tags, or on a row of its own when too little is left
-        if x > 0 and rowWidth - x < MIN_EDIT_WIDTH then
-            x = 0
-            row = row + 1
-        end
-        editBox:ClearAllPoints()
-        editBox:SetPoint("TOPLEFT", field, "TOPLEFT", INSET_LEFT + x, -INSET_TOP - row * ROW_HEIGHT)
-        editBox:SetPoint("RIGHT", field, "RIGHT", -INSET_RIGHT, 0)
+        placeholder:SetShown(#list == 0)
         contentHeight = (row + 1) * ROW_HEIGHT
-        UpdatePlaceholder()
     end
 
     -- the height of the field: its rows and the insets

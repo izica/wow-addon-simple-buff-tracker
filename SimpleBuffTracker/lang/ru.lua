@@ -58,8 +58,7 @@ ns.Localization.Add("ru", [==[
         "minimap_hidden": "Кнопка у миникарты скрыта. Вернуть: /sbt minimap.",
         "minimap_shown": "Кнопка у миникарты показана.",
         "unknown_icon": "Иконка не найдена. Укажите ID заклинания или нажмите Shift+ЛКМ по заклинанию, предмету или бафу.",
-        "welcome": "Бафы пока не отслеживаются. Добавить: ЛКМ по кнопке у миникарты или /sbt buffs.",
-        "unknown_zone": "Зона не найдена. Выберите её из списка, пока вводите название."
+        "welcome": "Бафы пока не отслеживаются. Добавить: ЛКМ по кнопке у миникарты или /sbt buffs."
     },
     "commands": {
         "add": {
@@ -185,7 +184,7 @@ ns.Localization.Add("ru", [==[
         "equip_item_note": "Считается отсутствующим, пока предмет не надет. Перетащите его из сумки или Shift+ЛКМ.",
         "source_equip": "Надеть его",
         "condition_zones": "Только в зонах",
-        "condition_zones_note": "Начните вводить зону или подземелье. Backspace убирает последнюю.",
+        "condition_zones_note": "Выбирайте по материкам; клик по зоне в поле убирает её.",
         "zone_remove_tooltip": "Щёлкните, чтобы убрать зону.",
         "hidden_zone": "вы в зоне %s, её нет в списке",
         "condition_combat": "Бой",
@@ -196,7 +195,9 @@ ns.Localization.Add("ru", [==[
         "hidden_out_of_combat": "только в бою",
         "hidden_in_combat": "только вне боя",
         "zone_placeholder": "Любая зона: щёлкните, чтобы выбрать",
-        "zone_here": "%s (вы здесь)"
+        "zone_here": "%s (вы здесь)",
+        "zone_continent_count": "%s (%d)",
+        "zone_dungeons": "Подземелья и рейды"
     },
     "grow": {
         "right": "Вправо",

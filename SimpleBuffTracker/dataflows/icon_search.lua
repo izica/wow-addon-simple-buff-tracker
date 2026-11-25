@@ -22,8 +22,6 @@ IconSearch.SOURCES = {
     BUFFS = { auras = true, seen = true, spells = true },
     SPELLS = { spells = true, auras = true },
     ITEMS = { items = true },
-    -- the zone condition: the zones and dungeons of the world map
-    ZONES = { zones = true },
     -- the talent condition: the talent tree and the spellbook with its passive spells
     TALENTS = { talents = true, spells = true, passives = true },
 }
@@ -43,17 +41,6 @@ end
 local function SeenSuggestions(add)
     for _, aura in ipairs(AuraScan.Seen()) do
         add({ label = aura.name, icon = aura.icon, kind = "aura", spellId = aura.spellId })
-    end
-end
-
-local MAP_ICON = "Interface\\Icons\\INV_Misc_Map_01"
--- the picture of a zone suggestion (the zone field of the buff window too)
-IconSearch.MAP_ICON = MAP_ICON
-
--- every zone and dungeon (dataflows/zones.lua)
-local function ZoneSuggestions(add)
-    for _, zone in ipairs(ns.Dataflows.Zones.All()) do
-        add({ label = zone.name, icon = MAP_ICON, kind = "zone", mapId = zone.mapId })
     end
 end
 
@@ -141,9 +128,6 @@ function IconSearch.Search(query, sources)
     end
     if sources.seen then
         pcall(SeenSuggestions, add)
-    end
-    if sources.zones then
-        pcall(ZoneSuggestions, add)
     end
     if sources.talents then
         pcall(TalentSuggestions, add)

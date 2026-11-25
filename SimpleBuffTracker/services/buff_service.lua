@@ -246,20 +246,6 @@ function BuffService.SetConditionTalentText(buff, text)
     return true
 end
 
--- Only in a zone: what was typed or picked in the zone field (a zone name,
--- "zone:<map id>"); the zone joins the list. Empty -- nothing to add.
-function BuffService.AddConditionZoneText(buff, text)
-    if text == "" then
-        return true
-    end
-    local zone = ns.Dataflows.Zones.Find(text)
-    if not zone then
-        return nil, "messages.unknown_zone"
-    end
-    BuffService.AddConditionZone(buff, zone)
-    return true
-end
-
 -- a zone { mapId, name } into the list (once)
 function BuffService.AddConditionZone(buff, zone)
     local conditions = Conditions(buff)
@@ -271,6 +257,18 @@ function BuffService.AddConditionZone(buff, zone)
         end
     end
     table.insert(conditions.zones, { mapId = zone.mapId, name = zone.name })
+end
+
+-- the zone with this map (or name, without a map) out of the list
+function BuffService.RemoveConditionZoneOf(buff, zone)
+    local zones = buff.conditions and buff.conditions.zones or {}
+    for index, known in ipairs(zones) do
+        local isSame = (zone.mapId and known.mapId == zone.mapId) or (not zone.mapId and known.name == zone.name)
+        if isSame then
+            BuffService.RemoveConditionZone(buff, index)
+            return
+        end
+    end
 end
 
 -- the zone at that place of the list out

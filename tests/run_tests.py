@@ -1875,10 +1875,19 @@ def test_zone_condition():
         C_Map = {
             GetBestMapForUnit = function() return currentMap end,
             GetMapInfo = function(id) return maps[id] end,
-            GetMapChildrenInfo = function(root)
+            -- every map under root (allDescendants), of that type if one is given
+            GetMapChildrenInfo = function(root, mapType)
                 local result = {}
                 for _, info in pairs(maps) do
-                    if info.mapID ~= root then table.insert(result, info) end
+                    local parent = info.parentMapID
+                    local isUnder = false
+                    while parent and parent > 0 do
+                        if parent == root then isUnder = true end
+                        parent = maps[parent] and maps[parent].parentMapID
+                    end
+                    if isUnder and (mapType == nil or info.mapType == mapType) then
+                        table.insert(result, info)
+                    end
                 end
                 return result
             end,
@@ -1892,55 +1901,83 @@ def test_zone_condition():
         Slash('buffs')
     """)
     click_button(lua, "Conditions")
-    check("no zone yet: the field says any zone", has_text(lua, "Any zone: click to pick one"))
-    lua.execute("FocusField('conditionZone')")
-    check("the empty field on focus offers the zone you are in (Goldshire is in Elwynn)",
-          suggestion_labels(lua) == ["Elwynn Forest (you are here)"])
-    lua.execute("ShownSuggestions()[1].scripts.OnClick(ShownSuggestions()[1])")
-    lua.execute("FindField('conditionZone'):ClearFocus()")
-    check("picked: the zone by its map", lua.eval("SimpleBuffTrackerDB.buffs[1].conditions.zones[1].mapId") == 1429)
+    lua.execute("""
+        -- the game's menu, as plain tables: the builder of the zone field fills them
+        local function Description()
+            local description = { items = {} }
+            function description:SetScrollMode() end
+            function description:CreateDivider() end
+            function description:CreateButton(text)
+                local submenu = Description()
+                table.insert(self.items, { text = text, submenu = submenu })
+                return submenu
+            end
+            function description:CreateCheckbox(text, isSelected, setSelected, data)
+                table.insert(self.items, { text = text,
+                    isChecked = function() return isSelected(data) end,
+                    toggle = function() setSelected(data) end })
+            end
+            return description
+        end
+        function ZoneMenu()
+            local root = Description()
+            FindFrames('BuildMenu')[1].BuildMenu(root)
+            return root
+        end
+        -- an item by its texts down the tree: MenuItem('Eastern Kingdoms', 'Westfall')
+        function MenuItem(...)
+            local items = ZoneMenu().items
+            local found = nil
+            for _, wanted in ipairs({ ... }) do
+                found = nil
+                for _, item in ipairs(items) do
+                    if item.text == wanted then found = item end
+                end
+                if not found then return nil end
+                items = found.submenu and found.submenu.items or {}
+            end
+            return found
+        end
+        function MenuTexts(...)
+            local item = MenuItem(...)
+            local texts = {}
+            for _, child in ipairs(item and item.submenu.items or ZoneMenu().items) do
+                texts[#texts + 1] = child.text
+            end
+            return texts
+        end
+    """)
+    check("no zone yet: the field says any zone", has_text(lua, "Any zone: click to pick zones"))
+    check("the menu: the zone you are in first (Goldshire is in Elwynn), then the continents",
+          list(lua.eval("MenuTexts()").values()) == ["Elwynn Forest (you are here)", "Eastern Kingdoms"])
+    check("a continent: its zones by name, then its dungeons in a submenu",
+          list(lua.eval("MenuTexts('Eastern Kingdoms')").values())
+          == ["Elwynn Forest", "Stormwind City", "Westfall", "Dungeons and raids"])
+    check("the dungeons", list(lua.eval("MenuTexts('Eastern Kingdoms', 'Dungeons and raids')").values())
+          == ["The Deadmines"])
+    lua.execute("MenuItem('Elwynn Forest (you are here)').toggle()")
+    check("checked: the zone by its map", lua.eval("SimpleBuffTrackerDB.buffs[1].conditions.zones[1].mapId") == 1429)
     check("the zone is a tag inside the field, the placeholder gone",
           tag_shown(lua, "Elwynn Forest") and not lua.eval("""(function()
               for _, frame in ipairs(allFrames) do
-                  if rawget(frame, 'text') == 'Any zone: click to pick one' then return frame.shown end
+                  if rawget(frame, 'text') == 'Any zone: click to pick zones' then return frame.shown end
               end
           end)()"""))
-    lua.execute("FocusField('conditionZone')")
-    check("the zone you are in is not offered twice", suggestion_labels(lua) == [])
-    lua.execute("FindField('conditionZone'):ClearFocus()")
+    check("checked in the continent too, and the continent counts it",
+          lua.eval("MenuItem('Eastern Kingdoms (1)', 'Elwynn Forest').isChecked()") is True)
     lua.execute("RunTickers()")
     check("in Goldshire (inside Elwynn): shown", shown_buttons(lua) == 1)
     lua.execute("currentMap = 1453; Fire('ZONE_CHANGED_NEW_AREA')")
     check("in Stormwind: hidden", shown_buttons(lua) == 0)
     check("and the page says why",
           has_text(lua, "Right now: hidden (you are in Stormwind City, not in the chosen zones)"))
-    labels = lua.eval("""(function()
-        local input = FocusField('conditionZone')
-        TypeInto(input, 'st')
-        local labels = {}
-        for _, row in ipairs(ShownSuggestions()) do labels[#labels + 1] = row.label.text end
-        input.text = ''
-        input:ClearFocus()
-        return labels
-    end)()""").values()
-    check("typing a zone suggests it", "Stormwind City" in list(labels))
-    lua.execute("Enter('conditionZone', 'the deadmines')")
-    check("a dungeon by name, any case", lua.eval("SimpleBuffTrackerDB.buffs[1].conditions.zones[2].name") == "The Deadmines")
-    lua.execute("Enter('conditionZone', 'Nowhere Land')")
-    check("an unknown zone is not added, and the text stays to fix",
-          lua.eval("#SimpleBuffTrackerDB.buffs[1].conditions.zones") == 2
-          and lua.eval("FindField('conditionZone').text") == "Nowhere Land")
-    check("the error says so", has_text(lua, "Zone not found. Pick one from the list as you type."))
-    lua.execute("FindField('conditionZone').text = ''")
+    lua.execute("MenuItem('Eastern Kingdoms (1)', 'Dungeons and raids', 'The Deadmines').toggle()")
+    check("a dungeon from its submenu", lua.eval("SimpleBuffTrackerDB.buffs[1].conditions.zones[2].name") == "The Deadmines")
     lua.execute("currentMap = 1581; Fire('ZONE_CHANGED_NEW_AREA')")
     check("in the dungeon: shown", shown_buttons(lua) == 1)
-    lua.execute("""
-        local input = FindField('conditionZone')
-        input.text = ''
-        input.scripts.OnKeyDown(input, 'BACKSPACE')
-    """)
-    check("Backspace in the empty field takes the last zone out",
-          lua.eval("#SimpleBuffTrackerDB.buffs[1].conditions.zones") == 1 and not tag_shown(lua, "The Deadmines"))
+    lua.execute("MenuItem('Eastern Kingdoms (2)', 'Dungeons and raids', 'The Deadmines').toggle()")
+    check("unchecked again: out of the list", lua.eval("#SimpleBuffTrackerDB.buffs[1].conditions.zones") == 1
+          and not tag_shown(lua, "The Deadmines"))
     click_text(lua, "Elwynn Forest")
     check("every zone taken out: no zone condition", lua.eval("SimpleBuffTrackerDB.buffs[1].conditions") is None)
 

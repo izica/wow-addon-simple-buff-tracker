@@ -211,12 +211,13 @@ buff = { target = { spellId, name } | { weapon = "mainhand"|"offhand" } | { isEq
   и для режима `missing`: баф пропадёт/появится после боя.
 * **Зоны** (`conditions.zones = { { mapId, name } }`, пусто — любая): `dataflows/zones.lua` на `C_Map`. Где
   игрок — текущая карта и **все карты над ней** (`Zones.Here`): выбранный Элвиннский лес держит и Златоземье.
-  Список для подсказок — все потомки корневой карты типа Zone/Dungeon (`GetMapChildrenInfo(root, nil, true)`,
-  читается раз). Пикер — **поле с метками** (`ui/tag_input.lua`): выбранные зоны стоят метками в бронзовой
-  рамке внутри поля, курсор после них, поле растёт рядами (`form:Field(control, getHeight)`). Фокус на пустом
-  поле сразу открывает список с зоной, где игрок («(вы здесь)», `input:ShowSuggestionsFor("")`), ввод —
-  подсказки зон (`IconSearch.SOURCES.ZONES`, выбранные не предлагаются; список висит под полем — `anchor`
-  у `AttachSuggestions`). Клик по метке убирает зону, Backspace в пустом поле — последнюю. Без `C_Map` — по имени (`GetRealZoneText`).
+  Дерево для пикера — `Zones.Tree()`: материки (`GetMapChildrenInfo(корень, Continent, true)`), в каждом зоны
+  (Zone) и подземелья (Dungeon) по имени, читается раз. Пикер — `ui/tag_select.lua`: выбранные зоны метками в
+  бронзовой рамке внутри поля, стрелка справа; клик по полю открывает меню игры (`WowStyle1ArrowDropdownTemplate`,
+  `SetupMenu`, якорь под полем): сверху «Зона (вы здесь)» галочкой, дальше подменю материков («Калимдор (2)» —
+  сколько выбрано), в них зоны галочками и подменю «Подземелья и рейды». Галочка меню не закрывает
+  (`MenuResponse.Refresh` по умолчанию у `CreateCheckbox`). Клик по метке убирает зону. Тесты обходят меню через
+  `field.BuildMenu` на табличках-описаниях. Без `C_Map` — по имени (`GetRealZoneText`).
 * **Бой** (`conditions.combat = "in"|"out"`): флаг боя — из событий (`BuffConditions.SetInCombat` в
   `events/conditions.lua`), не `InCombatLockdown`. Панель перекладывается на `PLAYER_REGEN_DISABLED` — последний
   момент, когда защищённые иконки ещё можно показать/скрыть, — и на `PLAYER_REGEN_ENABLED`.

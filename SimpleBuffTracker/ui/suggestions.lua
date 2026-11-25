@@ -108,8 +108,7 @@ local function CreateList()
     list:Hide()
 end
 
--- anchor -- the frame the list hangs under (the input itself, or the field holding it)
-local function ShowList(input, suggestions, anchor)
+local function ShowList(input, suggestions)
     if #suggestions == 0 then
         HideList(input)
         return
@@ -133,9 +132,8 @@ local function ShowList(input, suggestions, anchor)
     shownRowCount = shownCount
     SetHighlighted(nil)
     list:ClearAllPoints()
-    anchor = anchor or input
-    list:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -6)
-    list:SetWidth(math.max(anchor:GetWidth(), MIN_WIDTH))
+    list:SetPoint("TOPLEFT", input, "BOTTOMLEFT", 0, -6)
+    list:SetWidth(math.max(input:GetWidth(), MIN_WIDTH))
     list:SetHeight(shownCount * ROW_HEIGHT + PADDING * 2)
     list:Show()
 end
@@ -145,9 +143,7 @@ local function IsOpenFor(input)
 end
 
 -- options: search(text) -> { { label, icon, ... }, ... },
--- onChoose(suggestion) -- a row was clicked or taken with Enter,
--- anchor -- the frame to hang the list under (default: the input).
--- input:ShowSuggestionsFor(text) -- open the list without typing (on focus).
+-- onChoose(suggestion) -- a row was clicked or taken with Enter.
 -- Adds to the input: input:IsChoosingSuggestion() -- the mouse is over the list
 -- (a focus lost because of a click on a row is not an edit to save).
 function ns.UI.AttachSuggestions(input, options)
@@ -160,20 +156,16 @@ function ns.UI.AttachSuggestions(input, options)
         return IsOpenFor(self) and list:IsMouseOver()
     end
 
-    function input:ShowSuggestionsFor(text)
-        local ok, suggestions = pcall(options.search, text)
-        if ok and suggestions then
-            ShowList(self, suggestions, options.anchor)
-        else
-            HideList(self)
-        end
-    end
-
     input:HookScript("OnTextChanged", function(self, isUserInput)
         if not isUserInput then
             return
         end
-        self:ShowSuggestionsFor(self:GetText())
+        local ok, suggestions = pcall(options.search, self:GetText())
+        if ok and suggestions then
+            ShowList(self, suggestions)
+        else
+            HideList(self)
+        end
     end)
 
     -- arrows walk the rows (an edit box gets them as OnArrowPressed)

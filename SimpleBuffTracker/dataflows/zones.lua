@@ -1,5 +1,5 @@
 -- zones.lua -- the zones of the world map (C_Map), for the zone condition of a
--- buff: where the player is now, every zone and dungeon to pick from, a zone by name.
+-- buff: where the player is now, the continents with their zones and dungeons to pick from.
 --
 -- A zone is { mapId, name }. Where the player is counts with every map above
 -- the current one: a buff chosen for Elwynn Forest is shown in Goldshire (a
@@ -16,7 +16,7 @@ local ZONE_MAP_TYPE = 3      -- Enum.UIMapType.Zone
 local DUNGEON_MAP_TYPE = 4   -- Enum.UIMapType.Dungeon
 local MAX_PARENTS = 10       -- a map has a few maps above it; a loop guard
 
-local allZones = nil   -- every zone and dungeon, read once: the maps do not change
+local zoneTree = nil   -- the continents with their zones, read once: the maps do not change
 
 local function HasMapApi()
     return C_Map ~= nil and C_Map.GetBestMapForUnit ~= nil and C_Map.GetMapInfo ~= nil
@@ -101,68 +101,74 @@ local function RootMap()
     return root
 end
 
-local function ReadAll()
-    local result = {}
+local CONTINENT_MAP_TYPE = 2   -- Enum.UIMapType.Continent
+
+local function ByName(a, b)
+    return a.name < b.name
+end
+
+-- the zones and dungeons under a map, each once (seen -- across continents)
+local function ReadChildren(mapId, seen)
+    local zones = {}
+    local dungeons = {}
+    for _, info in ipairs(C_Map.GetMapChildrenInfo(mapId, nil, true) or {}) do
+        local isNamed = info.name ~= nil and info.name ~= "" and not seen[info.mapID]
+        if isNamed and info.mapType == ZONE_MAP_TYPE then
+            seen[info.mapID] = true
+            table.insert(zones, { mapId = info.mapID, name = info.name })
+        elseif isNamed and info.mapType == DUNGEON_MAP_TYPE then
+            seen[info.mapID] = true
+            table.insert(dungeons, { mapId = info.mapID, name = info.name })
+        end
+    end
+    table.sort(zones, ByName)
+    table.sort(dungeons, ByName)
+    return zones, dungeons
+end
+
+local function ReadTree()
+    local tree = {}
     if not (HasMapApi() and C_Map.GetMapChildrenInfo) then
-        return result
+        return tree
     end
     local root = RootMap()
     if not root then
-        return result
+        return tree
+    end
+    local continents = C_Map.GetMapChildrenInfo(root, CONTINENT_MAP_TYPE, true) or {}
+    if #continents == 0 then
+        -- the top map is a continent itself
+        local info = C_Map.GetMapInfo(root)
+        continents = { info }
     end
     local seen = {}
-    for _, info in ipairs(C_Map.GetMapChildrenInfo(root, nil, true) or {}) do
-        local isZone = info.mapType == ZONE_MAP_TYPE or info.mapType == DUNGEON_MAP_TYPE
-        if isZone and info.name and info.name ~= "" and not seen[info.mapID] then
-            seen[info.mapID] = true
-            table.insert(result, { mapId = info.mapID, name = info.name })
+    for _, continent in ipairs(continents) do
+        local zones, dungeons = ReadChildren(continent.mapID, seen)
+        if #zones > 0 or #dungeons > 0 then
+            table.insert(tree, { mapId = continent.mapID, name = continent.name, zones = zones, dungeons = dungeons })
         end
     end
-    table.sort(result, function(a, b)
-        return a.name < b.name
-    end)
-    return result
+    table.sort(tree, ByName)
+    return tree
 end
 
--- every zone and dungeon of the world, by name; empty -- no map API (or not in the world yet)
-function Zones.All()
-    if allZones and #allZones > 0 then
-        return allZones
+-- The world map as a tree for the zone picker: { { mapId, name, zones = { { mapId,
+-- name } }, dungeons = { ... } } } -- the continents, by name. Read once (the
+-- maps do not change); empty -- no map API, or not in the world yet.
+function Zones.Tree()
+    if zoneTree and #zoneTree > 0 then
+        return zoneTree
     end
-    local ok, result = pcall(ReadAll)
+    local ok, result = pcall(ReadTree)
     if ok then
-        allZones = result
+        zoneTree = result
     else
-        allZones = {}
+        zoneTree = {}
     end
-    return allZones
+    return zoneTree
 end
 
--- A zone from what was typed: "zone:<map id>" (a picked suggestion) or a
--- zone name (any case; the zone the player is in counts too). nil -- unknown.
-function Zones.Find(text)
-    local mapId = tonumber(text:match("^zone:(%d+)$"))
-    if mapId then
-        local name = Zones.MapName(mapId)
-        if not name then
-            return nil
-        end
-        return { mapId = mapId, name = name }
-    end
-    local wanted = text:lower()
-    for _, zone in ipairs(Zones.All()) do
-        if zone.name:lower() == wanted then
-            return { mapId = zone.mapId, name = zone.name }
-        end
-    end
-    local current = Zones.Current()
-    if current.name and current.name:lower() == wanted then
-        return current
-    end
-    return nil
-end
-
--- whether the player is in one of the zones ({ { mapId, name } })
+-- whether the player is in one of the zones-- whether the player is in one of the zones ({ { mapId, name } })
 function Zones.IsHere(zones)
     local here = Zones.Here()
     for _, zone in ipairs(zones) do
