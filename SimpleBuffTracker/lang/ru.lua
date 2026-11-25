@@ -199,7 +199,10 @@ ns.Localization.Add("ru", [==[
         "zone_continent_count": "%s (%d)",
         "zone_dungeons": "Подземелья и рейды",
         "buff_mode": "Показывать на панели",
-        "mode_default": "Как у панели: %s"
+        "mode_default": "Как у панели: %s",
+        "buff_glow": "Подсветка",
+        "buff_glow_effect": "Эффект подсветки",
+        "glow_when_default": "Как у панели: когда нет или скоро кончится"
     },
     "grow": {
         "right": "Вправо",
@@ -228,6 +231,12 @@ ns.Localization.Add("ru", [==[
     "buff_modes": {
         "all": "Всегда",
         "missing": "Только когда нет или скоро кончится"
+    },
+    "glow_when": {
+        "missing": "Когда нет или скоро кончится",
+        "active": "Когда активен",
+        "always": "Всегда",
+        "never": "Никогда"
     }
 }
 ]==])

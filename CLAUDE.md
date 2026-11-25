@@ -223,6 +223,11 @@ buff = { target = { spellId, name } | { weapon = "mainhand"|"offhand" } | { isEq
   момент, когда защищённые иконки ещё можно показать/скрыть, — и на `PLAYER_REGEN_ENABLED`.
 * **Обе страницы редактора прокручиваются** (`ui/scroll_area.lua`, `mainArea` / `conditionsArea` между вкладками
   и рядом кнопок): полей больше, чем высота окна. `test_editor_fits` проверяет только вкладку «Панель».
+* **Своя подсветка** у бафа: `buff.glowWhen` (`GLOW_WHEN`: missing / active / always / never; nil — как у панели:
+  нет или кончается) и `buff.glowEffect` (nil — эффект панели `settings.missingGlow`). Решает
+  `Buff.GlowEffect(buff, isActive, isExpiring, panelEffect)` в `Paint`. Селекты «Подсветка» и «Эффект подсветки»
+  на «Основном». У панели эффект по умолчанию «Нет»: «Когда активен» без своего эффекта ничего не покажет —
+  селект эффекта пишет «Как у панели: Нет».
 * **Свой режим отображения** у бафа — `buff.mode` (`all` / `missing`, nil — как у панели), селект «Показывать на
   панели» на «Основном» перед «Предупреждать за» (тексты про один баф — `buff_modes.*`: «Всегда», «Только когда нет
   или скоро кончится»; не `modes.*` панели); `VisibleStates` берёт `buff.mode or settings.mode`.

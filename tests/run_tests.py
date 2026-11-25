@@ -2032,6 +2032,42 @@ def test_buff_display_mode():
           and lua.eval("ns.Localization.Text('buff_modes.missing')") == "Only when missing or expiring")
 
 
+def test_buff_glow():
+    lua = new_runtime()
+    lua.execute("""
+        Slash('add Arcane Intellect = spell')
+        RunTickers()
+        button = secureButtons[1]
+        glowEffects = {}
+        local setGlow = button.SetGlow
+        function button:SetGlow(effect)
+            glowEffects[#glowEffects + 1] = effect or 'off'
+            setGlow(self, effect)
+        end
+        function LastGlow() RunTickers(); return glowEffects[#glowEffects] end
+        SimpleBuffTrackerDB.settings.missingGlow = 'pulse'
+    """)
+    check("as the panel: missing glows with the panel's effect", lua.eval("LastGlow()") == "pulse")
+    lua.execute("""
+        auras = { { spellId = 1459, name = 'Arcane Intellect', icon = 135932,
+                    expirationTime = clock + 1800, duration = 1800 } }
+        Fire('UNIT_AURA', 'player')
+    """)
+    check("as the panel: active does not glow", lua.eval("LastGlow()") == "off")
+    lua.execute("SimpleBuffTrackerDB.buffs[1].glowWhen = 'active'")
+    check("glow when active: glows while on", lua.eval("LastGlow()") == "pulse")
+    lua.execute("SimpleBuffTrackerDB.buffs[1].glowEffect = 'autocast'")
+    check("its own effect", lua.eval("LastGlow()") == "autocast")
+    lua.execute("auras = {}; Fire('UNIT_AURA', 'player')")
+    check("glow when active: not while missing", lua.eval("LastGlow()") == "off")
+    lua.execute("SimpleBuffTrackerDB.buffs[1].glowWhen = 'always'")
+    check("always: glows while missing", lua.eval("LastGlow()") == "autocast")
+    lua.execute("SimpleBuffTrackerDB.buffs[1].glowWhen = 'never'")
+    check("never: no glow even while missing", lua.eval("LastGlow()") == "off")
+    lua.execute("Slash('buffs'); Window().Refresh()")
+    check("the editor has both glow selects", has_text(lua, "Glow") and has_text(lua, "Glow Effect"))
+
+
 def main():
     test_buffs()
     test_minimap()
@@ -2069,6 +2105,7 @@ def main():
     test_zone_condition()
     test_combat_condition()
     test_buff_display_mode()
+    test_buff_glow()
     if failures:
         print("\n%d failed" % len(failures))
         sys.exit(1)

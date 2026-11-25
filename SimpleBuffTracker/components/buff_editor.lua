@@ -47,6 +47,9 @@ local SOURCE_NONE = "none"
 local ANY_ENCHANT = ""     -- the enchant select: any temporary enchant on the slot
 local COMBAT_ANY = "any"   -- the combat select: in combat and out of it
 local MODE_DEFAULT = "default"   -- the display mode select: the panel's mode
+local PANEL_DEFAULT = "default"  -- the glow selects: as the panel
+local GLOW_WHEN = ns.Constants.GLOW_WHEN
+local GLOW_WHEN_ORDER = { GLOW_WHEN.MISSING, GLOW_WHEN.ACTIVE, GLOW_WHEN.ALWAYS, GLOW_WHEN.NEVER }
 local DISPLAY_MODE = ns.Constants.DISPLAY_MODE
 local ZONE_MENU_HEIGHT = 400   -- a continent with more zones scrolls
 
@@ -519,6 +522,39 @@ function BuffEditor.Create(parent, options)
         end
     end)
 
+    -- when its icon glows, and with which effect: its own, or the panel's
+    local glowWhenSelect = AddSelect("settings.buff_glow", function()
+        local choices = { { value = PANEL_DEFAULT, text = Text("settings.glow_when_default") } }
+        for _, when in ipairs(GLOW_WHEN_ORDER) do
+            table.insert(choices, { value = when, text = Text("glow_when." .. when) })
+        end
+        return choices
+    end, function()
+        return buff and (buff.glowWhen or PANEL_DEFAULT)
+    end, function(value)
+        if value == PANEL_DEFAULT then
+            buff.glowWhen = nil
+        else
+            buff.glowWhen = value
+        end
+    end)
+    local glowEffectSelect = AddSelect("settings.buff_glow_effect", function()
+        local panelEffect = Text("glow." .. ns.db.settings.missingGlow)
+        local choices = { { value = PANEL_DEFAULT, text = Text("settings.mode_default", panelEffect) } }
+        for _, effect in ipairs(ns.Constants.GLOW_ORDER) do
+            table.insert(choices, { value = effect, text = Text("glow." .. effect) })
+        end
+        return choices
+    end, function()
+        return buff and (buff.glowEffect or PANEL_DEFAULT)
+    end, function(value)
+        if value == PANEL_DEFAULT then
+            buff.glowEffect = nil
+        else
+            buff.glowEffect = value
+        end
+    end)
+
     -- how long before the end the buff counts as missing: its own, or the panel's
     -- (an equipped item has no end: hidden for it)
     local warnGroup = form:Group()
@@ -816,7 +852,8 @@ function BuffEditor.Create(parent, options)
     local parts = { targetSelect, targetSelect.label, auraInput, auraInput.label, equipInput,
         equipInput.label, sourceSelect,
         sourceSelect.label, sourceInput, sourceInput.label, iconInput, iconInput.label,
-        warnLabel, warnSlider, modeSelect, modeSelect.label, errorText, deleteButton, tabs, conditionsTitle, conditionsHint, conditionsStatus, placesLabel, placesNote, itemConditionInput,
+        warnLabel, warnSlider, modeSelect, modeSelect.label, glowWhenSelect, glowWhenSelect.label,
+        glowEffectSelect, glowEffectSelect.label, errorText, deleteButton, tabs, conditionsTitle, conditionsHint, conditionsStatus, placesLabel, placesNote, itemConditionInput,
         itemConditionInput.label, talentConditionInput, talentConditionInput.label, talentMissingBox,
         zoneLabel, zoneField, zoneNote, combatSelect, combatSelect.label, combatSelect.note }
     for _, kind in ipairs(INSTANCE_KINDS) do
@@ -951,6 +988,8 @@ function BuffEditor.Create(parent, options)
         sourceSelect:Refresh()
         warnSlider:SetValueOf(buff.warnSeconds or WARN_DEFAULT)
         modeSelect:Refresh()
+        glowWhenSelect:Refresh()
+        glowEffectSelect:Refresh()
         DisplayConditions()
         -- the hidden fields take no room: the shown ones stack up without holes
         mainForm:Layout()

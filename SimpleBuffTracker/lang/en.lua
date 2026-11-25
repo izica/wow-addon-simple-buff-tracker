@@ -199,7 +199,10 @@ ns.Localization.Add("en", [==[
         "zone_continent_count": "%s (%d)",
         "zone_dungeons": "Dungeons and raids",
         "buff_mode": "Show on Panel",
-        "mode_default": "As the panel: %s"
+        "mode_default": "As the panel: %s",
+        "buff_glow": "Glow",
+        "buff_glow_effect": "Glow Effect",
+        "glow_when_default": "As the panel: when missing or expiring"
     },
     "grow": {
         "right": "Right",
@@ -228,6 +231,12 @@ ns.Localization.Add("en", [==[
     "buff_modes": {
         "all": "Always",
         "missing": "Only when missing or expiring"
+    },
+    "glow_when": {
+        "missing": "When missing or expiring",
+        "active": "When active",
+        "always": "Always",
+        "never": "Never"
     }
 }
 ]==])

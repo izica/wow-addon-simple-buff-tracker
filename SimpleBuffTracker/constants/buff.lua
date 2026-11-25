@@ -84,3 +84,13 @@ ns.Constants.COMBAT_STATE = {
     IN = "in",
     OUT = "out",
 }
+
+-- when the icon of one buff glows (buff.glowWhen); nil -- as the panel: missing or expiring
+ns.Constants.GLOW_WHEN = {
+    ACTIVE = "active",     -- while the buff is on
+    MISSING = "missing",   -- while it is missing or about to run out
+    ALWAYS = "always",
+    NEVER = "never",
+}
+-- the order of the effects in the selects
+ns.Constants.GLOW_ORDER = { "none", "pixel", "autocast", "proc", "pulse" }

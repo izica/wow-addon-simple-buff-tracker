@@ -12,6 +12,10 @@
 --                        pole); active while it is equipped, no timer;
 --   mode -- ns.Constants.DISPLAY_MODE of this buff: "all" -- always on the
 --             panel, "missing" -- only missing or expiring; nil -- the panel's mode;
+--   glowWhen -- ns.Constants.GLOW_WHEN: when its icon glows; nil -- as the
+--             panel (missing or expiring);
+--   glowEffect -- ns.Constants.GLOW_EFFECT of its icon; nil -- the panel's
+--             settings.missingGlow;
 --   warnSeconds -- this buff counts as missing this long before its end; nil --
 --             the panel's settings.warnSeconds;
 --   icon, iconText -- a picture picked in the buff window (texture id) and what
@@ -45,6 +49,27 @@ ns.Models.Buff = Buff
 
 function Buff.New(target, source)
     return { target = target, source = source }
+end
+
+-- The glow effect of its icon now (ns.Constants.GLOW_EFFECT), or nil -- none:
+-- the buff's own "when" and effect, or the panel's (missing or expiring, the
+-- effect of the Panel tab).
+function Buff.GlowEffect(buff, isActive, isExpiring, panelEffect)
+    local GLOW_WHEN = ns.Constants.GLOW_WHEN
+    local isMissing = not isActive or isExpiring
+    local when = buff.glowWhen
+    local isGlowing = isMissing
+    if when == GLOW_WHEN.ACTIVE then
+        isGlowing = isActive
+    elseif when == GLOW_WHEN.ALWAYS then
+        isGlowing = true
+    elseif when == GLOW_WHEN.NEVER then
+        isGlowing = false
+    end
+    if not isGlowing then
+        return nil
+    end
+    return buff.glowEffect or panelEffect
 end
 
 -- whether it says what to track: a weapon slot, a spell, a name or an item to wear. A buff just
