@@ -9,11 +9,26 @@ ns.Dataflows = ns.Dataflows or {}
 local Spell = ns.Utilities.Spell
 local Item = ns.Utilities.Item
 local Talents = ns.Dataflows.Talents
+local Zones = ns.Dataflows.Zones
+local COMBAT_STATE = ns.Constants.COMBAT_STATE
 
 local BuffConditions = {}
 ns.Dataflows.BuffConditions = BuffConditions
 
 local WORLD = ns.Constants.INSTANCE_KIND.WORLD
+
+-- In combat by the events (events/conditions.lua), not by InCombatLockdown: the
+-- panel is laid out for combat on PLAYER_REGEN_DISABLED, the last moment the
+-- client still lets secure icons be shown and hidden, before the lockdown starts.
+local isInCombat = false
+
+function BuffConditions.SetInCombat(isInCombatNow)
+    isInCombat = isInCombatNow and true or false
+end
+
+function BuffConditions.IsInCombat()
+    return isInCombat
+end
 
 -- where the player is: the instance type ("raid", "pvp", "party", "arena"...),
 -- or "world" outside instances
@@ -75,6 +90,16 @@ function BuffConditions.Reason(buff)
     if HasHiddenPlaces(conditions) and conditions.hiddenPlaces[kind] then
         return "settings.hidden_place", ns.Localization.Text("settings.place_" .. kind)
     end
+    local zones = conditions.zones
+    if zones and #zones > 0 and not Zones.IsHere(zones) then
+        return "settings.hidden_zone", Zones.Current().name or "?"
+    end
+    if conditions.combat == COMBAT_STATE.IN and not isInCombat then
+        return "settings.hidden_out_of_combat"
+    end
+    if conditions.combat == COMBAT_STATE.OUT and isInCombat then
+        return "settings.hidden_in_combat"
+    end
     local itemId = conditions.itemId
     if itemId and Item.Count(itemId) <= 0 then
         return "settings.hidden_item", Item.Name(itemId) or ("item:" .. itemId)
@@ -126,6 +151,12 @@ function BuffConditions.Count(buff)
         count = count + 1
     end
     if conditions.talent then
+        count = count + 1
+    end
+    if conditions.zones and #conditions.zones > 0 then
+        count = count + 1
+    end
+    if conditions.combat then
         count = count + 1
     end
     return count

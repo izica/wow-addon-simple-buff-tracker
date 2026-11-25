@@ -1677,7 +1677,7 @@ def test_show_conditions():
     click_checkbox(lua, "Battleground", False)
     click_button(lua, "General")
     check("the General tab shows the fields again", lua.eval("FindField('aura').parent.shown") is True
-          and lua.eval("FindField('conditionItem').parent.shown") is False)
+          and lua.eval("FindField('conditionItem').parent.parent.shown") is False)
     check("the Conditions tab counts the conditions",
           lua.eval("(function() for _, f in ipairs(allFrames) do if rawget(f, 'text') == 'Conditions (3)' then return true end end return false end)()") is True)
 
@@ -1685,7 +1685,7 @@ def test_show_conditions():
     lua.execute("Slash('add Well Fed'); Window().Refresh()")
     lua.execute("Rows()[2].scripts.OnClick(Rows()[2])")
     check("another buff picked: the Conditions page stays open",
-          lua.eval("FindField('conditionItem').parent.shown") is True
+          lua.eval("FindField('conditionItem').parent.parent.shown") is True
           and lua.eval("(function() for _, f in ipairs(allFrames) do if rawget(f, 'text') == 'Show Well Fed only when:' then return true end end return false end)()") is True)
     check("its tab has no count: no conditions",
           lua.eval("(function() for _, f in ipairs(allFrames) do if rawget(f, 'text') == 'Conditions' and rawget(f, 'scripts').OnClick then return true end end return false end)()") is True)
@@ -1828,6 +1828,111 @@ def test_equipped_item():
     check("and the warning slider back", find_slider(lua, "Panel default (120 sec)") is not None)
 
 
+def click_text(lua, wanted):
+    lua.execute("""
+        local wanted = ...
+        for _, frame in ipairs(allFrames) do
+            if rawget(frame, 'text') == wanted and frame.shown and frame.scripts.OnClick then
+                frame.scripts.OnClick(frame)
+                return
+            end
+        end
+        error('nothing to click: ' .. wanted)
+    """, wanted)
+
+
+REMOVE_ICON = "|TInterface\\Buttons\\UI-StopButton:12:12|t"
+
+
+def test_zone_condition():
+    lua = new_runtime()
+    lua.execute("""
+        -- the world map: Azeroth > Eastern Kingdoms > zones; Goldshire is a small map in Elwynn
+        maps = {
+            [947] = { mapID = 947, name = 'Azeroth', mapType = 1, parentMapID = 0 },
+            [1415] = { mapID = 1415, name = 'Eastern Kingdoms', mapType = 2, parentMapID = 947 },
+            [1429] = { mapID = 1429, name = 'Elwynn Forest', mapType = 3, parentMapID = 1415 },
+            [1453] = { mapID = 1453, name = 'Stormwind City', mapType = 3, parentMapID = 1415 },
+            [1436] = { mapID = 1436, name = 'Westfall', mapType = 3, parentMapID = 1415 },
+            [1581] = { mapID = 1581, name = 'The Deadmines', mapType = 4, parentMapID = 1436 },
+            [9001] = { mapID = 9001, name = 'Goldshire', mapType = 5, parentMapID = 1429 },
+        }
+        currentMap = 9001
+        C_Map = {
+            GetBestMapForUnit = function() return currentMap end,
+            GetMapInfo = function(id) return maps[id] end,
+            GetMapChildrenInfo = function(root)
+                local result = {}
+                for _, info in pairs(maps) do
+                    if info.mapID ~= root then table.insert(result, info) end
+                end
+                return result
+            end,
+        }
+        function GetRealZoneText()
+            local id = currentMap
+            while maps[id] and maps[id].mapType > 3 and maps[id].mapType ~= 4 do id = maps[id].parentMapID end
+            return maps[id].name
+        end
+        Slash('add Arcane Intellect = spell')
+        Slash('buffs')
+    """)
+    click_button(lua, "Conditions")
+    check("in Goldshire the add chip offers its zone, Elwynn Forest", has_text(lua, "+ Elwynn Forest"))
+    click_text(lua, "+ Elwynn Forest")
+    check("the chip adds the zone by its map", lua.eval("SimpleBuffTrackerDB.buffs[1].conditions.zones[1].mapId") == 1429)
+    check("the zone is a chip with a cross now, the add chip gone",
+          has_text(lua, "Elwynn Forest " + REMOVE_ICON) and not has_text(lua, "+ Elwynn Forest"))
+    lua.execute("RunTickers()")
+    check("in Goldshire (inside Elwynn): shown", shown_buttons(lua) == 1)
+    lua.execute("currentMap = 1453; Fire('ZONE_CHANGED_NEW_AREA')")
+    check("in Stormwind: hidden", shown_buttons(lua) == 0)
+    check("and the page says why",
+          has_text(lua, "Right now: hidden (you are in Stormwind City, not in the chosen zones)"))
+    check("typing a zone suggests it", any(row == "Stormwind City" for row in lua.eval("""(function()
+        local input = FindField('conditionZone')
+        TypeInto(input, 'storm')
+        local labels = {}
+        for _, row in ipairs(ShownSuggestions()) do labels[#labels + 1] = row.label.text end
+        input:ClearFocus()
+        return labels
+    end)()""").values()))
+    lua.execute("Enter('conditionZone', 'the deadmines')")
+    check("a dungeon by name, any case", lua.eval("SimpleBuffTrackerDB.buffs[1].conditions.zones[2].name") == "The Deadmines")
+    lua.execute("Enter('conditionZone', 'Nowhere Land')")
+    check("an unknown zone is not added", lua.eval("#SimpleBuffTrackerDB.buffs[1].conditions.zones") == 2)
+    lua.execute("currentMap = 1581; Fire('ZONE_CHANGED_NEW_AREA')")
+    check("in the dungeon: shown", shown_buttons(lua) == 1)
+    click_text(lua, "Elwynn Forest " + REMOVE_ICON)
+    click_text(lua, "The Deadmines " + REMOVE_ICON)
+    check("every zone taken out: no zone condition", lua.eval("SimpleBuffTrackerDB.buffs[1].conditions") is None)
+
+
+def test_combat_condition():
+    lua = new_runtime()
+    lua.execute("""
+        Slash('add Arcane Intellect = spell')
+        ns.Services.Buff.SetConditionCombat(SimpleBuffTrackerDB.buffs[1], 'in')
+        RunTickers()
+    """)
+    check("only in combat: hidden out of combat", shown_buttons(lua) == 0)
+    # PLAYER_REGEN_DISABLED comes before the lockdown: the icons may still be laid out
+    lua.execute("Fire('PLAYER_REGEN_DISABLED'); inCombat = true; RunTickers()")
+    check("combat starts: shown, laid out before the lockdown", shown_buttons(lua) == 1)
+    lua.execute("inCombat = false; Fire('PLAYER_REGEN_ENABLED')")
+    check("combat ends: hidden again", shown_buttons(lua) == 0)
+    lua.execute("""
+        ns.Services.Buff.SetConditionCombat(SimpleBuffTrackerDB.buffs[1], 'out')
+        RunTickers()
+    """)
+    check("only out of combat: shown now", shown_buttons(lua) == 1)
+    lua.execute("Fire('PLAYER_REGEN_DISABLED'); inCombat = true; RunTickers()")
+    check("hidden as combat starts", shown_buttons(lua) == 0)
+    lua.execute("inCombat = false; Fire('PLAYER_REGEN_ENABLED')")
+    lua.execute("ns.Services.Buff.SetConditionCombat(SimpleBuffTrackerDB.buffs[1], nil)")
+    check("both: no combat condition kept", lua.eval("SimpleBuffTrackerDB.buffs[1].conditions") is None)
+
+
 def main():
     test_buffs()
     test_minimap()
@@ -1862,6 +1967,8 @@ def main():
     test_conditions_feedback()
     test_window_stays_with_game_panels()
     test_equipped_item()
+    test_zone_condition()
+    test_combat_condition()
     if failures:
         print("\n%d failed" % len(failures))
         sys.exit(1)

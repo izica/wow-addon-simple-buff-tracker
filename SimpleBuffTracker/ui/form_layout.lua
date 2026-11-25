@@ -154,6 +154,21 @@ function ns.UI.FormLayout(frame, options)
         end)
     end
 
+    -- A frame across the form whose height changes (chips that wrap):
+    -- getHeight() is asked on every Layout; 0 -- it takes no room.
+    function form:Block(control, getHeight)
+        AddStep(function()
+            control:ClearAllPoints()
+            control:SetPoint("TOPLEFT", frame, "TOPLEFT", padding, form.top)
+            control:SetPoint("RIGHT", frame, "RIGHT", -rightInset, 0)
+            local height = getHeight()
+            control:SetHeight(math.max(height, 1))
+            if height > 0 then
+                form.top = form.top - height - ROW_GAP
+            end
+        end)
+    end
+
     -- a text across the form, height -- the room it takes
     function form:Text(fontString, height)
         AddStep(function()

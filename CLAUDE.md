@@ -209,6 +209,17 @@ buff = { target = { spellId, name } | { weapon = "mainhand"|"offhand" } | { isEq
   удаляется. Перерисовка — `events/conditions.lua` (зона, таланты, заклинания; событие, которого нет на
   клиенте, пропускается — `ns.Events.OnIfExists`), сумки — `BAG_UPDATE_DELAYED`. В бою раскладки нет, как
   и для режима `missing`: баф пропадёт/появится после боя.
+* **Зоны** (`conditions.zones = { { mapId, name } }`, пусто — любая): `dataflows/zones.lua` на `C_Map`. Где
+  игрок — текущая карта и **все карты над ней** (`Zones.Here`): выбранный Элвиннский лес держит и Златоземье.
+  Список для подсказок — все потомки корневой карты типа Zone/Dungeon (`GetMapChildrenInfo(root, nil, true)`,
+  читается раз). Пикер: поле с подсказками (`IconSearch.SOURCES.ZONES`, выбор кладёт `zone:<id>`) + чипсы
+  (`ui/chip_flow.lua`, `form:Block` с высотой по чипсам): «+ текущая зона», пока её нет в списке, и выбранные с
+  крестиком — клик убирает. Без `C_Map` — по имени (`GetRealZoneText`).
+* **Бой** (`conditions.combat = "in"|"out"`): флаг боя — из событий (`BuffConditions.SetInCombat` в
+  `events/conditions.lua`), не `InCombatLockdown`. Панель перекладывается на `PLAYER_REGEN_DISABLED` — последний
+  момент, когда защищённые иконки ещё можно показать/скрыть, — и на `PLAYER_REGEN_ENABLED`.
+* Страница условий **прокручивается** (`ui/scroll_area.lua`, `conditionsArea`): условий больше, чем высота окна;
+  `test_editor_fits` проверяет только основную страницу.
 * В редакторе две **вкладки сверху** — «Баф» | «Условия (N)» (`ui/segment_tabs.lua`: текст, выбранная —
   белая с золотым подчёркиванием; страницы `mainPage` / `conditionsPage` в `buff_editor.lua`, у каждой своя
   форма). Под полями бафа места нет (окно 610, проверяет `test_editor_fits`). Выбранная вкладка остаётся при

@@ -203,6 +203,9 @@ local function DropEmptyConditions(buff)
     if not conditions.talent then
         conditions.talentMissing = nil
     end
+    if conditions.zones and #conditions.zones == 0 then
+        conditions.zones = nil
+    end
     if next(conditions) == nil then
         buff.conditions = nil
     end
@@ -241,6 +244,49 @@ function BuffService.SetConditionTalentText(buff, text)
     end
     Conditions(buff).talent = BuffParser.ParseTalent(text)
     return true
+end
+
+-- Only in a zone: what was typed or picked in the zone field (a zone name,
+-- "zone:<map id>"); the zone joins the list. Empty -- nothing to add.
+function BuffService.AddConditionZoneText(buff, text)
+    if text == "" then
+        return true
+    end
+    local zone = ns.Dataflows.Zones.Find(text)
+    if not zone then
+        return nil, "messages.unknown_zone"
+    end
+    BuffService.AddConditionZone(buff, zone)
+    return true
+end
+
+-- a zone { mapId, name } into the list (once)
+function BuffService.AddConditionZone(buff, zone)
+    local conditions = Conditions(buff)
+    conditions.zones = conditions.zones or {}
+    for _, known in ipairs(conditions.zones) do
+        local isSame = (zone.mapId and known.mapId == zone.mapId) or (not zone.mapId and known.name == zone.name)
+        if isSame then
+            return
+        end
+    end
+    table.insert(conditions.zones, { mapId = zone.mapId, name = zone.name })
+end
+
+-- the zone at that place of the list out
+function BuffService.RemoveConditionZone(buff, index)
+    local zones = buff.conditions and buff.conditions.zones
+    if not (zones and zones[index]) then
+        return
+    end
+    table.remove(zones, index)
+    DropEmptyConditions(buff)
+end
+
+-- only in combat, only out of it (ns.Constants.COMBAT_STATE), or nil -- both
+function BuffService.SetConditionCombat(buff, combatState)
+    Conditions(buff).combat = combatState
+    DropEmptyConditions(buff)
 end
 
 -- the talent condition the other way round: only while it is not learned

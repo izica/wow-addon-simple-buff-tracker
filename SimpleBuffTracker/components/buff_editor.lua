@@ -34,6 +34,8 @@ local WeaponEnchant = ns.Dataflows.WeaponEnchant
 local BuffConditions = ns.Dataflows.BuffConditions
 local Talents = ns.Dataflows.Talents
 local INSTANCE_KINDS = ns.Constants.INSTANCE_KINDS
+local COMBAT_STATE = ns.Constants.COMBAT_STATE
+local Zones = ns.Dataflows.Zones
 local SOURCE_KIND = ns.Constants.SOURCE_KIND
 local WEAPON_SLOT = ns.Constants.WEAPON_SLOT
 
@@ -43,6 +45,8 @@ ns.Components.BuffEditor = BuffEditor
 local TARGET_KIND = ns.Constants.TARGET_KIND
 local SOURCE_NONE = "none"
 local ANY_ENCHANT = ""     -- the enchant select: any temporary enchant on the slot
+local COMBAT_ANY = "any"   -- the combat select: in combat and out of it
+local REMOVE_ICON = "|TInterface\\Buttons\\UI-StopButton:12:12|t"
 
 local PADDING = 18
 local PREVIEW_SIZE = 28
@@ -55,6 +59,8 @@ local NOTE_LINES = 2
 local BUTTON_GAP = 10
 local BUTTON_WIDTH = 90
 local BUTTON_HEIGHT = 24
+-- the button row at the bottom of the editor: the pages end above it
+local BUTTON_ROW_HEIGHT = PADDING + BUTTON_HEIGHT + BUTTON_GAP
 local TABS_TOP = 8           -- from the top of the editor to its tabs
 local TABS_SIDE = 10
 -- the pages start under the tabs
@@ -164,8 +170,12 @@ function BuffEditor.Create(parent, options)
         return newPage
     end
     local mainPage = NewPage()
-    local conditionsPage = NewPage()
-    conditionsPage:Hide()
+    -- the conditions scroll: there are more of them than the window is tall
+    local conditionsArea = ns.UI.ScrollArea(frame)
+    conditionsArea:SetPoint("TOPLEFT", 0, -PAGE_TOP)
+    conditionsArea:SetPoint("BOTTOMRIGHT", -ns.UI.SCROLL_AREA_BAR_SPACE, BUTTON_ROW_HEIGHT)
+    conditionsArea:Hide()
+    local conditionsPage = conditionsArea.content
     local isConditionsPage = false
     local ShowPage = nil   -- defined after the fields (it clears their focus)
     local tabs = ns.UI.SegmentTabs(frame, {
@@ -300,6 +310,7 @@ function BuffEditor.Create(parent, options)
             end
         end)
 
+        input.preview = false   -- a field without a picture (the zone field)
         if field.preview then
             local preview = NewPreview(page, field.preview)
             -- right of the drawn edge of the field
@@ -553,6 +564,53 @@ function BuffEditor.Create(parent, options)
     form:Space(CHECKBOX_NOTE_GAP)
     local placesNote = form:Note(Text("settings.condition_places_note"), 1)
 
+    -- only in some zones: a field with suggestions adds one, the chips under it
+    -- take one out; the zone the player is in is one click away
+    local zoneInput = AddInput("conditionZone", "settings.condition_zones", {
+        read = function()
+            return ""
+        end,
+        save = BuffService.AddConditionZoneText,
+        sources = function()
+            return IconSearch.SOURCES.ZONES
+        end,
+        textOf = function(suggestion)
+            return "zone:" .. suggestion.mapId
+        end,
+        takes = function()
+            return false
+        end,
+        note = function()
+            return Text("settings.condition_zones_note")
+        end,
+    })
+    local zoneChips = ns.UI.ChipFlow(page, {
+        width = function()
+            return page:GetWidth() - PADDING - RIGHT_INSET
+        end,
+    })
+    form:Block(zoneChips, function()
+        return zoneChips:GetContentHeight()
+    end)
+
+    -- in combat, out of it, or both
+    local combatSelect = AddSelect("settings.condition_combat", function()
+        return {
+            { value = COMBAT_ANY, text = Text("settings.combat_any") },
+            { value = COMBAT_STATE.IN, text = Text("settings.combat_in") },
+            { value = COMBAT_STATE.OUT, text = Text("settings.combat_out") },
+        }
+    end, function()
+        return buff and (buff.conditions and buff.conditions.combat or COMBAT_ANY)
+    end, function(value)
+        if value == COMBAT_ANY then
+            BuffService.SetConditionCombat(buff, nil)
+        else
+            BuffService.SetConditionCombat(buff, value)
+        end
+    end)
+    combatSelect.note = form:Note(Text("settings.condition_combat_note"), 1)
+
     local itemConditionInput = AddInput("conditionItem", "settings.condition_item", {
         read = BuffService.ConditionItemText,
         save = BuffService.SetConditionItemText,
@@ -629,7 +687,8 @@ function BuffEditor.Create(parent, options)
     equipInput.group:SetShown(false)
     mainForm:Layout()
     conditionsForm:Layout()
-    frame.formHeight = PAGE_TOP + math.max(-mainForm.top, -conditionsForm.top)
+    -- (the conditions page scrolls: only the main page must fit)
+    frame.formHeight = PAGE_TOP - mainForm.top
     frame.buttonRowHeight = PADDING + BUTTON_HEIGHT + BUTTON_GAP
 
     -- one page or the other; a field typed in on the page that goes away is saved first
@@ -641,7 +700,7 @@ function BuffEditor.Create(parent, options)
         end
         isConditionsPage = showConditions
         mainPage:SetShown(not showConditions)
-        conditionsPage:SetShown(showConditions)
+        conditionsArea:SetShown(showConditions)
         if showConditions then
             tabs:Select(PAGE_CONDITIONS)
         else
@@ -685,7 +744,8 @@ function BuffEditor.Create(parent, options)
         equipInput.label, sourceSelect,
         sourceSelect.label, sourceInput, sourceInput.label, iconInput, iconInput.label,
         warnLabel, warnSlider, errorText, deleteButton, tabs, conditionsTitle, conditionsHint, conditionsStatus, placesLabel, placesNote, itemConditionInput,
-        itemConditionInput.label, talentConditionInput, talentConditionInput.label, talentMissingBox }
+        itemConditionInput.label, talentConditionInput, talentConditionInput.label, talentMissingBox,
+        zoneInput, zoneInput.label, zoneChips, combatSelect, combatSelect.label, combatSelect.note }
     for _, kind in ipairs(INSTANCE_KINDS) do
         table.insert(parts, placeBoxes[kind])
     end
@@ -718,6 +778,42 @@ function BuffEditor.Create(parent, options)
             placesNote:SetText(Text("settings.condition_places_note"))
             placesNote:SetTextColor(HINT_COLOR[1], HINT_COLOR[2], HINT_COLOR[3])
         end
+
+        -- the zones picked, each a chip that takes it out; the zone the player
+        -- is in comes first as an "add" chip while it is not picked
+        local chips = {}
+        local zones = conditions.zones or {}
+        local current = Zones.Current()
+        local isCurrentPicked = false
+        for _, zone in ipairs(zones) do
+            local isSame = (current.mapId and zone.mapId == current.mapId) or zone.name == current.name
+            if isSame then
+                isCurrentPicked = true
+            end
+        end
+        if current.name and not isCurrentPicked then
+            table.insert(chips, {
+                text = Text("settings.zone_add", current.name),
+                tooltip = Text("settings.zone_add_tooltip"),
+                isAdd = true,
+                onClick = function()
+                    BuffService.AddConditionZone(buff, current)
+                    options.onChanged()
+                end,
+            })
+        end
+        for index, zone in ipairs(zones) do
+            table.insert(chips, {
+                text = zone.name .. " " .. REMOVE_ICON,
+                tooltip = Text("settings.zone_remove_tooltip"),
+                onClick = function()
+                    BuffService.RemoveConditionZone(buff, index)
+                    options.onChanged()
+                end,
+            })
+        end
+        zoneChips:SetChips(chips)
+        combatSelect:Refresh()
 
         -- the tab tells there are conditions without opening it
         local count = BuffConditions.Count(buff)
@@ -812,6 +908,7 @@ function BuffEditor.Create(parent, options)
         -- the hidden fields take no room: the shown ones stack up without holes
         mainForm:Layout()
         conditionsForm:Layout()
+        conditionsArea:SetContentHeight(PADDING - conditionsForm.top, true)
     end
 
     -- a buff just added: its first page, typing in its Buff field

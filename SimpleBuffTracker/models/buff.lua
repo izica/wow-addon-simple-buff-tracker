@@ -23,6 +23,9 @@
 --     hiddenPlaces -- { [ns.Constants.INSTANCE_KIND] = true }: not in these
 --                 places ("world" -- outside instances); nil or empty -- everywhere
 --                 (every checkbox of the buff window on: the default);
+--     zones    -- { { mapId, name } }: only in these zones or dungeons (and
+--                 the smaller maps inside them); nil -- any zone;
+--     combat   -- ns.Constants.COMBAT_STATE: only in combat / only out of it;
 --     itemId   -- only while this item is in the bags;
 --     talent   -- { spellId, name }: only while the character has learned it,
 --                 talentMissing = true -- only while not.

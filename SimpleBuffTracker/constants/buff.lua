@@ -78,3 +78,9 @@ ns.Constants.INSTANCE_KIND = {
 }
 -- the order of the checkboxes in the buff window
 ns.Constants.INSTANCE_KINDS = { "world", "party", "raid", "pvp" }
+
+-- the combat condition of a buff: only in combat or only out of it (nil -- both)
+ns.Constants.COMBAT_STATE = {
+    IN = "in",
+    OUT = "out",
+}
