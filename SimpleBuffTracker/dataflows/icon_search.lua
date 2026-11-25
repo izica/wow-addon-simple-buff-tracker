@@ -47,6 +47,8 @@ local function SeenSuggestions(add)
 end
 
 local MAP_ICON = "Interface\\Icons\\INV_Misc_Map_01"
+-- the picture of a zone suggestion (the zone field of the buff window too)
+IconSearch.MAP_ICON = MAP_ICON
 
 -- every zone and dungeon (dataflows/zones.lua)
 local function ZoneSuggestions(add)

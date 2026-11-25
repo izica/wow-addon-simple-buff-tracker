@@ -185,9 +185,7 @@ ns.Localization.Add("ru", [==[
         "equip_item_note": "Считается отсутствующим, пока предмет не надет. Перетащите его из сумки или Shift+ЛКМ.",
         "source_equip": "Надеть его",
         "condition_zones": "Только в зонах",
-        "condition_zones_note": "Начните вводить название зоны или подземелья, чтобы добавить. Пусто: в любой зоне.",
-        "zone_add": "+ %s",
-        "zone_add_tooltip": "Добавить зону, где вы сейчас.",
+        "condition_zones_note": "Начните вводить зону или подземелье. Backspace убирает последнюю.",
         "zone_remove_tooltip": "Щёлкните, чтобы убрать зону.",
         "hidden_zone": "вы в зоне %s, её нет в списке",
         "condition_combat": "Бой",
@@ -196,7 +194,9 @@ ns.Localization.Add("ru", [==[
         "combat_out": "Только вне боя",
         "condition_combat_note": "Панель меняется в начале и в конце боя.",
         "hidden_out_of_combat": "только в бою",
-        "hidden_in_combat": "только вне боя"
+        "hidden_in_combat": "только вне боя",
+        "zone_placeholder": "Любая зона: щёлкните, чтобы выбрать",
+        "zone_here": "%s (вы здесь)"
     },
     "grow": {
         "right": "Вправо",

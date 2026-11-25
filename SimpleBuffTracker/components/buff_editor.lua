@@ -46,7 +46,6 @@ local TARGET_KIND = ns.Constants.TARGET_KIND
 local SOURCE_NONE = "none"
 local ANY_ENCHANT = ""     -- the enchant select: any temporary enchant on the slot
 local COMBAT_ANY = "any"   -- the combat select: in combat and out of it
-local REMOVE_ICON = "|TInterface\\Buttons\\UI-StopButton:12:12|t"
 
 local PADDING = 18
 local PREVIEW_SIZE = 28
@@ -564,34 +563,81 @@ function BuffEditor.Create(parent, options)
     form:Space(CHECKBOX_NOTE_GAP)
     local placesNote = form:Note(Text("settings.condition_places_note"), 1)
 
-    -- only in some zones: a field with suggestions adds one, the chips under it
-    -- take one out; the zone the player is in is one click away
-    local zoneInput = AddInput("conditionZone", "settings.condition_zones", {
-        read = function()
-            return ""
+    -- only in some zones: the zones picked stand as tags inside the field, the
+    -- cursor after them; typing suggests zones and dungeons, the empty field
+    -- offers the zone the player is in; a click on a tag takes it out
+    local function PickedZones()
+        local picked = {}
+        local zones = buff and buff.conditions and buff.conditions.zones or {}
+        for _, zone in ipairs(zones) do
+            picked[zone.mapId or zone.name] = true
+        end
+        return picked
+    end
+
+    local function ZoneSuggestions(text)
+        local picked = PickedZones()
+        if text == "" then
+            local current = Zones.Current()
+            if not current.name or picked[current.mapId or current.name] then
+                return {}
+            end
+            return { {
+                label = Text("settings.zone_here", current.name),
+                icon = IconSearch.MAP_ICON,
+                mapId = current.mapId,
+                zoneName = current.name,
+            } }
+        end
+        local result = {}
+        for _, suggestion in ipairs(IconSearch.Search(text, IconSearch.SOURCES.ZONES)) do
+            if not picked[suggestion.mapId] then
+                table.insert(result, suggestion)
+            end
+        end
+        return result
+    end
+
+    local zoneLabel = form:Label(Text("settings.condition_zones"))
+    local zoneField = ns.UI.TagInput(page, {
+        placeholder = Text("settings.zone_placeholder"),
+        removeTooltip = Text("settings.zone_remove_tooltip"),
+        search = ZoneSuggestions,
+        onChoose = function(suggestion)
+            if not buff then
+                return
+            end
+            BuffService.AddConditionZone(buff, {
+                mapId = suggestion.mapId,
+                name = suggestion.zoneName or suggestion.label,
+            })
+            ShowError(nil)
+            options.onChanged()
         end,
-        save = BuffService.AddConditionZoneText,
-        sources = function()
-            return IconSearch.SOURCES.ZONES
+        onRemove = function(index)
+            if not buff then
+                return
+            end
+            BuffService.RemoveConditionZone(buff, index)
+            options.onChanged()
         end,
-        textOf = function(suggestion)
-            return "zone:" .. suggestion.mapId
-        end,
-        takes = function()
-            return false
-        end,
-        note = function()
-            return Text("settings.condition_zones_note")
+        onSubmit = function(text)
+            if not buff then
+                return false
+            end
+            local isAdded, errorKey = BuffService.AddConditionZoneText(buff, text)
+            ShowError(errorKey)
+            if isAdded then
+                options.onChanged()
+            end
+            return isAdded
         end,
     })
-    local zoneChips = ns.UI.ChipFlow(page, {
-        width = function()
-            return page:GetWidth() - PADDING - RIGHT_INSET
-        end,
-    })
-    form:Block(zoneChips, function()
-        return zoneChips:GetContentHeight()
+    zoneField.editBox.fieldKey = "conditionZone"   -- the tests type into it like into the other fields
+    form:Field(zoneField, function()
+        return zoneField:GetContentHeight()
     end)
+    local zoneNote = form:Note(Text("settings.condition_zones_note"), 1)
 
     -- in combat, out of it, or both
     local combatSelect = AddSelect("settings.condition_combat", function()
@@ -698,6 +744,9 @@ function BuffEditor.Create(parent, options)
                 input:ClearFocus()
             end
         end
+        if zoneField.editBox:HasFocus() then
+            zoneField.editBox:ClearFocus()
+        end
         isConditionsPage = showConditions
         mainPage:SetShown(not showConditions)
         conditionsArea:SetShown(showConditions)
@@ -745,7 +794,7 @@ function BuffEditor.Create(parent, options)
         sourceSelect.label, sourceInput, sourceInput.label, iconInput, iconInput.label,
         warnLabel, warnSlider, errorText, deleteButton, tabs, conditionsTitle, conditionsHint, conditionsStatus, placesLabel, placesNote, itemConditionInput,
         itemConditionInput.label, talentConditionInput, talentConditionInput.label, talentMissingBox,
-        zoneInput, zoneInput.label, zoneChips, combatSelect, combatSelect.label, combatSelect.note }
+        zoneLabel, zoneField, zoneNote, combatSelect, combatSelect.label, combatSelect.note }
     for _, kind in ipairs(INSTANCE_KINDS) do
         table.insert(parts, placeBoxes[kind])
     end
@@ -779,40 +828,12 @@ function BuffEditor.Create(parent, options)
             placesNote:SetTextColor(HINT_COLOR[1], HINT_COLOR[2], HINT_COLOR[3])
         end
 
-        -- the zones picked, each a chip that takes it out; the zone the player
-        -- is in comes first as an "add" chip while it is not picked
-        local chips = {}
-        local zones = conditions.zones or {}
-        local current = Zones.Current()
-        local isCurrentPicked = false
-        for _, zone in ipairs(zones) do
-            local isSame = (current.mapId and zone.mapId == current.mapId) or zone.name == current.name
-            if isSame then
-                isCurrentPicked = true
-            end
+        -- the zones picked, as tags in their field
+        local zoneTags = {}
+        for _, zone in ipairs(conditions.zones or {}) do
+            table.insert(zoneTags, { text = zone.name })
         end
-        if current.name and not isCurrentPicked then
-            table.insert(chips, {
-                text = Text("settings.zone_add", current.name),
-                tooltip = Text("settings.zone_add_tooltip"),
-                isAdd = true,
-                onClick = function()
-                    BuffService.AddConditionZone(buff, current)
-                    options.onChanged()
-                end,
-            })
-        end
-        for index, zone in ipairs(zones) do
-            table.insert(chips, {
-                text = zone.name .. " " .. REMOVE_ICON,
-                tooltip = Text("settings.zone_remove_tooltip"),
-                onClick = function()
-                    BuffService.RemoveConditionZone(buff, index)
-                    options.onChanged()
-                end,
-            })
-        end
-        zoneChips:SetChips(chips)
+        zoneField:SetTags(zoneTags)
         combatSelect:Refresh()
 
         -- the tab tells there are conditions without opening it

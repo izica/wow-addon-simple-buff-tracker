@@ -1828,6 +1828,23 @@ def test_equipped_item():
     check("and the warning slider back", find_slider(lua, "Panel default (120 sec)") is not None)
 
 
+def suggestion_labels(lua):
+    return list(lua.eval("""(function()
+        local labels = {}
+        for _, row in ipairs(ShownSuggestions()) do labels[#labels + 1] = row.label.text end
+        return labels
+    end)()""").values())
+
+
+def tag_shown(lua, wanted):
+    return lua.eval("""(function(wanted)
+        for _, frame in ipairs(allFrames) do
+            if rawget(frame, 'text') == wanted and rawget(frame, 'index') and frame.shown then return true end
+        end
+        return false
+    end)(...)""", wanted) is True
+
+
 def click_text(lua, wanted):
     lua.execute("""
         local wanted = ...
@@ -1839,9 +1856,6 @@ def click_text(lua, wanted):
         end
         error('nothing to click: ' .. wanted)
     """, wanted)
-
-
-REMOVE_ICON = "|TInterface\\Buttons\\UI-StopButton:12:12|t"
 
 
 def test_zone_condition():
@@ -1878,33 +1892,56 @@ def test_zone_condition():
         Slash('buffs')
     """)
     click_button(lua, "Conditions")
-    check("in Goldshire the add chip offers its zone, Elwynn Forest", has_text(lua, "+ Elwynn Forest"))
-    click_text(lua, "+ Elwynn Forest")
-    check("the chip adds the zone by its map", lua.eval("SimpleBuffTrackerDB.buffs[1].conditions.zones[1].mapId") == 1429)
-    check("the zone is a chip with a cross now, the add chip gone",
-          has_text(lua, "Elwynn Forest " + REMOVE_ICON) and not has_text(lua, "+ Elwynn Forest"))
+    check("no zone yet: the field says any zone", has_text(lua, "Any zone: click to pick one"))
+    lua.execute("FocusField('conditionZone')")
+    check("the empty field on focus offers the zone you are in (Goldshire is in Elwynn)",
+          suggestion_labels(lua) == ["Elwynn Forest (you are here)"])
+    lua.execute("ShownSuggestions()[1].scripts.OnClick(ShownSuggestions()[1])")
+    lua.execute("FindField('conditionZone'):ClearFocus()")
+    check("picked: the zone by its map", lua.eval("SimpleBuffTrackerDB.buffs[1].conditions.zones[1].mapId") == 1429)
+    check("the zone is a tag inside the field, the placeholder gone",
+          tag_shown(lua, "Elwynn Forest") and not lua.eval("""(function()
+              for _, frame in ipairs(allFrames) do
+                  if rawget(frame, 'text') == 'Any zone: click to pick one' then return frame.shown end
+              end
+          end)()"""))
+    lua.execute("FocusField('conditionZone')")
+    check("the zone you are in is not offered twice", suggestion_labels(lua) == [])
+    lua.execute("FindField('conditionZone'):ClearFocus()")
     lua.execute("RunTickers()")
     check("in Goldshire (inside Elwynn): shown", shown_buttons(lua) == 1)
     lua.execute("currentMap = 1453; Fire('ZONE_CHANGED_NEW_AREA')")
     check("in Stormwind: hidden", shown_buttons(lua) == 0)
     check("and the page says why",
           has_text(lua, "Right now: hidden (you are in Stormwind City, not in the chosen zones)"))
-    check("typing a zone suggests it", any(row == "Stormwind City" for row in lua.eval("""(function()
-        local input = FindField('conditionZone')
-        TypeInto(input, 'storm')
+    labels = lua.eval("""(function()
+        local input = FocusField('conditionZone')
+        TypeInto(input, 'st')
         local labels = {}
         for _, row in ipairs(ShownSuggestions()) do labels[#labels + 1] = row.label.text end
+        input.text = ''
         input:ClearFocus()
         return labels
-    end)()""").values()))
+    end)()""").values()
+    check("typing a zone suggests it", "Stormwind City" in list(labels))
     lua.execute("Enter('conditionZone', 'the deadmines')")
     check("a dungeon by name, any case", lua.eval("SimpleBuffTrackerDB.buffs[1].conditions.zones[2].name") == "The Deadmines")
     lua.execute("Enter('conditionZone', 'Nowhere Land')")
-    check("an unknown zone is not added", lua.eval("#SimpleBuffTrackerDB.buffs[1].conditions.zones") == 2)
+    check("an unknown zone is not added, and the text stays to fix",
+          lua.eval("#SimpleBuffTrackerDB.buffs[1].conditions.zones") == 2
+          and lua.eval("FindField('conditionZone').text") == "Nowhere Land")
+    check("the error says so", has_text(lua, "Zone not found. Pick one from the list as you type."))
+    lua.execute("FindField('conditionZone').text = ''")
     lua.execute("currentMap = 1581; Fire('ZONE_CHANGED_NEW_AREA')")
     check("in the dungeon: shown", shown_buttons(lua) == 1)
-    click_text(lua, "Elwynn Forest " + REMOVE_ICON)
-    click_text(lua, "The Deadmines " + REMOVE_ICON)
+    lua.execute("""
+        local input = FindField('conditionZone')
+        input.text = ''
+        input.scripts.OnKeyDown(input, 'BACKSPACE')
+    """)
+    check("Backspace in the empty field takes the last zone out",
+          lua.eval("#SimpleBuffTrackerDB.buffs[1].conditions.zones") == 1 and not tag_shown(lua, "The Deadmines"))
+    click_text(lua, "Elwynn Forest")
     check("every zone taken out: no zone condition", lua.eval("SimpleBuffTrackerDB.buffs[1].conditions") is None)
 
 

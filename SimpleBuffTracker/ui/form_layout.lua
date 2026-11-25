@@ -110,10 +110,15 @@ function ns.UI.FormLayout(frame, options)
         return label
     end
 
-    -- a dropdown (ui/select.lua) or an input (ui/input.lua)
-    function form:Field(control)
+    -- a dropdown (ui/select.lua) or an input (ui/input.lua); getHeight() -- a
+    -- field that grows (ui/tag_input.lua), asked on every Layout
+    function form:Field(control, getHeight)
         AddStep(function()
-            Place(control, FIELD_HEIGHT, {
+            local height = FIELD_HEIGHT
+            if getHeight then
+                height = math.max(FIELD_HEIGHT, getHeight())
+            end
+            Place(control, height, {
                 left = FIELD_ART_LEFT,
                 right = FIELD_ART_RIGHT,
                 top = FIELD_ART_TOP,
@@ -151,21 +156,6 @@ function ns.UI.FormLayout(frame, options)
                 checkbox:SetPoint("TOPLEFT", frame, "TOPLEFT", x, form.top)
             end
             form.top = form.top - CHECKBOX_HEIGHT
-        end)
-    end
-
-    -- A frame across the form whose height changes (chips that wrap):
-    -- getHeight() is asked on every Layout; 0 -- it takes no room.
-    function form:Block(control, getHeight)
-        AddStep(function()
-            control:ClearAllPoints()
-            control:SetPoint("TOPLEFT", frame, "TOPLEFT", padding, form.top)
-            control:SetPoint("RIGHT", frame, "RIGHT", -rightInset, 0)
-            local height = getHeight()
-            control:SetHeight(math.max(height, 1))
-            if height > 0 then
-                form.top = form.top - height - ROW_GAP
-            end
         end)
     end
 

@@ -185,9 +185,7 @@ ns.Localization.Add("en", [==[
         "equip_item_note": "Counts as missing while you don't wear it. Drag an item here from your bags or Shift-click it.",
         "source_equip": "Equip it",
         "condition_zones": "Only in Zones",
-        "condition_zones_note": "Type a zone or dungeon name to add it. Empty: any zone.",
-        "zone_add": "+ %s",
-        "zone_add_tooltip": "Add the zone you are in now.",
+        "condition_zones_note": "Type a zone or dungeon name. Backspace removes the last one.",
         "zone_remove_tooltip": "Click to remove this zone.",
         "hidden_zone": "you are in %s, not in the chosen zones",
         "condition_combat": "Combat",
@@ -196,7 +194,9 @@ ns.Localization.Add("en", [==[
         "combat_out": "Only out of combat",
         "condition_combat_note": "The panel changes as combat starts and ends.",
         "hidden_out_of_combat": "only in combat",
-        "hidden_in_combat": "only out of combat"
+        "hidden_in_combat": "only out of combat",
+        "zone_placeholder": "Any zone: click to pick one",
+        "zone_here": "%s (you are here)"
     },
     "grow": {
         "right": "Right",
