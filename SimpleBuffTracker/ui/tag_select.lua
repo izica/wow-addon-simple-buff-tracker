@@ -3,7 +3,7 @@
 -- ui/input.lua) that opens the game's menu (Blizzard_Menu), where the caller
 -- builds whatever it needs -- submenus with checkboxes, a tree. The field
 -- tells how many values are picked; the values themselves stand under it as
--- small bronze-framed badges, in rows. A click on a badge takes it out.
+-- small bronze-framed badges with rounded corners (ui/rounded_rect.lua), in rows. A click on a badge takes it out.
 --
 -- The text holder art is made for one line: it is never stretched, the badges
 -- live outside it.
@@ -27,6 +27,8 @@ local MENU_GAP = 4
 -- the badges: under the art's bottom edge, rows with even gaps
 local BADGES_TOP = PICKER_HEIGHT + ART_OUTSET_BOTTOM + 3
 local BADGE_HEIGHT = 18
+local BADGE_RADIUS = 4
+local BADGE_BORDER = 1
 local BADGE_GAP = 4                 -- between badges in a row
 local ROW_GAP = 4                   -- between rows
 local BADGE_TEXT_PADDING = 6
@@ -64,8 +66,7 @@ local function AddFrameArt(picker)
 end
 
 local function PaintBadge(badge, border, fill)
-    badge.border:SetColorTexture(border[1], border[2], border[3], border[4])
-    badge.fill:SetColorTexture(fill[1], fill[2], fill[3], fill[4])
+    badge.shape:Paint(fill, border)
 end
 
 -- options: placeholder -- the picker's text while nothing is picked,
@@ -128,11 +129,7 @@ function ns.UI.TagSelect(parent, options)
         end
         badge = CreateFrame("Button", nil, field)
         badge:SetHeight(BADGE_HEIGHT)
-        badge.border = badge:CreateTexture(nil, "BACKGROUND")
-        badge.border:SetAllPoints()
-        badge.fill = badge:CreateTexture(nil, "BORDER")
-        badge.fill:SetPoint("TOPLEFT", 1, -1)
-        badge.fill:SetPoint("BOTTOMRIGHT", -1, 1)
+        badge.shape = ns.UI.RoundedRect(badge, BADGE_RADIUS, BADGE_BORDER)
         PaintBadge(badge, BADGE_BORDER_COLOR, BADGE_FILL_COLOR)
         badge.label = badge:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         badge.label:SetPoint("LEFT", BADGE_TEXT_PADDING, 0)
