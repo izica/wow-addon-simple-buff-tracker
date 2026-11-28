@@ -1958,6 +1958,7 @@ def test_zone_condition():
                   if rawget(frame, 'text') == 'Any zone: click to pick zones' then return frame.shown end
               end
           end)()"""))
+    check("the picker says how many zones are picked", has_text(lua, "Zones: 1 (click to change)"))
     check("checked in the continent too, and the continent counts it",
           lua.eval("MenuItem('Eastern Kingdoms (1)', 'Elwynn Forest').isChecked()") is True)
     lua.execute("RunTickers()")

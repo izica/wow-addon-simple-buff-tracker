@@ -1,93 +1,111 @@
--- tag_select.lua -- a field that holds tags and opens a menu: the picked values
--- stand inside the field as small framed tags, an arrow on the right; a click
--- on the field opens the game's menu (Blizzard_Menu, as the dropdowns), where
--- the caller builds whatever it needs -- submenus with checkboxes, a tree.
--- A click on a tag takes it out. The field grows a row when the tags do not
--- fit. The look is the game's dropdown text holder, as our other fields
--- (ui/input.lua), the tags framed in bronze like its edge.
+-- tag_select.lua -- a picker with badges under it: a one-line field in the look
+-- of the game's dropdowns (the same text holder as our other fields,
+-- ui/input.lua) that opens the game's menu (Blizzard_Menu), where the caller
+-- builds whatever it needs -- submenus with checkboxes, a tree. The field
+-- tells how many values are picked; the values themselves stand under it as
+-- small bronze-framed badges, in rows. A click on a badge takes it out.
+--
+-- The text holder art is made for one line: it is never stretched, the badges
+-- live outside it.
 
 local ADDON, ns = ...
 ns.UI = ns.UI or {}
 
 local FRAME_ATLAS = "common-dropdown-textholder"
 local ARROW_TEMPLATE = "WowStyle1ArrowDropdownTemplate"
-local ARROW_WIDTH = 22
-local INSET_LEFT = 8                -- the tags stand clear of the field's bronze edge
-local INSET_TOP = 4
-local INSET_BOTTOM = 4
-local ARROW_GAP = 6                 -- between the last tag of a row and the arrow
-local ARROW_RIGHT = 3
-local TAG_HEIGHT = 18               -- one row: the field is 26 high, as the other fields
-local TAG_GAP = 4                   -- between tags in a row
+-- the picker is a field of the form: 25 high, the art sticks out as on the
+-- dropdowns (Blizzard_Menu/Mainline/MenuTemplates.xml)
+local PICKER_HEIGHT = 25
+local ART_OUTSET_LEFT = 8
+local ART_OUTSET_TOP = 7
+local ART_OUTSET_RIGHT = 8
+local ART_OUTSET_BOTTOM = 9
+local TEXT_INSET = 9
+local ARROW_SIZE = 22
+local ARROW_RIGHT = 2
+local MENU_GAP = 4
+-- the badges: under the art's bottom edge, rows with even gaps
+local BADGES_TOP = PICKER_HEIGHT + ART_OUTSET_BOTTOM + 3
+local BADGE_HEIGHT = 18
+local BADGE_GAP = 4                 -- between badges in a row
 local ROW_GAP = 4                   -- between rows
-local TAG_TEXT_PADDING = 6
+local BADGE_TEXT_PADDING = 6
 local CROSS_SIZE = 10
 local CROSS_GAP = 4
-local MIN_TAG_WIDTH = 30
+local MIN_BADGE_WIDTH = 30
 local FALLBACK_WIDTH = 300          -- before the client laid the field out
-local MENU_GAP = 4
 local CROSS_TEXTURE = "Interface\\Buttons\\UI-StopButton"
-local TAG_BORDER_COLOR = { 0.55, 0.45, 0.25, 1 }     -- the bronze of the field's edge
-local TAG_FILL_COLOR = { 0.08, 0.07, 0.05, 1 }
-local TAG_HOVER_BORDER_COLOR = { 1, 0.82, 0, 1 }
+local BADGE_BORDER_COLOR = { 0.55, 0.45, 0.25, 1 }     -- the bronze of the field's edge
+local BADGE_FILL_COLOR = { 0.12, 0.09, 0.05, 0.95 }
+local BADGE_HOVER_BORDER_COLOR = { 1, 0.82, 0, 1 }
+local BADGE_HOVER_FILL_COLOR = { 0.22, 0.16, 0.06, 0.95 }
 local CROSS_ALPHA = 0.55
 local PLAIN_FILL = { 0, 0, 0, 0.5 }
 local PLAIN_EDGE = { 0.4, 0.4, 0.45, 1 }
 local TOOLTIP_TEXT_COLOR = { 1, 1, 1 }
 
--- the field's frame: the dropdown text holder, or a thin edge without it
-local function AddFrameArt(field)
+-- the picker's frame: the dropdown text holder, or a thin edge without it
+local function AddFrameArt(picker)
     local hasAtlas = C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(FRAME_ATLAS)
     if hasAtlas then
-        local art = field:CreateTexture(nil, "BACKGROUND")
+        local art = picker:CreateTexture(nil, "BACKGROUND")
         art:SetAtlas(FRAME_ATLAS)
-        art:SetPoint("TOPLEFT", -8, 7)
-        art:SetPoint("BOTTOMRIGHT", 8, -9)
+        art:SetPoint("TOPLEFT", -ART_OUTSET_LEFT, ART_OUTSET_TOP)
+        art:SetPoint("BOTTOMRIGHT", ART_OUTSET_RIGHT, -ART_OUTSET_BOTTOM)
         return
     end
-    local edge = field:CreateTexture(nil, "BACKGROUND")
+    local edge = picker:CreateTexture(nil, "BACKGROUND")
     edge:SetAllPoints()
     edge:SetColorTexture(PLAIN_EDGE[1], PLAIN_EDGE[2], PLAIN_EDGE[3], PLAIN_EDGE[4])
-    local fill = field:CreateTexture(nil, "BORDER")
+    local fill = picker:CreateTexture(nil, "BORDER")
     fill:SetPoint("TOPLEFT", 1, -1)
     fill:SetPoint("BOTTOMRIGHT", -1, 1)
     fill:SetColorTexture(PLAIN_FILL[1], PLAIN_FILL[2], PLAIN_FILL[3], PLAIN_FILL[4])
 end
 
-local function PaintTagBorder(tag, color)
-    tag.border:SetColorTexture(color[1], color[2], color[3], color[4])
+local function PaintBadge(badge, border, fill)
+    badge.border:SetColorTexture(border[1], border[2], border[3], border[4])
+    badge.fill:SetColorTexture(fill[1], fill[2], fill[3], fill[4])
 end
 
--- options: placeholder -- shown while there are no tags, removeTooltip,
+-- options: placeholder -- the picker's text while nothing is picked,
+-- summary(count) -- its text with picks, removeTooltip,
 -- buildMenu(rootDescription) -- the menu (MenuUtil element descriptions),
--- onRemove(index) -- a tag clicked.
--- field:SetTags({ text, ... }), field:GetContentHeight(), field:RefreshMenu(),
--- field.BuildMenu -- the menu builder (the tests walk it without the game's menu).
+-- onRemove(index) -- a badge clicked.
+-- field:SetTags({ { text }, ... }), field:GetContentHeight() -- the picker and
+-- the badges, field:RefreshMenu(), field.BuildMenu -- the menu builder (the
+-- tests walk it without the game's menu).
 function ns.UI.TagSelect(parent, options)
-    local field = CreateFrame("Button", nil, parent)
-    AddFrameArt(field)
-    local tags = {}            -- every tag button made, reused
-    local rowCount = 1
+    local field = CreateFrame("Frame", nil, parent)
+    local badges = {}          -- every badge made, reused
+    local rowCount = 0
     field.BuildMenu = options.buildMenu
 
-    local placeholder = field:CreateFontString(nil, "OVERLAY", "GameFontDisable")
-    placeholder:SetPoint("TOPLEFT", INSET_LEFT, -INSET_TOP - 3)
-    placeholder:SetText(options.placeholder or "")
+    local picker = CreateFrame("Button", nil, field)
+    picker:SetPoint("TOPLEFT")
+    picker:SetPoint("TOPRIGHT")
+    picker:SetHeight(PICKER_HEIGHT)
+    AddFrameArt(picker)
 
-    -- the game's dropdown arrow: it owns the menu; the whole field opens it
-    local ok, arrow = pcall(CreateFrame, "DropdownButton", nil, field, ARROW_TEMPLATE)
+    local pickerText = picker:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    pickerText:SetPoint("LEFT", TEXT_INSET, 0)
+    pickerText:SetPoint("RIGHT", -(ARROW_RIGHT + ARROW_SIZE + 4), 0)
+    pickerText:SetJustifyH("LEFT")
+    pickerText:SetWordWrap(false)
+
+    -- the game's dropdown arrow: it owns the menu; the whole picker opens it
+    local ok, arrow = pcall(CreateFrame, "DropdownButton", nil, picker, ARROW_TEMPLATE)
     local hasMenu = ok and arrow ~= nil and arrow.SetupMenu ~= nil
     if hasMenu then
-        arrow:SetSize(ARROW_WIDTH, ARROW_WIDTH)
-        -- centred on the first row, inside the edge
-        arrow:SetPoint("TOPRIGHT", -ARROW_RIGHT, -(INSET_TOP + (TAG_HEIGHT - ARROW_WIDTH) / 2))
+        arrow:SetSize(ARROW_SIZE, ARROW_SIZE)
+        arrow:SetPoint("RIGHT", -ARROW_RIGHT, 0)
         arrow:SetupMenu(function(_, rootDescription)
             options.buildMenu(rootDescription)
         end)
         if arrow.SetMenuAnchor and AnchorUtil and AnchorUtil.CreateAnchor then
-            arrow:SetMenuAnchor(AnchorUtil.CreateAnchor("TOPLEFT", field, "BOTTOMLEFT", 0, -MENU_GAP))
+            arrow:SetMenuAnchor(AnchorUtil.CreateAnchor("TOPLEFT", picker, "BOTTOMLEFT", 0, -MENU_GAP))
         end
-        field:SetScript("OnClick", function()
+        picker:SetScript("OnClick", function()
             if arrow:IsMenuOpen() then
                 arrow:CloseMenu()
             else
@@ -103,30 +121,29 @@ function ns.UI.TagSelect(parent, options)
         end
     end
 
-    local function GetTag(index)
-        local tag = tags[index]
-        if tag then
-            return tag
+    local function GetBadge(index)
+        local badge = badges[index]
+        if badge then
+            return badge
         end
-        tag = CreateFrame("Button", nil, field)
-        tag:SetHeight(TAG_HEIGHT)
-        tag.border = tag:CreateTexture(nil, "BACKGROUND")
-        tag.border:SetAllPoints()
-        tag.fill = tag:CreateTexture(nil, "BORDER")
-        tag.fill:SetPoint("TOPLEFT", 1, -1)
-        tag.fill:SetPoint("BOTTOMRIGHT", -1, 1)
-        tag.fill:SetColorTexture(TAG_FILL_COLOR[1], TAG_FILL_COLOR[2], TAG_FILL_COLOR[3], TAG_FILL_COLOR[4])
-        PaintTagBorder(tag, TAG_BORDER_COLOR)
-        tag.label = tag:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        tag.label:SetPoint("LEFT", TAG_TEXT_PADDING, 0)
-        tag.cross = tag:CreateTexture(nil, "OVERLAY")
-        tag.cross:SetTexture(CROSS_TEXTURE)
-        tag.cross:SetSize(CROSS_SIZE, CROSS_SIZE)
-        tag.cross:SetPoint("RIGHT", -TAG_TEXT_PADDING + 2, 0)
-        tag.cross:SetAlpha(CROSS_ALPHA)
+        badge = CreateFrame("Button", nil, field)
+        badge:SetHeight(BADGE_HEIGHT)
+        badge.border = badge:CreateTexture(nil, "BACKGROUND")
+        badge.border:SetAllPoints()
+        badge.fill = badge:CreateTexture(nil, "BORDER")
+        badge.fill:SetPoint("TOPLEFT", 1, -1)
+        badge.fill:SetPoint("BOTTOMRIGHT", -1, 1)
+        PaintBadge(badge, BADGE_BORDER_COLOR, BADGE_FILL_COLOR)
+        badge.label = badge:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        badge.label:SetPoint("LEFT", BADGE_TEXT_PADDING, 0)
+        badge.cross = badge:CreateTexture(nil, "OVERLAY")
+        badge.cross:SetTexture(CROSS_TEXTURE)
+        badge.cross:SetSize(CROSS_SIZE, CROSS_SIZE)
+        badge.cross:SetPoint("RIGHT", -BADGE_TEXT_PADDING + 2, 0)
+        badge.cross:SetAlpha(CROSS_ALPHA)
 
-        tag:SetScript("OnEnter", function(self)
-            PaintTagBorder(self, TAG_HOVER_BORDER_COLOR)
+        badge:SetScript("OnEnter", function(self)
+            PaintBadge(self, BADGE_HOVER_BORDER_COLOR, BADGE_HOVER_FILL_COLOR)
             self.cross:SetAlpha(1)
             if options.removeTooltip then
                 GameTooltip:SetOwner(self, "ANCHOR_TOP")
@@ -135,17 +152,17 @@ function ns.UI.TagSelect(parent, options)
                 GameTooltip:Show()
             end
         end)
-        tag:SetScript("OnLeave", function(self)
-            PaintTagBorder(self, TAG_BORDER_COLOR)
+        badge:SetScript("OnLeave", function(self)
+            PaintBadge(self, BADGE_BORDER_COLOR, BADGE_FILL_COLOR)
             self.cross:SetAlpha(CROSS_ALPHA)
             GameTooltip:Hide()
         end)
-        tag:SetScript("OnClick", function(self)
+        badge:SetScript("OnClick", function(self)
             GameTooltip:Hide()
             options.onRemove(self.index)
         end)
-        tags[index] = tag
-        return tag
+        badges[index] = badge
+        return badge
     end
 
     local function RowWidth()
@@ -153,42 +170,57 @@ function ns.UI.TagSelect(parent, options)
         if not width or width <= 0 then
             width = FALLBACK_WIDTH
         end
-        return width - INSET_LEFT - ARROW_GAP - ARROW_WIDTH - ARROW_RIGHT
+        return width
     end
 
-    -- the tags in rows; the form lays the field out by GetContentHeight
+    -- the picker's text and the badges in rows; the form lays the field out
+    -- by GetContentHeight
     function field:SetTags(list)
+        if #list == 0 then
+            pickerText:SetFontObject("GameFontDisableSmall")
+            pickerText:SetText(options.placeholder or "")
+        else
+            pickerText:SetFontObject("GameFontHighlightSmall")
+            pickerText:SetText(options.summary and options.summary(#list) or "")
+        end
+
         local rowWidth = RowWidth()
         local x = 0
         local row = 0
         for index, entry in ipairs(list) do
-            local tag = GetTag(index)
-            tag.index = index
-            tag.label:SetText(entry.text)
-            tag.text = entry.text   -- what the tag says (the tests click tags by it)
-            local textWidth = tag.label:GetStringWidth() or 0
-            local width = math.max(MIN_TAG_WIDTH, textWidth + TAG_TEXT_PADDING * 2 + CROSS_GAP + CROSS_SIZE)
+            local badge = GetBadge(index)
+            badge.index = index
+            badge.label:SetText(entry.text)
+            badge.text = entry.text   -- what the badge says (the tests click badges by it)
+            local textWidth = badge.label:GetStringWidth() or 0
+            local width = math.max(MIN_BADGE_WIDTH, textWidth + BADGE_TEXT_PADDING * 2 + CROSS_GAP + CROSS_SIZE)
             width = math.min(width, rowWidth)
-            tag:SetWidth(width)
+            badge:SetWidth(width)
             if x > 0 and x + width > rowWidth then
                 x = 0
                 row = row + 1
             end
-            tag:ClearAllPoints()
-            tag:SetPoint("TOPLEFT", field, "TOPLEFT", INSET_LEFT + x, -INSET_TOP - row * (TAG_HEIGHT + ROW_GAP))
-            tag:Show()
-            x = x + width + TAG_GAP
+            badge:ClearAllPoints()
+            badge:SetPoint("TOPLEFT", field, "TOPLEFT", x, -BADGES_TOP - row * (BADGE_HEIGHT + ROW_GAP))
+            badge:Show()
+            x = x + width + BADGE_GAP
         end
-        for index = #list + 1, #tags do
-            tags[index]:Hide()
+        for index = #list + 1, #badges do
+            badges[index]:Hide()
         end
-        placeholder:SetShown(#list == 0)
-        rowCount = row + 1
+        if #list == 0 then
+            rowCount = 0
+        else
+            rowCount = row + 1
+        end
     end
 
-    -- the height of the field: its rows, the gaps between them and the insets
+    -- the picker alone, or the picker and the rows of badges under it
     function field:GetContentHeight()
-        return INSET_TOP + rowCount * TAG_HEIGHT + (rowCount - 1) * ROW_GAP + INSET_BOTTOM
+        if rowCount == 0 then
+            return PICKER_HEIGHT
+        end
+        return BADGES_TOP + rowCount * BADGE_HEIGHT + (rowCount - 1) * ROW_GAP
     end
 
     field:SetTags({})

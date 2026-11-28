@@ -212,11 +212,12 @@ buff = { target = { spellId, name } | { weapon = "mainhand"|"offhand" } | { isEq
 * **Зоны** (`conditions.zones = { { mapId, name } }`, пусто — любая): `dataflows/zones.lua` на `C_Map`. Где
   игрок — текущая карта и **все карты над ней** (`Zones.Here`): выбранный Элвиннский лес держит и Златоземье.
   Дерево для пикера — `Zones.Tree()`: материки (`GetMapChildrenInfo(корень, Continent, true)`), в каждом зоны
-  (Zone) и подземелья (Dungeon) по имени, читается раз. Пикер — `ui/tag_select.lua`: выбранные зоны метками в
-  бронзовой рамке внутри поля, стрелка справа; клик по полю открывает меню игры (`WowStyle1ArrowDropdownTemplate`,
+  (Zone) и подземелья (Dungeon) по имени, читается раз. Пикер — `ui/tag_select.lua`: поле в одну строку, как
+  у селектов («Любая зона…» или «Зон выбрано: N»), стрелка справа; выбранные зоны — бейджи в бронзовой рамке
+  рядами **под** полем (арт поля рассчитан на одну строку и не растягивается); клик по полю открывает меню игры (`WowStyle1ArrowDropdownTemplate`,
   `SetupMenu`, якорь под полем): сверху «Зона (вы здесь)» галочкой, дальше подменю материков («Калимдор (2)» —
   сколько выбрано), в них зоны галочками и подменю «Подземелья и рейды». Галочка меню не закрывает
-  (`MenuResponse.Refresh` по умолчанию у `CreateCheckbox`). Клик по метке убирает зону. Тесты обходят меню через
+  (`MenuResponse.Refresh` по умолчанию у `CreateCheckbox`). Клик по бейджу убирает зону. Тесты обходят меню через
   `field.BuildMenu` на табличках-описаниях. Без `C_Map` — по имени (`GetRealZoneText`).
 * **Бой** (`conditions.combat = "in"|"out"`): флаг боя — из событий (`BuffConditions.SetInCombat` в
   `events/conditions.lua`), не `InCombatLockdown`. Панель перекладывается на `PLAYER_REGEN_DISABLED` — последний

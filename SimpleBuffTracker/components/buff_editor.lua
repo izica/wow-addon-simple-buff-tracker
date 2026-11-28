@@ -693,6 +693,9 @@ function BuffEditor.Create(parent, options)
     local zoneLabel = form:Label(Text("settings.condition_zones"))
     local zoneField = ns.UI.TagSelect(page, {
         placeholder = Text("settings.zone_placeholder"),
+        summary = function(count)
+            return Text("settings.zone_summary", count)
+        end,
         removeTooltip = Text("settings.zone_remove_tooltip"),
         buildMenu = BuildZoneMenu,
         onRemove = function(index)
@@ -889,7 +892,7 @@ function BuffEditor.Create(parent, options)
             placesNote:SetTextColor(HINT_COLOR[1], HINT_COLOR[2], HINT_COLOR[3])
         end
 
-        -- the zones picked, as tags in their field
+        -- the zones picked, as badges under the picker
         local zoneTags = {}
         for _, zone in ipairs(conditions.zones or {}) do
             table.insert(zoneTags, { text = zone.name })

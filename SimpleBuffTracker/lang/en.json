@@ -178,7 +178,7 @@
         "equip_item_note": "Counts as missing while you don't wear it. Drag an item here from your bags or Shift-click it.",
         "source_equip": "Equip it",
         "condition_zones": "Only in Zones",
-        "condition_zones_note": "Pick by continent; a click on a zone tag removes it.",
+        "condition_zones_note": "Pick by continent; click a zone below to remove it.",
         "zone_remove_tooltip": "Click to remove this zone.",
         "hidden_zone": "you are in %s, not in the chosen zones",
         "condition_combat": "Combat",
@@ -196,7 +196,8 @@
         "mode_default": "As the panel: %s",
         "buff_glow": "Glow",
         "buff_glow_effect": "Glow Effect",
-        "glow_when_default": "As the panel: when missing or expiring"
+        "glow_when_default": "As the panel: when missing or expiring",
+        "zone_summary": "Zones: %d (click to change)"
     },
     "grow": {
         "right": "Right",
